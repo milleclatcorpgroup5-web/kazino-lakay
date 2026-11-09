@@ -1,0 +1,10 @@
+name = "kazino-lakay-api"
+main = "src/index.js"
+compatibility_date = "2026-11-09"
+workers_dev = true
+
+[vars]
+FIREBASE_PROJECT_ID = "replace-with-your-firebase-project-id"
+FIREBASE_CLIENT_EMAIL = "firebase-worker@your-project.iam.gserviceaccount.com"
+ALLOWED_ORIGINS = "https://your-pages-domain.pages.dev,http://localhost:5173"
+INITIAL_ADMIN_EMAILS = ""
