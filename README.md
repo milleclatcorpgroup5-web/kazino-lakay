@@ -1,4 +1,4 @@
-# KAZINO LAKAY — V1.2 (Worker + frontend ansanm)
+# KAZINO LAKAY — V1.2.2 (Worker + frontend ansanm)
 
 Pwojè sa a prepare pou deplwaye **yon sèl Cloudflare Worker** ki sèvi toude:
 
@@ -28,7 +28,7 @@ Sa se yon jwèt demonstrasyon ak pwen ki **pa gen valè lajan**. Pa gen depo, re
 2. Nan **Project settings > General > Your apps**, pran valè Web App sa yo: `apiKey`, `authDomain`, `projectId`, `appId`.
 3. Nan **Authentication > Sign-in method**, aktive **Email/Password**.
 4. Asire Cloud Firestore deja kreye nan Native mode.
-5. Nan **Firestore Database > Rules**, pibliye règ ki nan `firestore.rules`.
+5. Nan **Firestore Database > Rules**, pibliye règ ki nan `firestore.rules`. Règ yo bloke aksè dirèk navigatè a; Worker la sèvi ak service account IAM pou operasyon Firestore.
 
 Règ Firestore yo pa bay mesaj “Wout API sa a pa egziste”. Yo kontwole aksè kliyan dirèk. Worker la sèvi ak yon service account Google Cloud pou ekri nan Firestore atravè API Google la; IAM service account lan kontwole aksè sa a. `firestore.indexes.json` gen endèks konpoze istwa jwèt la; ou ka aplike li ak Firebase CLI (`firebase deploy --only firestore:indexes`) oswa kreye menm endèks la nan Firestore Console si Firebase mande sa.
 
@@ -100,7 +100,7 @@ Lè deplwaman an reyisi, louvri adrès Worker la:
 - Sit aplikasyon an: `https://kazino-lakay.milleclatcorpgroup5.workers.dev/`
 - Tès API: `https://kazino-lakay.milleclatcorpgroup5.workers.dev/api/health`
 
-Rasin `/` la dwe sèvi `index.html` frontend lan. `GET /api/health` dwe retounen JSON ki gen `status: "ok"`.
+Rasin `/` la dwe sèvi `index.html` frontend lan. `GET /api/health` dwe retounen JSON ki gen `status: "ok"`, `gamesEnabled: true` ak `gameCount: 17`. `GET /api/games` bay lis 17 jwèt Worker la konnen.
 
 `firebaseConfigured: false` nan repons health la vle di youn oswa plizyè runtime Variable/Secret Firebase poko mete. `true` vle di non valè yo prezan; sa pa verifye IAM oswa kle a. Health endpoint la ka mache menm anvan Firebase konekte nèt.
 
