@@ -1,25 +1,10 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function signedIn() {
-      return request.auth != null;
-    }
-
-    match /users/{uid} {
-      allow get: if signedIn() && request.auth.uid == uid;
-      allow list, create, update, delete: if false;
-    }
-
-    match /walletTransactions/{transactionId} {
-      allow get, list: if signedIn() && resource.data.uid == request.auth.uid;
-      allow create, update, delete: if false;
-    }
-
-    match /gameRounds/{roundId} {
-      allow get, list: if signedIn() && resource.data.uid == request.auth.uid;
-      allow create, update, delete: if false;
-    }
-
+    // Kazino Lakay pa li/ekri Firestore dirèkteman nan navigatè a.
+    // Tout operasyon sou pwofil, balans, wonn ak tranzaksyon pase nan Worker la.
+    // Worker la verifye Firebase ID token epi li sèvi ak service account IAM.
+    // Règ sa yo bloke tout aksè dirèk nan Firebase Web SDK.
     match /{document=**} {
       allow read, write: if false;
     }
