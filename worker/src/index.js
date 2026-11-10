@@ -23,13 +23,14 @@ function allowedOrigins(env) {
 }
 function corsHeaders(request, env) {
   const origin = request.headers.get('Origin') || '';
+  const requestOrigin = new URL(request.url).origin;
   const allowed = allowedOrigins(env);
-  const ok = allowed.includes('*') || allowed.includes(origin);
+  const ok = origin && (origin === requestOrigin || allowed.includes('*') || allowed.includes(origin));
   return {
     'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
     'Access-Control-Allow-Headers': 'Authorization,Content-Type',
     'Access-Control-Max-Age': '86400',
-    ...(ok && origin ? { 'Access-Control-Allow-Origin': origin, 'Vary': 'Origin' } : {})
+    ...(ok ? { 'Access-Control-Allow-Origin': origin, 'Vary': 'Origin' } : {})
   };
 }
 
@@ -251,7 +252,7 @@ export function resolveGame(gameId, stake, choice = {}) {
       if (!Number.isInteger(standAt) || standAt < 12 || standAt > 20) throw new HttpError(400, 'Chwazi yon limit ant 12 ak 20.');
       const draw = () => card();
       const handValue = (hand) => {
-        let total = hand.reduce((sum, c) => sum + (c.rank > 10 ? 10 : c.rank === 14 ? 11 : c.rank), 0);
+        let total = hand.reduce((sum, c) => sum + (c.rank === 14 ? 11 : c.rank > 10 ? 10 : c.rank), 0);
         let aces = hand.filter((c) => c.rank === 14).length;
         while (total > 21 && aces > 0) { total -= 10; aces--; }
         return total;
@@ -422,9 +423,24 @@ async function getHistory(uid, env) {
   return (rows || []).filter((row) => row.document).map((row) => fsDocumentFields(row.document));
 }
 
+function apiStatus(env) {
+  return {
+    service: 'kazino-lakay',
+    status: 'ok',
+    mode: 'points-only',
+    cashValue: false,
+    firebaseConfigured: Boolean(env.FIREBASE_PROJECT_ID && env.FIREBASE_CLIENT_EMAIL && env.FIREBASE_PRIVATE_KEY),
+    endpoints: ['/api/health', '/api/profile/bootstrap', '/api/me', '/api/history', '/api/games/play']
+  };
+}
+
 async function route(request, env) {
   const url = new URL(request.url);
-  if (url.pathname === '/api/health' && request.method === 'GET') return json({ service: 'kazino-lakay-api', status: 'ok', mode: 'points-only', cashValue: false });
+  // These are API-only fallbacks. In production, / is normally served as dist/index.html
+  // by Workers Static Assets before this Worker is invoked.
+  if ((url.pathname === '/' || url.pathname === '/api' || url.pathname === '/health' || url.pathname === '/api/health') && request.method === 'GET') {
+    return json(apiStatus(env));
+  }
   if (url.pathname === '/api/profile/bootstrap' && request.method === 'POST') {
     const identity = await verifyFirebaseIdToken(request, env, false);
     const profile = await bootstrapProfile(request, env, identity);
@@ -470,7 +486,7 @@ async function route(request, env) {
     ], env);
     return json({ roundId, balancePoints: newBalance, result: game.result });
   }
-  throw new HttpError(404, 'Adrès API sa a pa egziste.');
+  throw new HttpError(404, 'Wout API sa a pa egziste. Wout disponib: GET /api/health, POST /api/profile/bootstrap, GET /api/me, GET /api/history, POST /api/games/play.');
 }
 
 class HttpError extends Error {
@@ -482,8 +498,11 @@ export default {
     const cors = corsHeaders(request, env);
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
     const origin = request.headers.get('Origin');
+    const requestOrigin = new URL(request.url).origin;
     const allow = allowedOrigins(env);
-    if (origin && !allow.includes('*') && !allow.includes(origin)) return json({ error: 'Orijin sa a pa otorize.' }, 403, cors);
+    if (origin && origin !== requestOrigin && !allow.includes('*') && !allow.includes(origin)) {
+      return json({ error: 'Orijin sa a pa otorize.' }, 403, cors);
+    }
     try {
       const response = await route(request, env);
       const headers = new Headers(response.headers);
