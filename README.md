@@ -1,78 +1,145 @@
-# Kazino Lakay — enfrastrikti V1.1
+# KAZINO LAKAY — V1.2 (Worker + frontend ansanm)
 
-Nouvo baz aplikasyon an itilize:
+Pwojè sa a prepare pou deplwaye **yon sèl Cloudflare Worker** ki sèvi toude:
 
-- Cloudflare Pages pou frontend Vite la.
-- Cloudflare Workers pou API ak motè rezilta jwèt la.
-- Firebase Authentication pou kont jwè yo (imel/modpas).
-- Cloud Firestore pou pwofil, balans pwen, wonn ak jounal tranzaksyon.
-- GitHub pou konsève kòd la epi konekte li ak deplwaman otomatik.
+- sit entènèt jwèt la (Vite, dosye ki soti nan `dist/`);
+- API backend la (`/api/*`);
+- Firebase Authentication pou kont jwè yo;
+- Cloud Firestore pou pwofil, pwen jwèt, wonn ak tranzaksyon.
 
-## Enpòtan sou pwen jwèt yo
+Ou pa bezwen kreye yon lòt Cloudflare Pages project. Worker `kazino-lakay` la sèvi sit entènèt la ak API a sou menm adrès `workers.dev` la. Sa retire bezwen pou mete yon adrès API apa nan frontend lan.
 
-Pwojè sa a se yon platfòm jwèt ak pwen ki pa gen valè lajan. Pwen yo pa ka achte, vann, transfere, retire oswa konvèti an lajan. Pa gen depo oswa retrè lajan ki aplike. Pa konekte yon processeur peman oswa fonksyon cash-out.
+## Limit pwodwi a
 
-## 1. Enstalasyon lokal
+Sa se yon jwèt demonstrasyon ak pwen ki **pa gen valè lajan**. Pa gen depo, retrè, transfè, acha, vann oswa konvèsyon pwen an lajan. Pa gen koneksyon MonCash, NatCash, kat labank oswa lòt processeur peman. Pa sèvi ak pwojè sa a pou lajan reyèl.
+
+## Fichye enpòtan yo
+
+- `src/`: frontend Vite, Firebase client, API client ak katalòg 17 jwèt yo.
+- `worker/src/index.js`: Cloudflare Worker API ak kalkil jwèt sou sèvè.
+- `worker/wrangler.toml`: non Worker la, dosye `dist/` la ak règ routaj API/assets yo.
+- `firestore.rules`: bloke ekriti dirèk kliyan nan done sansib yo.
+- `worker/.dev.vars.example`: egzanp varyab lokal Worker la.
+- `.env.example`: egzanp konfigirasyon Firebase pou build Vite lokal.
+
+## 1. Firebase
+
+1. Louvri pwojè Firebase Kazino Lakay ou deja kreye a.
+2. Nan **Project settings > General > Your apps**, pran valè Web App sa yo: `apiKey`, `authDomain`, `projectId`, `appId`.
+3. Nan **Authentication > Sign-in method**, aktive **Email/Password**.
+4. Asire Cloud Firestore deja kreye nan Native mode.
+5. Nan **Firestore Database > Rules**, pibliye règ ki nan `firestore.rules`.
+
+Règ Firestore yo pa bay mesaj “Wout API sa a pa egziste”. Yo kontwole aksè kliyan dirèk. Worker la sèvi ak yon service account Google Cloud pou ekri nan Firestore atravè API Google la; IAM service account lan kontwole aksè sa a. `firestore.indexes.json` gen endèks konpoze istwa jwèt la; ou ka aplike li ak Firebase CLI (`firebase deploy --only firestore:indexes`) oswa kreye menm endèks la nan Firestore Console si Firebase mande sa.
+
+## 2. Google service account pou Worker la
+
+Backend la bezwen yon service account pou ekri pwofil, pwen ak istwa nan Firestore.
+
+1. Nan Google Cloud Console, chwazi menm pwojè Firebase la.
+2. Louvri **IAM & Admin > Service Accounts** epi kreye yon service account pou `kazino-lakay`.
+3. Bay li wòl **Cloud Datastore User** (`roles/datastore.user`) sou pwojè a. Pa bay li Owner oswa Editor.
+4. Kreye yon kle JSON pou service account lan. Kenbe fichye JSON sa a prive.
+5. Pran sèlman `client_email` ak `private_key` ladan l pou mete yo nan Cloudflare selon seksyon 4 la.
+
+**Pa janm** mete fichye JSON service account lan nan GitHub, nan ZIP piblik, nan frontend, oswa nan mesaj ChatGPT. Pa mete `private_key` nan `wrangler.toml`.
+
+## 3. GitHub Workers Builds
+
+Repo a dwe genyen `package.json` nan rasin li. Nan Cloudflare Worker `kazino-lakay` la, konekte repo GitHub `milleclatcorpgroup5-web/kazino-lakay` epi itilize:
+
+| Chan Cloudflare | Valè |
+|---|---|
+| Branch | `main` |
+| Root directory | `/` oswa rasin repo a |
+| Build command | `npm run build` |
+| Deploy command | `npm run deploy:worker` |
+| Preview builds | Kite yo dezaktive pou premye deplwaman an |
+
+`npm run build` verifye sentaks, lanse tès motè jwèt yo, epi konstwi sit entènèt la nan `dist/`.
+`npm run deploy:worker` deplwaye Worker la ak `worker/wrangler.toml`.
+
+Pa mete `npx wrangler deploy` san `--config` kòm deploy command pou pwojè sa a. Script `deploy:worker` la deja chwazi bon fichye konfigirasyon an.
+
+## 4. Cloudflare: Build Variables ak Worker Variables/Secrets
+
+Gen de kalite paramèt diferan. Pa melanje yo.
+
+### A. Build Variables (pou frontend Firebase)
+
+Nan paramèt **Builds** Worker la, mete 4 valè Web App Firebase yo:
+
+- `VITE_FIREBASE_API_KEY` = Firebase Web App `apiKey`
+- `VITE_FIREBASE_AUTH_DOMAIN` = Firebase Web App `authDomain`
+- `VITE_FIREBASE_PROJECT_ID` = Firebase `projectId`
+- `VITE_FIREBASE_APP_ID` = Firebase Web App `appId`
+
+Sa yo se konfigirasyon Web App ki piblik nan frontend. Pa mete service-account private key la isit la.
+
+### B. Runtime Variables & Secrets (pou backend Worker la)
+
+Nan **Worker > Settings > Variables and Secrets**, ajoute:
+
+**Variables (text):**
+
+- `FIREBASE_PROJECT_ID` = menm Firebase project ID a
+- `FIREBASE_CLIENT_EMAIL` = `client_email` service account lan
+- `INITIAL_ADMIN_EMAILS` = adrès imel administratè a (si sa nesesè; verifye imel la anvan)
+- `ALLOWED_ORIGINS` = kite vid pou menm-orijin Worker la; sèlman ajoute lòt domain si ou sèvi ak yon frontend sou yon lòt adrès
+
+**Secret (encrypted):**
+
+- `FIREBASE_PRIVATE_KEY` = tout valè `private_key` service account lan, ak liy `BEGIN PRIVATE KEY` ak `END PRIVATE KEY` yo.
+
+Nan `worker/wrangler.toml`, `keep_vars = true` pèmèt varyab Dashboard yo rete la lè Wrangler deplwaye nouvo kòd la. Secret yo pa ekri nan Git.
+
+## 5. Adrès aplikasyon an ak API a
+
+Lè deplwaman an reyisi, louvri adrès Worker la:
+
+- Sit aplikasyon an: `https://kazino-lakay.milleclatcorpgroup5.workers.dev/`
+- Tès API: `https://kazino-lakay.milleclatcorpgroup5.workers.dev/api/health`
+
+Rasin `/` la dwe sèvi `index.html` frontend lan. `GET /api/health` dwe retounen JSON ki gen `status: "ok"`.
+
+`firebaseConfigured: false` nan repons health la vle di youn oswa plizyè runtime Variable/Secret Firebase poko mete. `true` vle di non valè yo prezan; sa pa verifye IAM oswa kle a. Health endpoint la ka mache menm anvan Firebase konekte nèt.
+
+Frontend lan rele API a sou menm domain lan avèk chemen tankou `/api/me` ak `/api/games/play`. Se poutèt sa `VITE_API_BASE_URL` pa obligatwa.
+
+## 6. Devlopman lokal
 
 ```bash
 npm install
 cp .env.example .env.local
+cp worker/.dev.vars.example worker/.dev.vars
 ```
 
-Ranpli valè Firebase Web App yo nan `.env.local`, ansanm ak URL Worker API a. Apre sa:
+Ranpli `.env.local` avèk kat valè Firebase Web App yo. Ranpli `worker/.dev.vars` avèk runtime Firebase yo. Pa janm commit `.env.local` oswa `worker/.dev.vars`.
+
+Apre sa:
 
 ```bash
 npm run dev
+```
+
+Pou teste API Worker la lokalman, itilize yon dezyèm tèminal:
+
+```bash
+npx wrangler dev --config worker/wrangler.toml
+```
+
+Pou tès ak build:
+
+```bash
+npm run check
+npm test
 npm run build
 ```
 
-## 2. Firebase
+## 7. Sa ki verifye ak sa ki poko verifye
 
-1. Kreye yon pwojè Firebase apa pou Kazino Lakay.
-2. Ajoute yon Web App epi pran valè `apiKey`, `authDomain`, `projectId`, ak `appId`.
-3. Nan Authentication, aktive founisè Email/Password.
-4. Kreye Cloud Firestore nan Native mode.
-5. Aplike `firestore.rules` yo. Règ yo bloke tout ekriti dirèk kliyan; Worker la se sèl kanal ekriti pou balans ak rezilta.
-6. Kreye yon service account Google Cloud ki gen sèlman wòl ki nesesè pou li/ekri Firestore (pa bay Owner oswa Editor san nesesite).
+Tès lokal yo verifye sentaks JavaScript, 17 rezolisyon jwèt yo (100 wonn pa jwèt nan tès la), validasyon kèk chwa, endpoint health, root fallback ak CORS debaz.
 
-## 3. Cloudflare Worker API
+Tès sa yo **pa** pwouve koneksyon reyèl ak Firebase, otorizasyon service account IAM, imèl verifikasyon sou kont reyèl, ni deplwaman Cloudflare. Apre mete tout varyab ak sekrè yo, fè yon tès kont jwè reyèl ak yon kantite pwen demonstrasyon.
 
-Konfigire `worker/wrangler.toml` ak pwojè Firebase la. Mete sekrè sa yo nan Worker Settings > Variables and Secrets:
-
-- `FIREBASE_PRIVATE_KEY` kòm **Secret**.
-
-`FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `INITIAL_ADMIN_EMAILS`, ak `ALLOWED_ORIGINS` se varyab nòmal. Pa janm mete kle prive a nan Git oswa nan `wrangler.toml`.
-
-Pou devlopman lokal, kopye `worker/.dev.vars.example` kòm `worker/.dev.vars`, ranpli valè yo, epi pa janm ajoute fichye sa a nan Git.
-
-Worker la verifye Firebase ID token, verifye imel pou jwe, jenere rezilta ak `crypto.getRandomValues`, epi fè mizajou balans + jwèt + ledger nan yon sèl Firestore commit ki gen precondition `updateTime`.
-
-## 4. Cloudflare Pages
-
-- Build command: `npm run build`
-- Build output directory: `dist`
-- Root directory: `/`
-- Mete `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_APP_ID`, ak `VITE_API_BASE_URL` kòm build variables.
-
-Konekte Pages ak repo GitHub la pou preview ak deplwaman otomatik sou chak push.
-
-## 5. Tès ak kondisyon anvan piblikasyon
-
-- Teste enskripsyon, koneksyon, verifikasyon imel ak dekoneksyon.
-- Verifye yon jwè pa kapab modifye `pointsBalance` dirèkteman nan Firebase.
-- Teste demann paralèl pou asire balans pa depanse de fwa.
-- Teste tout 17 rezolisyon jwèt yo ak limit stake yo.
-- Ajoute tès otomatik pou Firestore Rules, token expiry, CORS, validasyon ak balans.
-- Ajoute rate limiting, App Check, siveyans ak backup anvan piblikasyon piblik.
-- Konfigire wòl administratè yo sèlman atravè sekrè `INITIAL_ADMIN_EMAILS`; pa janm kite premye enskripsyon vin admin otomatikman.
-
-## Dosye
-
-- `src/`: frontend, Firebase client, API client ak katalòg jwèt.
-- `worker/src/index.js`: Worker API, verifikasyon token, koneksyon Firestore ak motè jwèt server-side.
-- `firestore.rules`: règ sekirite Firestore.
-- `worker/wrangler.toml`: konfigirasyon deplwaman Worker.
-
-## Limit aktyèl baz la
-
-Koneksyon Firebase, sekrè Cloudflare, repo GitHub ak domèn Pages poko mare ak kont itilizatè a. Se poutèt sa aplikasyon an poko kapab konekte ak yon pwojè reyèl jiskaske valè ak otorizasyon sa yo mete. Pa gen modil peman oswa retrè lajan reyèl.
+Pa pibliye kòm sèvis lajan reyèl. Nenpòt pwojè ki ta pèmèt jwe pou lajan ta bezwen revizyon legal/regilasyon, lisans ki aplikab, jwèt/RNG endepandamman verifye, kontwòl KYC/AML, pwoteksyon jwè ak entegrasyon peman ki sekirize. Tout eleman sa yo pa nan pake sa a.
