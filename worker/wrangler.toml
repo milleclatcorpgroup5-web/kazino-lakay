@@ -1,10 +1,15 @@
-name = "kazino-lakay-api"
+# Worker name must match the Cloudflare project: kazino-lakay
+name = "kazino-lakay"
 main = "src/index.js"
-compatibility_date = "2026-11-09"
+compatibility_date = "2026-11-10"
 workers_dev = true
+# Keep dashboard variables when the Git-connected build deploys this Worker.
+keep_vars = true
 
-[vars]
-FIREBASE_PROJECT_ID = "replace-with-your-firebase-project-id"
-FIREBASE_CLIENT_EMAIL = "firebase-worker@your-project.iam.gserviceaccount.com"
-ALLOWED_ORIGINS = "https://your-pages-domain.pages.dev,http://localhost:5173"
-INITIAL_ADMIN_EMAILS = ""
+# The Vite build in the repository root creates ../dist relative to this file.
+# Cloudflare serves the frontend from the same workers.dev origin as the API.
+[assets]
+directory = "../dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*", "/health"]
