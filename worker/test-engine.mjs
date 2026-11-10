@@ -24,8 +24,29 @@ assert.throws(() => resolveGame('roulette', 100, { pick: 'purple' }), /Chwazi wo
 assert.throws(() => resolveGame('mines', 100, { cells: [1, 1] }), /kare diferan/);
 assert.throws(() => resolveGame('crash', 100, { target: 99 }), /Objektif Crash/);
 
-const health = await worker.fetch(new Request('https://api.example.test/api/health'), { ALLOWED_ORIGINS: 'https://site.example.test' });
+const env = { ALLOWED_ORIGINS: '' };
+const health = await worker.fetch(new Request('https://kazino-lakay.milleclatcorpgroup5.workers.dev/api/health'), env);
 assert.equal(health.status, 200);
-assert.deepEqual(await health.json(), { service: 'kazino-lakay-api', status: 'ok', mode: 'points-only', cashValue: false });
+const healthBody = await health.json();
+assert.equal(healthBody.service, 'kazino-lakay');
+assert.equal(healthBody.status, 'ok');
+assert.equal(healthBody.mode, 'points-only');
+assert.equal(healthBody.cashValue, false);
+assert.ok(healthBody.endpoints.includes('/api/games/play'));
 
-console.log(`OK: ${Object.keys(cases).length} jwèt × 100 wonn, validasyon paramèt, ak endpoint health.`);
+const rootFallback = await worker.fetch(new Request('https://kazino-lakay.milleclatcorpgroup5.workers.dev/'), env);
+assert.equal(rootFallback.status, 200);
+assert.equal((await rootFallback.json()).service, 'kazino-lakay');
+
+const sameOriginPost = await worker.fetch(new Request('https://kazino-lakay.milleclatcorpgroup5.workers.dev/api/health', {
+  method: 'GET', headers: { Origin: 'https://kazino-lakay.milleclatcorpgroup5.workers.dev' }
+}), env);
+assert.equal(sameOriginPost.status, 200);
+assert.equal(sameOriginPost.headers.get('Access-Control-Allow-Origin'), 'https://kazino-lakay.milleclatcorpgroup5.workers.dev');
+
+const blockedOrigin = await worker.fetch(new Request('https://kazino-lakay.milleclatcorpgroup5.workers.dev/api/health', {
+  headers: { Origin: 'https://bad-origin.example' }
+}), env);
+assert.equal(blockedOrigin.status, 403);
+
+console.log(`OK: ${Object.keys(cases).length} jwèt × 100 wonn, validasyon paramèt, health, root fallback ak CORS.`);
