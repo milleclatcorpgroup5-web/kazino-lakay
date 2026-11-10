@@ -1,43 +1,45 @@
-# Gid rapid deplwaman — Kazino Lakay
+# Gid deplwaman rapid — Kazino Lakay V1.2.2
 
-## Sa pou mete nan Cloudflare Workers Builds
+## Cloudflare Workers Builds
 
+- Branch: `main`
+- Root directory: `/`
 - Build command: `npm run build`
 - Deploy command: `npm run deploy:worker`
-- Root directory: `/`
-- Branch: `main`
-- Preview builds: dezaktive pou premye deplwaman.
+- Preview builds: dezaktive pandan premye deplwaman
 
-## Build Variables
+## Build Variables (Firebase Web App)
 
-Mete 4 valè ki soti nan Firebase Web App:
+- `VITE_FIREBASE_API_KEY`
+- `VITE_FIREBASE_AUTH_DOMAIN`
+- `VITE_FIREBASE_PROJECT_ID`
+- `VITE_FIREBASE_APP_ID`
 
-`VITE_FIREBASE_API_KEY`
-`VITE_FIREBASE_AUTH_DOMAIN`
-`VITE_FIREBASE_PROJECT_ID`
-`VITE_FIREBASE_APP_ID`
+Pran kat valè sa yo nan Firebase Project settings > General > Your apps.
 
-## Runtime Variables
+## Worker Runtime Variables
 
-Nan Worker `kazino-lakay` > Settings > Variables and Secrets:
+- `FIREBASE_PROJECT_ID`
+- `FIREBASE_CLIENT_EMAIL`
+- `INITIAL_ADMIN_EMAILS` (opsyonèl)
+- `ALLOWED_ORIGINS` (kite vid pou menm domain)
 
-`FIREBASE_PROJECT_ID`
-`FIREBASE_CLIENT_EMAIL`
-`INITIAL_ADMIN_EMAILS` (opsyonèl)
-`ALLOWED_ORIGINS` (kite vid lè sit la ak API a sou menm Worker la)
+## Worker Runtime Secret
 
-## Runtime Secret
+- `FIREBASE_PRIVATE_KEY` = kle prive service account lan; mete l kòm Secret sèlman.
 
-`FIREBASE_PRIVATE_KEY` = private key service account Google Cloud la.
+Service account lan bezwen `roles/datastore.user` sou menm pwojè Firebase la.
 
-Pa janm mete private key la nan GitHub oswa nan frontend.
+## Firestore Rules
 
-## Tès apre deplwaman
+Nan Firebase Console > Firestore Database > Rules, pibliye kontni `firestore.rules` ki nan rasin pake a. Règ yo refize tout aksè dirèk kliyan; tout done pase nan Worker API a.
 
-1. Louvri `https://kazino-lakay.milleclatcorpgroup5.workers.dev/` — ou dwe wè sit la.
-2. Louvri `https://kazino-lakay.milleclatcorpgroup5.workers.dev/api/health` — ou dwe wè JSON ak `status: "ok"`.
-3. Si `firebaseConfigured` se `false`, verifye 3 runtime variables yo ak `FIREBASE_PRIVATE_KEY`.
+## URL tès
 
-## Règ enpòtan
+- Sit: `https://kazino-lakay.milleclatcorpgroup5.workers.dev/`
+- Health: `/api/health`
+- Lis jwèt: `/api/games`
 
-Pa kreye yon lòt Pages project pou pake sa a. Worker `kazino-lakay` la sèvi frontend ak API ansanm. Pa sèvi ak lajan reyèl; pwen yo se demonstrasyon sèlman.
+Health dwe montre `gameCount: 17`, `gamesEnabled: true`, `firebaseConfigured: true`, epi lis `firebaseMissing` ak `firebaseInvalid` yo dwe vid.
+
+**Mòd pwen sèlman. Pa gen lajan reyèl.**
