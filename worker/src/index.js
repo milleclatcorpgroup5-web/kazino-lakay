@@ -1,6 +1,10 @@
 const FIREBASE_JWKS_URL = 'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com';
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const FIRESTORE_SCOPE = 'https://www.googleapis.com/auth/datastore';
+const GAME_IDS = Object.freeze([
+  'crash', 'slots', 'roulette', 'blackjack', 'baccarat', 'keno', 'dice', 'mines',
+  'plinko', 'penalty', 'coinflip', 'limbo', 'hilo', 'scratch', 'wheel', 'sicbo', 'casinowar'
+]);
 let jwksCache = { keys: null, expiresAt: 0 };
 let accessTokenCache = { token: null, expiresAt: 0 };
 
@@ -423,14 +427,39 @@ async function getHistory(uid, env) {
   return (rows || []).filter((row) => row.document).map((row) => fsDocumentFields(row.document));
 }
 
+function firebaseRuntimeDiagnostics(env) {
+  const entries = [
+    ['FIREBASE_PROJECT_ID', env.FIREBASE_PROJECT_ID],
+    ['FIREBASE_CLIENT_EMAIL', env.FIREBASE_CLIENT_EMAIL],
+    ['FIREBASE_PRIVATE_KEY', env.FIREBASE_PRIVATE_KEY]
+  ];
+  const missing = entries
+    .filter(([, value]) => typeof value !== 'string' || value.trim().length === 0)
+    .map(([name]) => name);
+  const invalid = [];
+  if (env.FIREBASE_CLIENT_EMAIL && !/^[^\s@]+@[^\s@]+\.iam\.gserviceaccount\.com$/i.test(String(env.FIREBASE_CLIENT_EMAIL).trim())) {
+    invalid.push('FIREBASE_CLIENT_EMAIL');
+  }
+  if (env.FIREBASE_PRIVATE_KEY && !/-----BEGIN PRIVATE KEY-----[\s\S]+-----END PRIVATE KEY-----/.test(String(env.FIREBASE_PRIVATE_KEY).replace(/\\n/g, '\n'))) {
+    invalid.push('FIREBASE_PRIVATE_KEY');
+  }
+  return { missing, invalid };
+}
+
 function apiStatus(env) {
+  const firebase = firebaseRuntimeDiagnostics(env);
   return {
     service: 'kazino-lakay',
     status: 'ok',
     mode: 'points-only',
     cashValue: false,
-    firebaseConfigured: Boolean(env.FIREBASE_PROJECT_ID && env.FIREBASE_CLIENT_EMAIL && env.FIREBASE_PRIVATE_KEY),
-    endpoints: ['/api/health', '/api/profile/bootstrap', '/api/me', '/api/history', '/api/games/play']
+    firebaseConfigured: firebase.missing.length === 0 && firebase.invalid.length === 0,
+    firebaseMissing: firebase.missing,
+    firebaseInvalid: firebase.invalid,
+    gamesEnabled: true,
+    gameCount: GAME_IDS.length,
+    gameIds: GAME_IDS,
+    endpoints: ['/api/health', '/api/games', '/api/profile/bootstrap', '/api/me', '/api/history', '/api/games/play']
   };
 }
 
@@ -440,6 +469,9 @@ async function route(request, env) {
   // by Workers Static Assets before this Worker is invoked.
   if ((url.pathname === '/' || url.pathname === '/api' || url.pathname === '/health' || url.pathname === '/api/health') && request.method === 'GET') {
     return json(apiStatus(env));
+  }
+  if (url.pathname === '/api/games' && request.method === 'GET') {
+    return json({ games: GAME_IDS, count: GAME_IDS.length, enabled: true, mode: 'points-only' });
   }
   if (url.pathname === '/api/profile/bootstrap' && request.method === 'POST') {
     const identity = await verifyFirebaseIdToken(request, env, false);
@@ -486,7 +518,7 @@ async function route(request, env) {
     ], env);
     return json({ roundId, balancePoints: newBalance, result: game.result });
   }
-  throw new HttpError(404, 'Wout API sa a pa egziste. Wout disponib: GET /api/health, POST /api/profile/bootstrap, GET /api/me, GET /api/history, POST /api/games/play.');
+  throw new HttpError(404, 'Wout API sa a pa egziste. Wout disponib: GET /api/health, GET /api/games, POST /api/profile/bootstrap, GET /api/me, GET /api/history, POST /api/games/play.');
 }
 
 class HttpError extends Error {
