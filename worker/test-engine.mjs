@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import worker, { resolveGame } from './src/index.js';
+import { GAMES } from '../src/games/catalog.js';
 
 const cases = {
   crash: { target: 2 }, slots: {}, roulette: { pick: 'red' }, blackjack: { standAt: 17 },
@@ -33,6 +34,27 @@ assert.equal(healthBody.status, 'ok');
 assert.equal(healthBody.mode, 'points-only');
 assert.equal(healthBody.cashValue, false);
 assert.ok(healthBody.endpoints.includes('/api/games/play'));
+assert.equal(healthBody.gamesEnabled, true);
+assert.equal(healthBody.gameCount, 17);
+assert.deepEqual(healthBody.firebaseMissing, ['FIREBASE_PROJECT_ID', 'FIREBASE_CLIENT_EMAIL', 'FIREBASE_PRIVATE_KEY']);
+assert.deepEqual(healthBody.firebaseInvalid, []);
+
+const configuredHealth = await worker.fetch(new Request('https://kazino-lakay.milleclatcorpgroup5.workers.dev/api/health'), {
+  FIREBASE_PROJECT_ID: 'kazino-lakay-demo',
+  FIREBASE_CLIENT_EMAIL: 'kazino-worker@kazino-lakay-demo.iam.gserviceaccount.com',
+  FIREBASE_PRIVATE_KEY: '-----BEGIN PRIVATE KEY-----\nTEST_KEY\n-----END PRIVATE KEY-----'
+});
+const configuredBody = await configuredHealth.json();
+assert.equal(configuredBody.firebaseConfigured, true);
+assert.deepEqual(configuredBody.firebaseMissing, []);
+assert.deepEqual(configuredBody.firebaseInvalid, []);
+
+const gamesResponse = await worker.fetch(new Request('https://kazino-lakay.milleclatcorpgroup5.workers.dev/api/games'), env);
+assert.equal(gamesResponse.status, 200);
+const gamesBody = await gamesResponse.json();
+assert.equal(gamesBody.count, 17);
+assert.deepEqual(gamesBody.games, Object.keys(cases));
+assert.deepEqual(GAMES.map((game) => game.id), gamesBody.games, 'Frontend ak backend dwe gen menm 17 jwèt yo.');
 
 const rootFallback = await worker.fetch(new Request('https://kazino-lakay.milleclatcorpgroup5.workers.dev/'), env);
 assert.equal(rootFallback.status, 200);
@@ -49,4 +71,4 @@ const blockedOrigin = await worker.fetch(new Request('https://kazino-lakay.mille
 }), env);
 assert.equal(blockedOrigin.status, 403);
 
-console.log(`OK: ${Object.keys(cases).length} jwèt × 100 wonn, validasyon paramèt, health, root fallback ak CORS.`);
+console.log(`OK: ${Object.keys(cases).length} jwèt × 100 wonn, validasyon paramèt, lis jwèt API, health, root fallback ak CORS.`);
