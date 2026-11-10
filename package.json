@@ -1,11 +1,11 @@
 {
   "name": "kazino-lakay",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "vite build",
+    "build": "npm run check && npm test && vite build",
     "preview": "vite preview --host 0.0.0.0",
     "check": "node --check src/main.js && node --check src/firebase.js && node --check src/api.js && node --check src/games/catalog.js && node --check worker/src/index.js && node --check worker/test-engine.mjs",
     "test": "node worker/test-engine.mjs",
@@ -17,5 +17,8 @@
   "devDependencies": {
     "vite": "^7.1.12",
     "wrangler": "^4.42.0"
+  },
+  "engines": {
+    "node": ">=22.12.0"
   }
 }
