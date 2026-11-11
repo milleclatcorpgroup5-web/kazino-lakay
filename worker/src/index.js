@@ -3,7 +3,8 @@ const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const FIRESTORE_SCOPE = 'https://www.googleapis.com/auth/datastore';
 const GAME_IDS = Object.freeze([
   'crash', 'slots', 'roulette', 'blackjack', 'baccarat', 'keno', 'dice', 'mines',
-  'plinko', 'penalty', 'coinflip', 'limbo', 'hilo', 'scratch', 'wheel', 'sicbo', 'casinowar'
+  'plinko', 'penalty', 'coinflip', 'limbo', 'hilo', 'scratch', 'wheel', 'sicbo', 'casinowar',
+  'dragontiger', 'andarbahar', 'threecard', 'holdem', 'bingo'
 ]);
 let jwksCache = { keys: null, expiresAt: 0 };
 let accessTokenCache = { token: null, expiresAt: 0 };
@@ -336,26 +337,116 @@ const drawCard = (deck) => {
 };
 const cardName = (rank) => ({11:'J',12:'Q',13:'K',14:'A'}[rank] || String(rank));
 
+function rankThreeCardHand(cards) {
+  const ranks = cards.map((card) => card.rank).sort((a, b) => b - a);
+  const sameSuit = cards.every((card) => card.suit === cards[0].suit);
+  const counts = new Map();
+  ranks.forEach((rank) => counts.set(rank, (counts.get(rank) || 0) + 1));
+  const values = [...counts.entries()].sort((a, b) => b[1] - a[1] || b[0] - a[0]);
+  const unique = [...new Set(ranks)].sort((a, b) => a - b);
+  const straight = unique.length === 3 && (unique[2] - unique[0] === 2 || unique.join(',') === '2,3,14');
+  const straightHigh = unique.join(',') === '2,3,14' ? 3 : unique[2];
+  let category = 0, tie = ranks;
+  if (sameSuit && straight) { category = 5; tie = [straightHigh]; }
+  else if (values[0][1] === 3) { category = 4; tie = [values[0][0]]; }
+  else if (straight) { category = 3; tie = [straightHigh]; }
+  else if (sameSuit) { category = 2; tie = ranks; }
+  else if (values[0][1] === 2) { category = 1; tie = [values[0][0], ...ranks.filter((rank) => rank !== values[0][0])]; }
+  return { category, tie, label: ['Kat wo','Pè','Koulè','Sekans','Sekans koulè','Twa menm'][category] };
+}
+
+function compareHandRanks(a, b) {
+  if (a.category !== b.category) return a.category > b.category ? 1 : -1;
+  const length = Math.max(a.tie.length, b.tie.length);
+  for (let index = 0; index < length; index += 1) {
+    const av = a.tie[index] || 0, bv = b.tie[index] || 0;
+    if (av !== bv) return av > bv ? 1 : -1;
+  }
+  return 0;
+}
+
+function rankFiveCardHand(cards) {
+  const ranks = cards.map((card) => card.rank).sort((a, b) => b - a);
+  const counts = new Map();
+  ranks.forEach((rank) => counts.set(rank, (counts.get(rank) || 0) + 1));
+  const groups = [...counts.entries()].sort((a, b) => b[1] - a[1] || b[0] - a[0]);
+  const flush = cards.every((card) => card.suit === cards[0].suit);
+  const unique = [...new Set(ranks)].sort((a, b) => b - a);
+  const wheel = unique.join(',') === '14,5,4,3,2';
+  const straight = unique.length === 5 && (unique[0] - unique[4] === 4 || wheel);
+  const straightHigh = wheel ? 5 : unique[0];
+  const kickers = (excluded) => ranks.filter((rank) => !excluded.includes(rank));
+  let category = 0, tie = ranks;
+  if (flush && straight) { category = 8; tie = [straightHigh]; }
+  else if (groups[0][1] === 4) { category = 7; tie = [groups[0][0], ...kickers([groups[0][0]])]; }
+  else if (groups[0][1] === 3 && groups[1]?.[1] === 2) { category = 6; tie = [groups[0][0], groups[1][0]]; }
+  else if (flush) { category = 5; tie = ranks; }
+  else if (straight) { category = 4; tie = [straightHigh]; }
+  else if (groups[0][1] === 3) { category = 3; tie = [groups[0][0], ...kickers([groups[0][0]])]; }
+  else if (groups[0][1] === 2 && groups[1]?.[1] === 2) {
+    const pairs = groups.filter((group) => group[1] === 2).map((group) => group[0]).sort((a, b) => b - a);
+    tie = [...pairs, ...kickers(pairs)]; category = 2;
+  } else if (groups[0][1] === 2) { category = 1; tie = [groups[0][0], ...kickers([groups[0][0]])]; }
+  const labels = ['Kat wo','Yon pè','De pè','Twa menm','Sekans','Koulè','Full house','Kat menm','Sekans koulè'];
+  return { category, tie, label: labels[category] };
+}
+
+function rankSevenCardHand(cards) {
+  let best = null;
+  for (let a = 0; a < cards.length - 4; a += 1) for (let b = a + 1; b < cards.length - 3; b += 1)
+    for (let c = b + 1; c < cards.length - 2; c += 1) for (let d = c + 1; d < cards.length - 1; d += 1)
+      for (let e = d + 1; e < cards.length; e += 1) {
+        const rank = rankFiveCardHand([cards[a], cards[b], cards[c], cards[d], cards[e]]);
+        if (!best || compareHandRanks(rank, best) > 0) best = rank;
+      }
+  if (!best) throw new Error('Pa gen ase kat pou klase men Poker la.');
+  return best;
+}
+
+function createBingoCard() {
+  const ranges = [[1,15],[16,30],[31,45],[46,60],[61,75]];
+  const columns = ranges.map(([min,max]) => {
+    const pool = Array.from({length:max-min+1}, (_, index) => min + index);
+    for (let index = pool.length - 1; index > 0; index -= 1) {
+      const swap = randomInt(index + 1); [pool[index], pool[swap]] = [pool[swap], pool[index]];
+    }
+    return pool.slice(0, 5);
+  });
+  const card = Array.from({length:25}, (_, index) => columns[index % 5][Math.floor(index / 5)]);
+  card[12] = 0;
+  return card;
+}
+
 export function resolveGame(gameId, stake, choice = {}) {
   let won = false, multiplier = 0, title = 'Wonn fini', message = '', details = {}, animationKey = gameId;
   switch (gameId) {
     case 'crash': {
       const target = Number(choice.target);
+      const volatility = String(choice.volatility || 'normal');
+      const exponents = { low: 1.6, normal: 2.1, high: 2.7 };
       if (![1.2,1.5,2,3,5].includes(target)) throw new HttpError(400, 'Objektif Crash la pa valab.');
-      const crashAt = Math.max(1, Number((1 + Math.pow(randomInt(1000000) / 1000000, 2.1) * 8).toFixed(2)));
+      if (!Object.hasOwn(exponents, volatility)) throw new HttpError(400, 'Chwazi nivo volatilite Crash la.');
+      const crashAt = Math.max(1, Number((1 + Math.pow(randomInt(1000000) / 1000000, exponents[volatility]) * 8).toFixed(2)));
       won = crashAt >= target; multiplier = won ? target : 0;
-      details = { crashAt, target, reached: won };
+      details = { crashAt, target, volatility, reached: won };
       message = won ? `Vòl la rive ${crashAt.toFixed(2)}×. Objektif ${target.toFixed(2)}× ou a atenn.` : `Vòl la fini nan ${crashAt.toFixed(2)}×, anvan objektif ${target.toFixed(2)}× ou a.`;
       break;
     }
     case 'slots': {
-      const symbols = ['🍒','🍋','🔔','💎','7️⃣','⭐'];
-      const result = [pick(symbols), pick(symbols), pick(symbols)];
-      if (result.every((s) => s === '7️⃣')) multiplier = 10;
-      else if (result.every((s) => s === result[0])) multiplier = 5;
-      else if (new Set(result).size === 2) multiplier = 1.5;
-      won = multiplier > 0; details = { symbols: result, multiplier };
-      message = won ? `Konbinezon ${result.join(' ')} bay ${multiplier}×.` : `Konbinezon ${result.join(' ')} pa bay retou.`;
+      const risk = String(choice.risk || 'normal');
+      const profiles = {
+        low: { symbols: ['🍒','🍋','🍊'], triple: 3, pair: 1.3 },
+        normal: { symbols: ['🍒','🍋','🔔','💎','7️⃣','⭐'], triple: 5, pair: 1.5 },
+        high: { symbols: ['🍒','🍋','🔔','💎','7️⃣','⭐','👑','💠'], triple: 8, pair: 0 }
+      };
+      if (!profiles[risk]) throw new HttpError(400, 'Chwazi nivo risk Slots la.');
+      const profile = profiles[risk];
+      const result = [pick(profile.symbols), pick(profile.symbols), pick(profile.symbols)];
+      if (result.every((symbol) => symbol === '7️⃣')) multiplier = risk === 'high' ? 20 : 10;
+      else if (result.every((symbol) => symbol === result[0])) multiplier = profile.triple;
+      else if (new Set(result).size === 2) multiplier = profile.pair;
+      won = multiplier > 0; details = { symbols: result, multiplier, risk };
+      message = won ? `Konbinezon ${result.join(' ')} bay ${multiplier}× nan nivo ${risk}.` : `Konbinezon ${result.join(' ')} pa bay retou.`;
       break;
     }
     case 'roulette': {
@@ -379,6 +470,16 @@ export function resolveGame(gameId, stake, choice = {}) {
         if (!['even','odd'].includes(betValue)) throw new HttpError(400, 'Chwazi pè oswa enpè.');
         won = n !== 0 && (n % 2 === 0 ? 'even' : 'odd') === betValue;
         multiplier = won ? 2 : 0;
+      } else if (betType === 'dozen') {
+        betValue = Number(betValue);
+        if (![1,2,3].includes(betValue)) throw new HttpError(400, 'Chwazi premye, dezyèm oswa twazyèm douzèn lan.');
+        won = n > 0 && Math.ceil(n / 12) === betValue;
+        multiplier = won ? 3 : 0;
+      } else if (betType === 'column') {
+        betValue = Number(betValue);
+        if (![1,2,3].includes(betValue)) throw new HttpError(400, 'Chwazi kolòn 1, 2 oswa 3.');
+        won = n > 0 && ((n - 1) % 3) + 1 === betValue;
+        multiplier = won ? 3 : 0;
       } else if (betType === 'legacy-color') {
         betValue = String(choice.pick || '');
         if (!['red','black','green'].includes(betValue)) throw new HttpError(400, 'Chwazi wouj, nwa oswa vèt.');
@@ -388,14 +489,16 @@ export function resolveGame(gameId, stake, choice = {}) {
         throw new HttpError(400, 'Chwazi yon nimewo, koulè oswa pè/enpè.');
       }
       const colorLabel = color === 'red' ? 'wouj' : color === 'black' ? 'nwa' : 'vèt';
-      const betLabel = betType === 'number' ? `nimewo ${betValue}` : betType === 'color' ? (betValue === 'red' ? 'wouj' : 'nwa') : betType === 'parity' ? (betValue === 'even' ? 'pè' : 'enpè') : (betValue === 'green' ? 'zewo/vèt' : betValue === 'red' ? 'wouj' : 'nwa');
+      const betLabel = betType === 'number' ? `nimewo ${betValue}` : betType === 'color' ? (betValue === 'red' ? 'wouj' : 'nwa') : betType === 'parity' ? (betValue === 'even' ? 'pè' : 'enpè') : betType === 'dozen' ? `douzèn ${betValue}` : betType === 'column' ? `kolòn ${betValue}` : (betValue === 'green' ? 'zewo/vèt' : betValue === 'red' ? 'wouj' : 'nwa');
       details = { number: n, color, betType, betValue, selected: betValue, multiplier };
       message = `Wou a kanpe sou ${n} (${colorLabel}). ${won ? `Pari ${betLabel} la genyen.` : `Pari ${betLabel} la pa koresponn.`}`;
       break;
     }
     case 'blackjack': {
       const standAt = Number(choice.standAt);
+      const dealerSoft17 = String(choice.dealerSoft17 || 'stand');
       if (!Number.isInteger(standAt) || standAt < 12 || standAt > 20) throw new HttpError(400, 'Chwazi yon limit ant 12 ak 20.');
+      if (!['stand','hit'].includes(dealerSoft17)) throw new HttpError(400, 'Chwazi si koutye a rete oswa pran kat sou soft 17.');
       const shoe = shuffledDeck();
       const draw = () => drawCard(shoe);
       const handValue = (hand) => {
@@ -406,10 +509,16 @@ export function resolveGame(gameId, stake, choice = {}) {
       };
       const player = [draw(), draw()], dealer = [draw(), draw()];
       while (handValue(player) < standAt && player.length < 6) player.push(draw());
-      while (handValue(dealer) < 17 && dealer.length < 6) dealer.push(draw());
+      const isSoft17 = (hand) => {
+        let total = hand.reduce((sum, card) => sum + (card.rank === 14 ? 11 : card.rank > 10 ? 10 : card.rank), 0);
+        let aces = hand.filter((card) => card.rank === 14).length;
+        while (total > 21 && aces > 0) { total -= 10; aces -= 1; }
+        return total === 17 && aces > 0;
+      };
+      while ((handValue(dealer) < 17 || (dealerSoft17 === 'hit' && isSoft17(dealer))) && dealer.length < 6) dealer.push(draw());
       const p = handValue(player), d = handValue(dealer);
       won = p <= 21 && (d > 21 || p > d); multiplier = p > 21 ? 0 : (d > 21 || p > d) ? 2 : p === d ? 1 : 0;
-      details = { player: player.map((c) => `${cardName(c.rank)}${c.suit}`), dealer: dealer.map((c) => `${cardName(c.rank)}${c.suit}`), playerTotal: p, dealerTotal: d, standAt };
+      details = { player: player.map((c) => `${cardName(c.rank)}${c.suit}`), dealer: dealer.map((c) => `${cardName(c.rank)}${c.suit}`), playerTotal: p, dealerTotal: d, standAt, dealerSoft17 };
       message = p > 21 ? `Men ou fè ${p}: ou depase 21.` : d > 21 ? `Koutye a fè ${d}: koutye a depase 21.` : p === d ? `Egalite: tou de men yo fè ${p}.` : won ? `Ou fè ${p}, koutye a fè ${d}. Ou genyen.` : `Koutye a fè ${d}, men ou fè ${p}.`;
       break;
     }
@@ -441,18 +550,22 @@ export function resolveGame(gameId, stake, choice = {}) {
     case 'keno': {
       const numbers = Array.isArray(choice.numbers) ? choice.numbers.map(Number) : [];
       if (numbers.length !== 5 || new Set(numbers).size !== 5 || numbers.some((n) => !Number.isInteger(n) || n < 1 || n > 25)) throw new HttpError(400, 'Chwazi egzakteman 5 nimewo diferan ant 1 ak 25.');
-      const drawn = new Set(); while (drawn.size < 10) drawn.add(1 + randomInt(25));
+      const drawCount = Number(choice.drawCount || 10);
+      if (![5,10,15].includes(drawCount)) throw new HttpError(400, 'Chwazi 5, 10 oswa 15 boul nan tiraj Keno a.');
+      const drawn = new Set(); while (drawn.size < drawCount) drawn.add(1 + randomInt(25));
       const hits = numbers.filter((n) => drawn.has(n));
-      multiplier = ({3:1,4:2,5:5})[hits.length] || 0; won = multiplier > 0;
-      details = { selected: numbers, drawn: [...drawn].sort((a,b) => a-b), hits: hits.sort((a,b) => a-b), hitCount: hits.length };
+      const paytable = drawCount === 5 ? {1:0.5,2:1.5,3:4,4:8,5:15} : drawCount === 15 ? {3:0.5,4:1,5:2} : {3:1,4:2,5:5};
+      multiplier = paytable[hits.length] || 0; won = multiplier > 0;
+      details = { selected: numbers, drawn: [...drawn].sort((a,b) => a-b), hits: hits.sort((a,b) => a-b), hitCount: hits.length, drawCount };
       message = `Ou jwenn ${hits.length} sou 5 nimewo. ${won ? `Retou ${multiplier}×.` : 'Pa gen retou nan rezilta sa a.'}`;
       break;
     }
     case 'dice': {
       const a = 1 + randomInt(6), b = 1 + randomInt(6), sum = a + b, bet = String(choice.pick || '');
-      if (!['over7','under7','exact8'].includes(bet)) throw new HttpError(400, 'Chwazi yon prediksyon Dice.');
-      won = bet === 'over7' ? sum > 7 : bet === 'under7' ? sum < 7 : sum === 8;
-      multiplier = won ? (bet === 'exact8' ? 6 : 2.4) : 0;
+      const paytable = { over7: 2.4, under7: 2.4, exact6: 6.8, exact7: 6, exact8: 6.8, exact9: 9, exact10: 12, exact11: 18 };
+      if (!Object.hasOwn(paytable, bet)) throw new HttpError(400, 'Chwazi yon prediksyon Dice.');
+      won = bet === 'over7' ? sum > 7 : bet === 'under7' ? sum < 7 : sum === Number(bet.slice(5));
+      multiplier = won ? paytable[bet] : 0;
       details = { dice: [a,b], total: sum, selection: bet };
       message = `Zo yo bay ${a} + ${b} = ${sum}. ${won ? 'Prediksyon ou bon.' : 'Prediksyon ou pa bon.'}`;
       break;
@@ -460,39 +573,57 @@ export function resolveGame(gameId, stake, choice = {}) {
     case 'mines': {
       const cells = Array.isArray(choice.cells) ? choice.cells.map(Number) : [];
       if (cells.length < 1 || cells.length > 5 || new Set(cells).size !== cells.length || cells.some((n) => !Number.isInteger(n) || n < 1 || n > 25)) throw new HttpError(400, 'Chwazi ant 1 ak 5 kare diferan sou tablo a.');
-      const mines = new Set(); while (mines.size < 3) mines.add(1 + randomInt(25));
+      const mineCount = Number(choice.mineCount || 3);
+      if (![1,3,5,8,10].includes(mineCount)) throw new HttpError(400, 'Chwazi 1, 3, 5, 8 oswa 10 min.');
+      if (cells.length > 25 - mineCount) throw new HttpError(400, 'Gen twòp kare chwazi pou kantite min sa a.');
+      const mines = new Set(); while (mines.size < mineCount) mines.add(1 + randomInt(25));
       const hitMines = cells.filter((n) => mines.has(n));
       won = hitMines.length === 0;
-      multiplier = won ? Number((Math.pow(25 / (25 - 3), cells.length) * (1 - cells.length * 0.018)).toFixed(2)) : 0;
-      details = { selectedCells: cells, mineCount: 3, revealedMines: [...mines].sort((a,b) => a-b), hitMines };
+      multiplier = won ? Number((Math.pow(25 / (25 - mineCount), cells.length) * (1 - cells.length * 0.018)).toFixed(2)) : 0;
+      details = { selectedCells: cells, mineCount, revealedMines: [...mines].sort((a,b) => a-b), hitMines };
       message = won ? `Tout ${cells.length} kare ou yo te san min.` : `Ou jwenn yon min nan kare ${hitMines.join(', ')}.`;
       break;
     }
     case 'plinko': {
-      const multipliers = [0.5,1,2,5,2,1,0.5];
-      const path = Array.from({ length: 6 }, () => randomInt(2) ? 'R' : 'L');
+      const risk = String(choice.risk || 'normal');
+      const rows = Number(choice.rows || 6);
+      const tables = {
+        6: { low: [0.8,0.9,1,1.1,1,0.9,0.8], normal: [0,0.2,0.8,1.5,0.8,0.2,0], high: [8,2,0.5,0,0.5,2,8] },
+        8: { low: [0.7,0.8,0.9,1,1.1,1,0.9,0.8,0.7], normal: [0,0.1,0.3,0.8,1.5,0.8,0.3,0.1,0], high: [12,4,1,0.3,0,0.3,1,4,12] }
+      };
+      if (![6,8].includes(rows) || !tables[rows][risk]) throw new HttpError(400, 'Chwazi 6 oswa 8 liy ak nivo risk Plinko a.');
+      const multipliers = tables[rows][risk];
+      const path = Array.from({ length: rows }, () => randomInt(2) ? 'R' : 'L');
       const slot = 1 + path.filter((step) => step === 'R').length;
       multiplier = multipliers[slot - 1]; won = multiplier > 0;
-      details = { slot, multiplier, path };
+      details = { slot, multiplier, path, risk, rows };
       message = `Boul la tonbe nan pòch ${slot + 1}, ki gen ${multiplier}×.`;
       break;
     }
     case 'penalty': {
       const shot = String(choice.shot || '');
       if (!['left','center','right'].includes(shot)) throw new HttpError(400, 'Chwazi agoch, nan mitan oswa adwat.');
-      const keeper = pick(['left','center','right']);
+      const difficulty = String(choice.difficulty || 'normal');
+      const blockChance = { easy: 0.2, normal: 1/3, hard: 0.5 }[difficulty];
+      if (blockChance === undefined) throw new HttpError(400, 'Chwazi nivo difikilte gadyen an.');
+      const keeper = randomInt(100) < blockChance * 100 ? shot : pick(['left','center','right'].filter((side) => side !== shot));
       won = shot !== keeper; multiplier = won ? 2 : 0;
-      details = { shot, keeper, goal: won };
+      details = { shot, keeper, goal: won, difficulty };
       message = won ? `GÒL! Ou tire ${shot === 'left' ? 'agoch' : shot === 'right' ? 'adwat' : 'nan mitan'}, gadyen an plonje ${keeper === 'left' ? 'agoch' : keeper === 'right' ? 'adwat' : 'nan mitan'}.` : `Gadyen an bloke tir ou nan ${keeper === 'left' ? 'agoch' : keeper === 'right' ? 'adwat' : 'nan mitan'}.`;
       break;
     }
     case 'coinflip': {
       const side = String(choice.pick || '');
+      const rounds = Number(choice.rounds || 1);
       if (!['heads','tails'].includes(side)) throw new HttpError(400, 'Chwazi Fas oswa Pil.');
-      const result = randomInt(2) === 0 ? 'heads' : 'tails';
-      won = side === result; multiplier = won ? 1.9 : 0;
-      details = { result, selection: side };
-      message = `Pyès la tonbe sou ${result === 'heads' ? 'Fas' : 'Pil'}. ${won ? 'Ou te byen devine.' : 'Chwa a pa koresponn.'}`;
+      if (![1,3,5].includes(rounds)) throw new HttpError(400, 'Chwazi 1, 3 oswa 5 lansman.');
+      const flips = Array.from({ length: rounds }, () => randomInt(2) === 0 ? 'heads' : 'tails');
+      const heads = flips.filter((value) => value === 'heads').length;
+      const tails = rounds - heads;
+      const winner = heads === tails ? 'tie' : heads > tails ? 'heads' : 'tails';
+      won = winner === side; multiplier = won ? 1.9 : 0;
+      details = { result: flips.at(-1), flips, winner, selection: side, rounds };
+      message = `Lansman yo bay ${heads} Fas ak ${tails} Pil. ${winner === 'tie' ? 'Gen egalite.' : winner === 'heads' ? 'Fas domine.' : 'Pil domine.'} ${won ? 'Ou byen devine.' : 'Chwa a pa koresponn.'}`;
       break;
     }
     case 'limbo': {
@@ -506,48 +637,144 @@ export function resolveGame(gameId, stake, choice = {}) {
     }
     case 'hilo': {
       const selection = String(choice.pick || '');
-      if (!['high','low'].includes(selection)) throw new HttpError(400, 'Chwazi Pi wo oswa Pi ba.');
+      const risk = String(choice.risk || 'normal');
+      if (!['high','low','equal'].includes(selection)) throw new HttpError(400, 'Chwazi Pi wo, Pi ba oswa Egalite.');
+      if (!['normal','high'].includes(risk)) throw new HttpError(400, 'Chwazi nivo risk Hi-Lo a.');
       const shoe = shuffledDeck();
       const first = drawCard(shoe), next = drawCard(shoe);
-      won = selection === 'high' ? next.rank > first.rank : next.rank < first.rank;
-      multiplier = won ? 1.9 : 0;
-      details = { first: `${cardName(first.rank)}${first.suit}`, next: `${cardName(next.rank)}${next.suit}`, firstValue: first.rank, nextValue: next.rank, selection };
-      message = first.rank === next.rank ? 'De kat yo egal. Wonn sa a pa bay retou.' : won ? 'Ou byen devine direksyon dezyèm kat la.' : 'Dezyèm kat la pa soti nan direksyon ou te chwazi a.';
+      won = selection === 'high' ? next.rank > first.rank : selection === 'low' ? next.rank < first.rank : next.rank === first.rank;
+      multiplier = won ? (selection === 'equal' ? 12 : risk === 'high' ? 2.4 : 1.9) : 0;
+      details = { first: `${cardName(first.rank)}${first.suit}`, next: `${cardName(next.rank)}${next.suit}`, firstValue: first.rank, nextValue: next.rank, selection, risk };
+      message = first.rank === next.rank ? (won ? 'De kat yo egal. Bon prediksyon!' : 'De kat yo egal, men ou pa t chwazi egalite.') : won ? 'Ou byen devine direksyon dezyèm kat la.' : 'Dezyèm kat la pa soti nan direksyon ou te chwazi a.';
       break;
     }
     case 'scratch': {
-      const symbols = ['🍒','🍋','🔔','💎','⭐','7️⃣'];
+      const risk = String(choice.risk || 'normal');
+      const pools = { low: ['🍒','🍋','🔔'], normal: ['🍒','🍋','🔔','💎','⭐','7️⃣'], high: ['🍒','🍋','🔔','💎','⭐','7️⃣','👑','💠'] };
+      if (!pools[risk]) throw new HttpError(400, 'Chwazi nivo risk kat la.');
+      const symbols = pools[risk];
       const result = [pick(symbols),pick(symbols),pick(symbols)];
       const count = result.filter((x) => x === result[0]).length;
-      multiplier = count === 3 ? 4 : new Set(result).size === 2 ? 1.2 : 0;
+      multiplier = count === 3 ? (risk === 'high' ? 12 : risk === 'low' ? 3 : 4) : new Set(result).size === 2 ? (risk === 'high' ? 0 : 1.2) : 0;
       won = multiplier > 0;
-      details = { symbols: result, matchingCount: count, multiplier };
+      details = { symbols: result, matchingCount: count, multiplier, risk };
       message = won ? `Kat la revele ${result.join(' ')}. Konbinezon an bay ${multiplier}×.` : `Kat la revele ${result.join(' ')}. Pa gen pè oswa twa menm.`;
       break;
     }
     case 'wheel': {
-      const segments = [0,0.5,1,1.2,1.5,2,3,5];
+      const risk = String(choice.risk || 'normal');
+      const tables = { low: [0.4,0.6,0.8,1,1,1.2,1.4,1.6], normal: [0,0.2,0.5,0.8,1,1.5,2,3], high: [0,0,0.1,0.2,0.5,1,2,5] };
+      if (!tables[risk]) throw new HttpError(400, 'Chwazi nivo risk wou a.');
+      const segments = tables[risk];
       multiplier = segments[randomInt(segments.length)]; won = multiplier > 0;
-      details = { segment: `${multiplier}×`, multiplier };
+      details = { segment: `${multiplier}×`, multiplier, risk };
       message = `Wou a kanpe sou ${multiplier}×.`;
       break;
     }
     case 'sicbo': {
       const dice = [1 + randomInt(6),1 + randomInt(6),1 + randomInt(6)];
       const sum = dice.reduce((a,b) => a+b,0), triple = dice.every((n) => n === dice[0]), selection = String(choice.pick || '');
-      if (!['small','big','triple'].includes(selection)) throw new HttpError(400, 'Chwazi Ti, Gwo oswa Triple.');
-      won = selection === 'triple' ? triple : !triple && (selection === 'small' ? sum >= 4 && sum <= 10 : sum >= 11 && sum <= 17);
-      multiplier = won ? (selection === 'triple' ? 25 : 1.9) : 0;
+      if (!['small','big','triple','even','odd'].includes(selection)) throw new HttpError(400, 'Chwazi Ti, Gwo, Triple, pè oswa enpè.');
+      won = selection === 'triple' ? triple : selection === 'even' ? sum % 2 === 0 : selection === 'odd' ? sum % 2 === 1 : !triple && (selection === 'small' ? sum >= 4 && sum <= 10 : sum >= 11 && sum <= 17);
+      multiplier = won ? (selection === 'triple' ? 25 : selection === 'even' || selection === 'odd' ? 1.9 : 1.9) : 0;
       details = { dice, total: sum, triple, selection };
       message = `Twa zo yo bay ${dice.join(' + ')} = ${sum}${triple ? ' (Triple)' : ''}. ${won ? 'Prediksyon ou mache.' : 'Prediksyon ou pa mache.'}`;
       break;
     }
     case 'casinowar': {
+      const selection = String(choice.pick || 'player');
+      if (!['player','banker','tie'].includes(selection)) throw new HttpError(400, 'Chwazi Jwè, Bankye oswa Egalite.');
       const shoe = shuffledDeck();
       const player = drawCard(shoe), banker = drawCard(shoe);
-      won = player.rank > banker.rank; multiplier = player.rank === banker.rank ? 1 : won ? 2 : 0;
-      details = { playerCard: `${cardName(player.rank)}${player.suit}`, bankerCard: `${cardName(banker.rank)}${banker.suit}`, playerValue: player.rank, bankerValue: banker.rank };
-      message = player.rank === banker.rank ? `Egalite: tou de kat yo se ${cardName(player.rank)}.` : won ? `Kat ou (${cardName(player.rank)}) pi wo pase kat bankye a (${cardName(banker.rank)}).` : `Kat bankye a (${cardName(banker.rank)}) pi wo pase pa w la (${cardName(player.rank)}).`;
+      const winner = player.rank === banker.rank ? 'tie' : player.rank > banker.rank ? 'player' : 'banker';
+      won = selection === winner;
+      multiplier = winner === 'tie' && selection !== 'tie' ? 1 : won ? (selection === 'tie' ? 8 : 2) : 0;
+      details = { playerCard: `${cardName(player.rank)}${player.suit}`, bankerCard: `${cardName(banker.rank)}${banker.suit}`, playerValue: player.rank, bankerValue: banker.rank, winner, selection };
+      message = `Kat ou ${cardName(player.rank)} — Bankye ${cardName(banker.rank)}. ${winner === 'tie' ? 'Egalite.' : winner === 'player' ? 'Jwè genyen.' : 'Bankye genyen.'}`;
+      break;
+    }
+    case 'dragontiger': {
+      const selection = String(choice.pick || '');
+      if (!['dragon','tiger','tie'].includes(selection)) throw new HttpError(400, 'Chwazi Dragon, Tiger oswa Egalite.');
+      const shoe = shuffledDeck();
+      const dragon = drawCard(shoe), tiger = drawCard(shoe);
+      const winner = dragon.rank === tiger.rank ? 'tie' : dragon.rank > tiger.rank ? 'dragon' : 'tiger';
+      won = selection === winner; multiplier = won ? (winner === 'tie' ? 8 : 2) : winner === 'tie' ? 1 : 0;
+      details = { dragonCard: `${cardName(dragon.rank)}${dragon.suit}`, tigerCard: `${cardName(tiger.rank)}${tiger.suit}`, dragonValue: dragon.rank, tigerValue: tiger.rank, winner, selection };
+      message = `Dragon ${cardName(dragon.rank)} — Tiger ${cardName(tiger.rank)}. ${winner === 'tie' ? 'Egalite.' : winner === 'dragon' ? 'Dragon genyen.' : 'Tiger genyen.'}`;
+      break;
+    }
+    case 'andarbahar': {
+      const selection = String(choice.pick || '');
+      const firstSide = String(choice.firstSide || 'andar');
+      if (!['andar','bahar'].includes(selection)) throw new HttpError(400, 'Chwazi Andar oswa Bahar.');
+      if (!['andar','bahar'].includes(firstSide)) throw new HttpError(400, 'Chwazi ki bò ki tire premye.');
+      const shoe = shuffledDeck();
+      const center = drawCard(shoe);
+      const andarCards = [], baharCards = [];
+      let winner = '', matchedCard = null;
+      for (let turn = 0; turn < 51; turn += 1) {
+        const card = drawCard(shoe);
+        const side = turn % 2 === 0 ? firstSide : (firstSide === 'andar' ? 'bahar' : 'andar');
+        (side === 'andar' ? andarCards : baharCards).push(card);
+        if (card.rank === center.rank) { winner = side; matchedCard = card; break; }
+      }
+      if (!winner) throw new Error('Andar Bahar pa jwenn kat ki matche a.');
+      won = selection === winner; multiplier = won ? 1.9 : 0;
+      details = { centerCard: `${cardName(center.rank)}${center.suit}`, centerValue: center.rank, andarCards: andarCards.map((card) => `${cardName(card.rank)}${card.suit}`), baharCards: baharCards.map((card) => `${cardName(card.rank)}${card.suit}`), matchedCard: `${cardName(matchedCard.rank)}${matchedCard.suit}`, winner, selection, firstSide, cardsDrawn: andarCards.length + baharCards.length };
+      message = `Kat santral la se ${cardName(center.rank)}. ${winner === 'andar' ? 'Andar' : 'Bahar'} jwenn premye kat ki matche a apre ${details.cardsDrawn} kat.`;
+      break;
+    }
+    case 'threecard': {
+      const selection = String(choice.pick || '');
+      if (!['player','banker','tie'].includes(selection)) throw new HttpError(400, 'Chwazi Jwè, Bankye oswa Egalite.');
+      const shoe = shuffledDeck();
+      const player = [drawCard(shoe), drawCard(shoe), drawCard(shoe)];
+      const banker = [drawCard(shoe), drawCard(shoe), drawCard(shoe)];
+      const playerRank = rankThreeCardHand(player), bankerRank = rankThreeCardHand(banker);
+      const comparison = compareHandRanks(playerRank, bankerRank);
+      const winner = comparison === 0 ? 'tie' : comparison > 0 ? 'player' : 'banker';
+      won = selection === winner; multiplier = won ? (winner === 'tie' ? 8 : 2) : winner === 'tie' ? 1 : 0;
+      details = { playerCards: player.map((card) => `${cardName(card.rank)}${card.suit}`), bankerCards: banker.map((card) => `${cardName(card.rank)}${card.suit}`), playerHand: playerRank.label, bankerHand: bankerRank.label, playerCategory: playerRank.category, bankerCategory: bankerRank.category, winner, selection };
+      message = `Jwè: ${playerRank.label}. Bankye: ${bankerRank.label}. ${winner === 'tie' ? 'Egalite.' : winner === 'player' ? 'Jwè genyen.' : 'Bankye genyen.'}`;
+      break;
+    }
+    case 'holdem': {
+      const selection = String(choice.pick || 'player');
+      if (!['player','banker','tie'].includes(selection)) throw new HttpError(400, 'Chwazi Jwè, Bankye oswa Egalite.');
+      const shoe = shuffledDeck();
+      const player = [drawCard(shoe), drawCard(shoe)];
+      const banker = [drawCard(shoe), drawCard(shoe)];
+      const community = Array.from({length:5}, () => drawCard(shoe));
+      const playerRank = rankSevenCardHand([...player, ...community]);
+      const bankerRank = rankSevenCardHand([...banker, ...community]);
+      const comparison = compareHandRanks(playerRank, bankerRank);
+      const winner = comparison === 0 ? 'tie' : comparison > 0 ? 'player' : 'banker';
+      won = selection === winner;
+      multiplier = winner === 'tie' && selection !== 'tie' ? 1 : won ? (selection === 'tie' ? 8 : 2) : 0;
+      details = { playerCards: player.map((card) => `${cardName(card.rank)}${card.suit}`), bankerCards: banker.map((card) => `${cardName(card.rank)}${card.suit}`), communityCards: community.map((card) => `${cardName(card.rank)}${card.suit}`), playerHand: playerRank.label, bankerHand: bankerRank.label, playerCategory: playerRank.category, bankerCategory: bankerRank.category, winner, selection };
+      message = `Jwè: ${playerRank.label}. Bankye: ${bankerRank.label}. ${winner === 'tie' ? 'Men yo egal.' : winner === 'player' ? 'Men jwè a pi fò.' : 'Men bankye a pi fò.'}`;
+      break;
+    }
+    case 'bingo': {
+      const pattern = String(choice.pattern || 'row');
+      const patterns = {
+        row: [[0,1,2,3,4],[5,6,7,8,9],[10,11,12,13,14],[15,16,17,18,19],[20,21,22,23,24]],
+        column: [[0,5,10,15,20],[1,6,11,16,21],[2,7,12,17,22],[3,8,13,18,23],[4,9,14,19,24]],
+        diagonal: [[0,6,12,18,24],[4,8,12,16,20]],
+        corners: [[0,4,20,24]]
+      };
+      if (!Object.hasOwn(patterns, pattern)) throw new HttpError(400, 'Chwazi yon modèl Bingo valab.');
+      const card = createBingoCard();
+      const drawn = new Set();
+      while (drawn.size < 35) drawn.add(1 + randomInt(75));
+      const marked = new Set(card.map((number, index) => number === 0 || drawn.has(number) ? index : -1).filter((index) => index >= 0));
+      const completedPatterns = patterns[pattern].map((line, index) => line.every((cell) => marked.has(cell)) ? index : -1).filter((index) => index >= 0);
+      const payouts = { row: 5, column: 5, diagonal: 9, corners: 12 };
+      won = completedPatterns.length > 0;
+      multiplier = won ? payouts[pattern] : 0;
+      details = { card, drawn: [...drawn].sort((a,b) => a-b), markedCells: [...marked].sort((a,b) => a-b), pattern, completedPatterns, multiplier };
+      message = won ? `BINGO! Ou konplete ${pattern === 'row' ? 'yon liy orizontal' : pattern === 'column' ? 'yon kolòn' : pattern === 'diagonal' ? 'yon dyagonal' : 'kat kwen yo'}.` : 'Pa gen modèl konplè nan tiraj sa a.';
       break;
     }
     default: throw new HttpError(404, 'Jwèt sa a pa disponib.');
