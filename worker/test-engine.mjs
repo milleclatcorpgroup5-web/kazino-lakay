@@ -1,14 +1,22 @@
 import assert from 'node:assert/strict';
 import worker, { resolveGame } from './src/index.js';
 import { GAMES } from '../src/games/catalog.js';
+import { rouletteWheelSvg, renderRouletteScreen } from '../src/games/roulette.js';
 import { readFile } from 'node:fs/promises';
 
 const cases = {
-  crash: { target: 2 }, slots: {}, roulette: { pick: 'red' }, blackjack: { standAt: 17 },
+  crash: { target: 2 }, slots: {}, roulette: { betType: 'color', betValue: 'red' }, blackjack: { standAt: 17 },
   baccarat: { pick: 'player' }, keno: { numbers: [1, 2, 3, 4, 5] }, dice: { pick: 'over7' },
   mines: { cells: [1, 2] }, plinko: {}, penalty: { shot: 'left' }, coinflip: { pick: 'heads' },
   limbo: { target: 2 }, hilo: { pick: 'high' }, scratch: {}, wheel: {}, sicbo: { pick: 'small' }, casinowar: {}
 };
+const rouletteSvg = rouletteWheelSvg();
+assert.equal((rouletteSvg.match(/class="rr-pocket rr-pocket-/g) || []).length, 37, 'Wou SVG a dwe gen 37 pòch Ewopeyen.');
+const rouletteUi = renderRouletteScreen({ selection: { type: 'number', value: 0 }, stake: 100, soundOn: true });
+assert.match(rouletteUi, /id="roulette-fullscreen"/);
+assert.match(rouletteUi, /data-roulette-menu-layer hidden/);
+assert.match(rouletteUi, /data-roulette-action="chip" data-chip-value="500"/);
+assert.match(rouletteUi, /data-bet-type="parity" data-bet-value="even"/);
 const base = 'https://kazino-lakay.milleclatcorpgroup5.workers.dev';
 const env = { ALLOWED_ORIGINS: '' };
 const manifest = JSON.parse(await readFile(new URL('../public/manifest.webmanifest', import.meta.url), 'utf8'));
@@ -55,8 +63,31 @@ for (const [gameId, choice] of Object.entries(cases)) {
   assert.equal(Number.isInteger(demo.result.payoutPoints), true);
 }
 
+
+for (const bet of [
+  { betType: 'number', betValue: 0 },
+  { betType: 'number', betValue: 36 },
+  { betType: 'color', betValue: 'red' },
+  { betType: 'color', betValue: 'black' },
+  { betType: 'parity', betValue: 'even' },
+  { betType: 'parity', betValue: 'odd' }
+]) {
+  for (let i = 0; i < 100; i += 1) {
+    const output = resolveGame('roulette', 100, bet);
+    const n = output.result.details.number;
+    assert.ok(n >= 0 && n <= 36);
+    assert.ok(['red','black','green'].includes(output.result.details.color));
+    if (bet.betType === 'number') assert.equal(output.result.multiplier, n === bet.betValue ? 36 : 0);
+    if (bet.betType === 'color') assert.equal(output.result.multiplier, output.result.details.color === bet.betValue ? 2 : 0);
+    if (bet.betType === 'parity') assert.equal(output.result.multiplier, n !== 0 && (n % 2 === 0 ? 'even' : 'odd') === bet.betValue ? 2 : 0);
+  }
+}
+
 assert.throws(() => resolveGame('keno', 100, { numbers: [1, 2, 3, 4] }), /Chwazi egzakteman/);
 assert.throws(() => resolveGame('roulette', 100, { pick: 'purple' }), /Chwazi wouj/);
+assert.throws(() => resolveGame('roulette', 100, { betType: 'number', betValue: 37 }), /nimewo antye/);
+assert.throws(() => resolveGame('roulette', 100, { betType: 'color', betValue: 'green' }), /wouj oswa nwa/);
+assert.throws(() => resolveGame('roulette', 100, { betType: 'parity', betValue: 'zero' }), /pè oswa enpè/);
 assert.throws(() => resolveGame('mines', 100, { cells: [1, 1] }), /kare diferan/);
 assert.throws(() => resolveGame('crash', 100, { target: 99 }), /Objektif Crash/);
 
@@ -116,4 +147,4 @@ assert.equal(sameOrigin.headers.get('Access-Control-Allow-Origin'), base);
 const blockedOrigin = await worker.fetch(new Request(`${base}/api/health`, { headers: { Origin: 'https://bad-origin.example' } }), env);
 assert.equal(blockedOrigin.status, 403);
 
-console.log(`OK: ${Object.keys(cases).length} jwèt × 100 rezilta, 17 endpoint DEMO, validasyon, health, lis jwèt, API admin pwoteje ak CORS.`);
+console.log(`OK: ${Object.keys(cases).length} jwèt × 100 rezilta, tout kalite parye roulèt, 17 endpoint DEMO, validasyon, health, lis jwèt, API admin pwoteje ak CORS.`);
