@@ -1,32 +1,16 @@
-# Kazino Lakay V1.4.0 — eksperyans plen ekran pou 17 jwèt yo
+KAZINO LAKAY V1.6.0 — ENSTRIKSYON PATCH SÈLMAN
 
-Patch sa a aplike sou vèsyon V1.3.1 ki te deja gen jwèt yo, Worker la, Firebase, admin ak Roulèt Royal. Li mete menm nivo prezantasyon ak estrikti ekran plen sou 16 lòt jwèt yo, epi li konsève tab espesyal Roulèt Royal la.
+ZIP sa a pa gen tout pwojè a. Li gen sèlman 7 fichye ki modifye pou nouvo eksperyans 22 jwèt la.
 
-## Aplike patch la
+ETAP:
+1. Fè yon kopi sekirite repository aktyèl la.
+2. Ouvri ZIP la.
+3. Antre nan katab kazino-lakay-v1/ epi kopye 7 fichye ki nan lis PATCH-FILES-V1.6.0.txt la sou menm chemen yo nan pwojè ou.
+4. Aksepte ranplasman pou 7 fichye sa yo sèlman. Pa efase ni ranplase okenn lòt fichye.
+5. Nan rasin pwojè a, kouri: npm run check, npm test, npm run build.
+6. Si tès yo pase, deplwaye frontend/Worker dapre pwosedi Cloudflare pwojè ou a.
 
-1. Fè yon backup repository aktyèl la.
-2. Ouvri ZIP patch la epi antre nan `kazino-lakay-v1/`.
-3. Kopi fichye ki nan `PATCH-FILES-V1.4.0.txt` yo nan menm chemen yo nan repository la.
-4. Ranplase sèlman fichye ki nan seksyon REPLACE la. Pa efase ni ranplase lòt fichye yo.
-5. Kouri `npm install`, `npm run check`, `npm test`, epi `npm run build`.
-6. Apre verifikasyon yo, pibliye frontend la. Worker/Firebase pa bezwen chanje pou entèfas V1.4.0 la.
+FICHYE KI RETE JAN YO YE:
+index.html, admin.html, Firebase/auth/api/admin, src/games/roulette.js, worker/wrangler.toml, Firestore rules/indexes, firebase.json, .env.example, vite.config.js, ikon, ak tout lòt fichye ki pa nan lis 7 fichye yo.
 
-## Sa ki chanje
-
-- Tout 17 jwèt yo louvri dirèkteman nan ekran plen.
-- Chak jwèt gen kontwòl espesyal selon kalite jwèt la. Keno mande 5 nimewo; Mines pèmèt 1–5 kare; jwèt kat/zo yo gen ekspozisyon espesifik.
-- Jeton 10/50/100/500, meni règ, son, bouton retounen ak overlay rezilta.
-- Ilistrasyon SVG pou 16 kat jwèt yo; Roulèt Royal kontinye sèvi ak SVG wou pa li.
-- Animasyon rezilta yo rete vizyèl; backend la toujou sèl sous ki detèmine rezilta.
-
-## Fichye ki dwe ranplase
-
-Gade lis konplè nan `PATCH-FILES-V1.4.0.txt`. Patch sa a pa mande chanjman nan `worker/src/index.js`, Firebase rules, sekrè, admin, ni `worker/wrangler.toml`.
-
-## Limit verifikasyon
-
-Nan anviwònman preparasyon an, `node --check` sou fichye JavaScript yo ak `npm test` pase. `npm run build` pa t ka kouri san enstalasyon depandans NPM/Vite yo; verifye li nan anviwònman pwojè a anvan deplwaman. Nou pa t pibliye anyen sou Cloudflare.
-
-## Pwen demonstrasyon sèlman
-
-Pa gen lajan reyèl, depo, retrè, peman, transfè, MonCash oswa NatCash. DEMO pa modifye balans kont.
+REMAK: package.json nan patch la sèlman mete nimewo vèsyon/script dependency ki koresponn ak V1.6.0; pa gen okenn nouvo sekrè oswa konfigirasyon Firebase nan ZIP sa a. Tout jwèt rete DEMO ak pwen san valè lajan.
