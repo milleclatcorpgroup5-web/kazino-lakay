@@ -1,64 +1,32 @@
-# Kazino Lakay V1.3.0 — enstriksyon patch
+# Kazino Lakay V1.4.0 — eksperyans plen ekran pou 17 jwèt yo
 
-Patch sa a fèt pou repository ki deja gen tout patch V1.2.1 ak V1.2.2 yo. Li gen sèlman fichye ki nouvo oswa ki chanje pou ajoute PWA, mòd jwèt DEMO ki mache san Firebase, epi panèl administratè.
+Patch sa a aplike sou vèsyon V1.3.1 ki te deja gen jwèt yo, Worker la, Firebase, admin ak Roulèt Royal. Li mete menm nivo prezantasyon ak estrikti ekran plen sou 16 lòt jwèt yo, epi li konsève tab espesyal Roulèt Royal la.
 
 ## Aplike patch la
 
-1. Fè yon backup repository GitHub `milleclatcorpgroup5-web/kazino-lakay` la.
-2. Louvri ZIP la epi antre nan folder `kazino-lakay-v1`.
-3. Kopi tout sa ki anndan folder sa a nan rasin repository GitHub la. Kenbe menm chemen folder yo (`src/`, `worker/src/`, `public/`).
-4. Lè GitHub mande si pou ranplase fichye ki egziste, aksepte pou fichye patch la. Fichye ki nouvo yo dwe ajoute.
-5. Fè commit sou branch `main` pou Cloudflare ka konstwi ak deplwaye vèsyon an.
+1. Fè yon backup repository aktyèl la.
+2. Ouvri ZIP patch la epi antre nan `kazino-lakay-v1/`.
+3. Kopi fichye ki nan `PATCH-FILES-V1.4.0.txt` yo nan menm chemen yo nan repository la.
+4. Ranplase sèlman fichye ki nan seksyon REPLACE la. Pa efase ni ranplase lòt fichye yo.
+5. Kouri `npm install`, `npm run check`, `npm test`, epi `npm run build`.
+6. Apre verifikasyon yo, pibliye frontend la. Worker/Firebase pa bezwen chanje pou entèfas V1.4.0 la.
 
-Pa mete ZIP la kòm yon fichye ZIP andedan repository a. Pa efase lòt fichye ki pa nan patch la.
+## Sa ki chanje
 
-## Fichye ki nouvo
+- Tout 17 jwèt yo louvri dirèkteman nan ekran plen.
+- Chak jwèt gen kontwòl espesyal selon kalite jwèt la. Keno mande 5 nimewo; Mines pèmèt 1–5 kare; jwèt kat/zo yo gen ekspozisyon espesifik.
+- Jeton 10/50/100/500, meni règ, son, bouton retounen ak overlay rezilta.
+- Ilistrasyon SVG pou 16 kat jwèt yo; Roulèt Royal kontinye sèvi ak SVG wou pa li.
+- Animasyon rezilta yo rete vizyèl; backend la toujou sèl sous ki detèmine rezilta.
 
-- `admin.html`
-- `vite.config.js`
-- `src/admin.js`
-- `src/admin.css`
-- `public/manifest.webmanifest`
-- `public/sw.js`
-- `public/icons/icon-192.png`
-- `public/icons/icon-512.png`
+## Fichye ki dwe ranplase
 
-## Fichye ki ranplase
+Gade lis konplè nan `PATCH-FILES-V1.4.0.txt`. Patch sa a pa mande chanjman nan `worker/src/index.js`, Firebase rules, sekrè, admin, ni `worker/wrangler.toml`.
 
-- `index.html`
-- `package.json`
-- `src/main.js`
-- `src/style.css`
-- `worker/src/index.js`
-- `worker/test-engine.mjs`
-- `DEPLOY-HA.md`
-- `CONFIGURATION-FIREBASE-HA.md`
-- `README.md`
-- `VERIFICATION-HA.md`
+## Limit verifikasyon
 
-## Fichye pou konsève jan yo ye
+Nan anviwònman preparasyon an, `node --check` sou fichye JavaScript yo ak `npm test` pase. `npm run build` pa t ka kouri san enstalasyon depandans NPM/Vite yo; verifye li nan anviwònman pwojè a anvan deplwaman. Nou pa t pibliye anyen sou Cloudflare.
 
-Pa ranplase `worker/wrangler.toml`, `firestore.rules`, `firestore.indexes.json`, `src/firebase.js`, `src/auth.js`, `src/api.js`, `src/games/catalog.js`, `.env.example`, `worker/.dev.vars.example` oswa `firebase.json`. Yo pa chanje nan patch sa a.
+## Pwen demonstrasyon sèlman
 
-## Cloudflare
-
-Kenbe pwojè Worker la sou menm non `kazino-lakay`.
-
-- Root directory: `/`
-- Branch: `main`
-- Build command: `npm run build`
-- Deploy command: `npm run deploy:worker`
-
-Konfigirasyon Worker la itilize `worker/wrangler.toml` ki deja nan repository a epi li sèvi ak `dist/` kòm static assets.
-
-## PWA
-
-Apre deplwaman, ouvri adrès sit la nan Chrome Android. Lè opsyon enstalasyon an parèt, chwazi **Enstale app** oswa meni Chrome `⋮` > **Enstale aplikasyon** / **Add to Home screen**. Sou iPhone/iPad, sèvi ak meni Share nan Safari > **Add to Home Screen**.
-
-## Firebase ak administrasyon
-
-Pake a gen mòd DEMO ki sèvi ak Worker la san kont ni Firestore; pa gen balans kont ki modifye nan DEMO. Pou kont, balans ki sove, istwa ak Admin, mete kat Firebase Web App build variables yo, sekrè service account Worker yo, epi `INITIAL_ADMIN_EMAILS` jan gid `CONFIGURATION-FIREBASE-HA.md` la eksplike.
-
-Mete adrès imel Firebase ki verifye pou administratè a nan `INITIAL_ADMIN_EMAILS`. Pa mete kle prive oswa modpas nan GitHub, ZIP, oswa chat. Pa kreye okenn modpas admin default.
-
-Tout pwen rete demonstrasyon san valè lajan. Pa gen depo, retrè, MonCash, NatCash oswa peman reyèl.
+Pa gen lajan reyèl, depo, retrè, peman, transfè, MonCash oswa NatCash. DEMO pa modifye balans kont.
