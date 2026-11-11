@@ -5,7 +5,7 @@ import { watchAuth, registerAccount, loginAccount, logoutAccount, resendVerifica
 import { api } from './api.js';
 
 const root = document.querySelector('#app');
-const state = { user: null, profile: null, category: 'Tout jwèt', query: '', activeGame: null, selected: new Set(), busy: false, notice: '' };
+const state = { user: null, profile: null, health: null, category: 'Tout jwèt', query: '', activeGame: null, selected: new Set(), busy: false, installPrompt: null };
 const esc = (value = '') => String(value).replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 const fmt = (n = 0) => Math.floor(Number(n) || 0).toLocaleString('fr-FR');
 
@@ -101,8 +101,8 @@ function renderGameStage(gameId, details = null, phase = 'idle') {
       return stageFrame(gameId, 'Mines — Min Lakay', 'Tablo sekirite 5 × 5 la revele dyaman ak min yo apre wonn nan.', `<div class="mines-board-wrap"><div class="mines-top"><span>MIN LAKAY <small>3 MIN KACHE</small></span><b>${details ? (hits.size ? 'MIN DETEKTE' : 'ZÒN SEKIRIZE') : 'CHWAZI KARE'}</b></div><div class="mines-board">${Array.from({length:25},(_,i)=>{const n=i+1;const isMine=mines.has(n);const isSafe=details && chosen.has(n) && !isMine;return `<span class="mine-cell ${chosen.has(n)?'is-chosen':''} ${isMine?'is-mine':''} ${isSafe?'is-safe':''}" style="--i:${i}">${isMine?'✹':isSafe?'◆':chosen.has(n)?'•':'?'}</span>`}).join('')}</div><div class="mines-footer"><span>◆ DIAMYAN</span><span>✹ MIN</span></div></div>`, phase);
     }
     case 'plinko': {
-      const path = d.path || ['L','R','L','L','R','R','L']; const slot = Number(d.slot || 4);
-      return stageFrame(gameId, 'Plinko Drop', 'Boul la desann atravè pikèt yo epi fini nan pòch miltiplikatè a.', `<div class="plinko-board-wrap"><div class="plinko-top"><span>PLINKO • DROP ZONE</span><b class="stage-result">${details ? `${Number(d.multiplier).toFixed(1)}×` : '—'}</b></div><div class="plinko-board"><div class="plinko-pegs">${Array.from({length:7},(_,row)=>`<div class="peg-row">${Array.from({length:row+1},(_,col)=>`<i></i>`).join('')}</div>`).join('')}</div><span class="plinko-ball stage-result" style="--slot:${slot-1};--path:${path.map(x=>x==='R'?'1':'0').join('')}"></span></div><div class="plinko-slots">${[0.5,1,2,5,2,1,0.5].map((v,i)=>`<span class="${details && slot===i+1?'slot-active':''}">${v}×</span>`).join('')}</div></div>`, phase);
+      const path = d.path || ['L','R','L','R','L','R']; const slot = Number(d.slot || 4);
+      return stageFrame(gameId, 'Plinko Drop', 'Boul la desann atravè pikèt yo epi fini nan pòch miltiplikatè a.', `<div class="plinko-board-wrap"><div class="plinko-top"><span>PLINKO • DROP ZONE</span><b class="stage-result">${details ? `${Number(d.multiplier).toFixed(1)}×` : '—'}</b></div><div class="plinko-board"><div class="plinko-pegs">${Array.from({length:6},(_,row)=>`<div class="peg-row">${Array.from({length:row+1},(_,col)=>`<i></i>`).join('')}</div>`).join('')}</div><span class="plinko-ball stage-result" data-path="${path.join('')}" data-slot="${slot}"></span></div><div class="plinko-slots">${[0.5,1,2,5,2,1,0.5].map((v,i)=>`<span class="${details && slot===i+1?'slot-active':''}">${v}×</span>`).join('')}</div></div>`, phase);
     }
     case 'penalty': {
       const shot = d.shot || 'center'; const keeper = d.keeper || 'center';
@@ -144,11 +144,14 @@ function render() {
     return categoryMatch && textMatch;
   });
   root.innerHTML = `<header class="topbar"><a class="brand" href="#top"><span class="brand-mark">KL</span><span>KAZINO <b>LAKAY</b></span></a>
-    <div class="topbar-actions"><span class="points"><small>Pwen jwèt</small><strong>${state.profile ? fmt(state.profile.pointsBalance) : '—'} P</strong></span>
+    <div class="topbar-actions"><span class="points"><small>${state.profile ? 'Pwen kont' : 'Mòd demonstrasyon'}</small><strong>${state.profile ? `${fmt(state.profile.pointsBalance)} P` : 'DEMO'}</strong></span>
+      ${state.profile?.role === 'admin' ? `<a class="button button-ghost" href="/admin.html">Admin</a>` : ''}
+      ${state.installPrompt ? `<button class="button button-ghost" data-action="install-app">Enstale app</button>` : ''}
       ${state.user ? `<button class="button button-ghost" data-action="history">Istwa</button><span class="user-label">${esc(state.user.displayName || state.user.email || 'Jwè')}</span><button class="button button-ghost" data-action="logout">Dekonekte</button>` : `<button class="button button-ghost" data-action="login">Konekte</button><button class="button button-primary" data-action="register">Kreye kont</button>`}
     </div></header>
     <main id="top" class="shell">
-      ${!firebaseReady ? `<div class="config-alert"><strong>Enstalasyon Firebase poko fini.</strong><span>Konfigirasyon ki manke: ${firebaseMissing.map(esc).join(', ')}. Pa gen kont ni jwèt sèvè ki disponib jiskaske pwojè Firebase la konekte.</span></div>` : ''}
+      ${!firebaseReady ? `<div class="config-alert"><strong>Kont jwè yo poko aktive.</strong><span>Konfigirasyon frontend Firebase ki manke: ${firebaseMissing.map(esc).join(', ')}. Ou kapab eseye jwèt yo nan mòd demonstrasyon; pou kont, balans sove ak administrasyon, fini konfigirasyon Firebase la.</span></div>` : ''}
+      ${state.health && !state.health.firebaseConfigured ? `<div class="config-alert"><strong>Backend Firebase poko konekte.</strong><span>Jwèt DEMO yo disponib. Kont, balans ki sove, istwa ak admin ap rete bloke jiskaske sekrè Firebase Worker yo konfigire. Paramèt ki manke: ${(state.health.firebaseMissing || []).map(esc).join(', ') || 'verifye kle prive a'}.</span></div>` : ''}
       <section class="hero"><div class="hero-copy"><span class="eyebrow">GAME CENTER • KAZINO LAKAY</span><h1>Jwe ak lespri.<br><em>Konprann chak mouvman.</em></h1><p>Eksplore jwèt yo, aprann règ yo, epi swiv rezilta ou. Chak jwèt gen eksplikasyon klè anvan ou kòmanse.</p><div class="hero-actions"><a class="button button-primary" href="#games">Eksplore 17 jwèt yo <span>↘</span></a><span class="hero-note">Pwen jwèt san valè lajan</span></div></div>
         <div class="hero-art" aria-hidden="true"><div class="hero-orbit orbit-a"></div><div class="hero-orbit orbit-b"></div><div class="hero-chip">KL</div><div class="hero-card hero-card-a">A<span>♠</span></div><div class="hero-card hero-card-b">7<span>♦</span></div></div></section>
       ${state.user && !state.user.emailVerified ? `<div class="config-alert verify-alert"><strong>Verifye imel ou.</strong><span>Nou voye yon lyen verifikasyon nan ${esc(state.user.email || 'adrès imel ou')}.</span><button class="button button-ghost" data-action="resend-verification">Voye imel verifikasyon ankò</button></div>` : ''}
@@ -179,9 +182,11 @@ function renderGameModal() {
     <div class="game-instructions"><div class="instruction-icon">${game.symbol}</div><div><strong>Objektif jwèt la</strong><p>${esc(game.summary)}</p></div></div>
     ${renderGameStage(game.id)}
     <div class="rules-block"><h3>Kijan pou jwe?</h3><p>${esc(game.how)}</p><div class="payout-note"><strong>Retou posib</strong><span>${esc(game.payout)}</span></div></div>
-    <form id="play-form"><label class="field stake-field"><span>Pwen pou mete nan wonn sa a</span><input name="stakePoints" type="number" min="10" max="1000" step="10" value="100" required><small>Ant 10 ak 1 000 pwen. Balans ou: ${state.profile ? fmt(state.profile.pointsBalance) : '—'} P.</small></label>${fields}
-      <p class="small-print">Pwen yo pa gen valè lajan. Rezilta a kalkile sou sèvè epi yo pa ka chanje nan navigatè a.</p><button class="button button-primary button-wide" type="submit" ${!state.user || state.user.emailVerified === false || state.busy ? 'disabled' : ''}>${state.busy ? 'Wonn nan ap dewoule…' : 'Kòmanse wonn nan'}</button>
-      ${!state.user ? '<p class="form-hint">Konekte oswa kreye kont pou jwe.</p>' : state.user.emailVerified === false ? '<p class="form-hint">Verifye imel ou anvan ou kòmanse yon jwèt.</p>' : ''}
+    <form id="play-form"><label class="field stake-field"><span>Pwen pou mete nan wonn sa a</span><input name="stakePoints" type="number" min="10" max="1000" step="10" value="100" required><small>Ant 10 ak 1 000 pwen. Mòd DEMO pa retire okenn pwen nan kont ou.</small></label>${fields}
+      <p class="small-print">Pwen yo pa gen valè lajan. Mòd DEMO a pa sove balans. Mòd kont lan itilize rezilta sèvè ak Firebase lè tout konfigirasyon yo fini.</p>
+      <button class="button button-primary button-wide" type="submit" ${!state.user || state.user.emailVerified === false || !firebaseReady || state.health?.firebaseConfigured !== true || state.busy ? 'disabled' : ''}>${state.busy ? 'Wonn nan ap dewoule…' : 'Jwe ak pwen kont mwen'}</button>
+      <button class="button button-demo button-wide" type="button" data-play-demo ${state.busy ? 'disabled' : ''}>Jwe demonstrasyon</button>
+      ${!state.user ? '<p class="form-hint">Ou kapab teste kounye a an mòd demonstrasyon. Konekte pou sove balans ak istwa.</p>' : state.user.emailVerified === false ? '<p class="form-hint">Verifye imel ou pou sèvi ak balans kont lan. DEMO toujou disponib.</p>' : state.health?.firebaseConfigured !== true ? '<p class="form-hint">Firebase Worker poko konfigire. DEMO disponib; jwèt sou kont ap aktive apre konfigirasyon an.</p>' : ''}
     </form><div id="game-result" class="game-result" aria-live="polite"></div></section></div>`;
 }
 
@@ -213,39 +218,45 @@ function parseChoices(form, game) {
   return choice;
 }
 
-async function playGame(form) {
+async function playGame(form, demoMode = false) {
   const game = state.activeGame;
-  if (!state.user) return toast('Konekte anvan ou jwe.', 'warning');
-  if (!state.user.emailVerified) return toast('Verifye imel ou anvan ou jwe.', 'warning');
+  if (!demoMode && !state.user) return toast('Konekte anvan ou jwe ak pwen kont ou.', 'warning');
+  if (!demoMode && !state.user.emailVerified) return toast('Verifye imel ou anvan ou jwe ak pwen kont ou.', 'warning');
+  if (!demoMode && (!firebaseReady || state.health?.firebaseConfigured !== true)) return toast('Firebase poko konfigire. Sèvi ak mòd demonstrasyon pou kounye a.', 'warning');
   if (state.busy) return;
   const stakePoints = Number(new FormData(form).get('stakePoints'));
   if (!Number.isInteger(stakePoints) || stakePoints < 10 || stakePoints > 1000) return toast('Mete ant 10 ak 1 000 pwen.', 'warning');
   try {
     const choice = parseChoices(form, game);
     state.busy = true;
-    const submit = form.querySelector('button[type="submit"]');
-    submit.disabled = true;
-    submit.textContent = 'Sèvè a ap kalkile rezilta a…';
-    const result = await api('/api/games/play', { method: 'POST', body: { gameId: game.id, stakePoints, choice } });
+    const accountButton = form.querySelector('button[type="submit"]');
+    const demoButton = form.querySelector('[data-play-demo]');
+    if (accountButton) { accountButton.disabled = true; accountButton.textContent = 'Sèvè a ap kalkile rezilta a…'; }
+    if (demoButton) { demoButton.disabled = true; demoButton.textContent = 'Wonn demonstrasyon an ap dewoule…'; }
+    const result = await api(demoMode ? '/api/games/demo' : '/api/games/play', { method: 'POST', body: { gameId: game.id, stakePoints, choice } });
     const panel = document.querySelector('#game-result');
     const gamePanel = document.querySelector('.game-modal-panel');
     const stage = gamePanel?.querySelector('.casino-stage');
     if (stage) stage.outerHTML = renderGameStage(game.id, result.result.details, 'rolling');
     await animateResult(gamePanel || panel, game.id);
-    state.profile = { ...(state.profile || {}), pointsBalance: result.balancePoints };
-    panel.innerHTML = `<div class="result-summary ${result.result.payoutPoints > stakePoints ? 'result-win' : result.result.payoutPoints === stakePoints ? 'result-neutral' : 'result-loss'}"><span class="result-symbol">${game.symbol}</span><h3>${esc(result.result.title)}</h3><p>${esc(result.result.message)}</p><div class="result-numbers"><span>Pwen mete<strong>${fmt(stakePoints)} P</strong></span><span>Retou<strong>${fmt(result.result.payoutPoints)} P</strong></span><span>Nouvo balans<strong>${fmt(result.balancePoints)} P</strong></span></div><details><summary>Wè detay wonn nan</summary><pre>${esc(JSON.stringify(result.result.details, null, 2))}</pre></details></div>`;
+    if (!demoMode) state.profile = { ...(state.profile || {}), pointsBalance: result.balancePoints };
+    const numbers = demoMode
+      ? `<span>Retou DEMO<strong>${fmt(result.result.payoutPoints)} P</strong></span><span>Balans kont<strong>Pa modifye</strong></span>`
+      : `<span>Retou<strong>${fmt(result.result.payoutPoints)} P</strong></span><span>Nouvo balans<strong>${fmt(result.balancePoints)} P</strong></span>`;
+    panel.innerHTML = `<div class="result-summary ${result.result.payoutPoints > stakePoints ? 'result-win' : result.result.payoutPoints === stakePoints ? 'result-neutral' : 'result-loss'}"><span class="result-symbol">${game.symbol}</span><span class="result-mode">${demoMode ? 'MÒD DEMONSTRASYON • PA GEN EKRI NAN KONT' : 'REZILTA KONT KONFIME'}</span><h3>${esc(result.result.title)}</h3><p>${esc(result.result.message)}</p><div class="result-numbers"><span>Pwen simulation<strong>${fmt(stakePoints)} P</strong></span>${numbers}</div><details><summary>Wè detay wonn nan</summary><pre>${esc(JSON.stringify(result.result.details, null, 2))}</pre></details></div>`;
     state.busy = false;
-    renderTopbarOnly();
-    const next = panel.querySelector('.result-summary');
-    next?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    form.querySelector('button[type="submit"]').disabled = false;
-    form.querySelector('button[type="submit"]').textContent = 'Jwe yon lòt wonn';
-    toast('Wonn fini. Balans ou mete ajou.', 'success');
+    if (!demoMode) renderTopbarOnly();
+    panel.querySelector('.result-summary')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    if (accountButton) { accountButton.disabled = !state.user || !state.user.emailVerified || !firebaseReady || state.health?.firebaseConfigured !== true; accountButton.textContent = 'Jwe ak pwen kont mwen'; }
+    if (demoButton) { demoButton.disabled = false; demoButton.textContent = 'Jwe demonstrasyon ankò'; }
+    toast(demoMode ? 'Rezilta demonstrasyon an pare. Pa gen balans ki chanje.' : 'Wonn fini. Balans kont ou mete ajou.', 'success');
   } catch (error) {
     state.busy = false;
     toast(error.message || 'Nou pa t kapab lanse jwèt la.', 'error');
     const submit = form.querySelector('button[type="submit"]');
-    if (submit) { submit.disabled = false; submit.textContent = 'Eseye ankò'; }
+    const demoButton = form.querySelector('[data-play-demo]');
+    if (submit) { submit.disabled = !state.user || !state.user.emailVerified || !firebaseReady || state.health?.firebaseConfigured !== true; submit.textContent = 'Jwe ak pwen kont mwen'; }
+    if (demoButton) { demoButton.disabled = false; demoButton.textContent = 'Eseye demonstrasyon ankò'; }
   }
 }
 
@@ -268,6 +279,19 @@ async function animateResult(panel, gameId) {
           : [{ transform: 'translateY(12px) scale(.94)', opacity: .45 }, { transform: 'translateY(-5px) scale(1.035)', opacity: 1 }, { transform: 'translateY(0) scale(1)', opacity: 1 }];
     return node.animate(keyframes, { duration: isCard ? 900 : duration, delay: isCard || isDie ? index * 75 : 0, easing: 'cubic-bezier(.16,1,.3,1)', fill: 'both' });
   });
+  if (gameId === 'plinko') {
+    const ball = stage.querySelector('.plinko-ball');
+    if (ball) {
+      const path = String(ball.dataset.path || 'LRLRLR').split('');
+      let offsetX = 0;
+      const frames = [{ transform: 'translate(0, 0)' }];
+      path.forEach((step, index) => {
+        offsetX += step === 'R' ? 25 : -25;
+        frames.push({ transform: `translate(${offsetX}px, ${(index + 1) * 23}px)` });
+      });
+      animations.push(ball.animate(frames, { duration: 1650, easing: 'cubic-bezier(.22,.7,.26,1)', fill: 'forwards' }));
+    }
+  }
   await Promise.all(animations.map((animation) => animation.finished.catch(() => undefined)));
   await new Promise((resolve) => setTimeout(resolve, Math.max(0, duration - 500)));
   stage.classList.remove('phase-rolling');
@@ -295,7 +319,11 @@ root.addEventListener('click', async (event) => {
   const close = event.target.closest('[data-close-modal]');
   const authMode = event.target.closest('[data-auth-mode]');
   const number = event.target.closest('[data-number]');
-  if (open) {
+  const demo = event.target.closest('[data-play-demo]');
+  if (demo) {
+    const form = demo.closest('#play-form');
+    if (form) await playGame(form, true);
+  } else if (open) {
     state.activeGame = GAMES.find((g) => g.id === open.dataset.openGame);
     state.selected = new Set();
     renderGameModal();
@@ -306,6 +334,14 @@ root.addEventListener('click', async (event) => {
   else if (action?.dataset.action === 'register') renderAuthModal('register');
   else if (action?.dataset.action === 'logout') { await logoutAccount(); state.profile = null; }
   else if (action?.dataset.action === 'history') await showHistory();
+  else if (action?.dataset.action === 'install-app') {
+    if (state.installPrompt) {
+      await state.installPrompt.prompt();
+      await state.installPrompt.userChoice.catch(() => null);
+      state.installPrompt = null;
+      render();
+    }
+  }
   else if (action?.dataset.action === 'resend-verification') { try { await resendVerification(); toast('Nou voye yon nouvo imel verifikasyon.', 'success'); } catch (error) { toast(error.message, 'error'); } }
   else if (close) { state.activeGame = null; state.busy = false; document.querySelector('#modal-root').innerHTML = ''; }
   else if (authMode) renderAuthModal(authMode.dataset.authMode);
@@ -367,3 +403,24 @@ render();
 if (firebaseReady) {
   watchAuth((user) => syncProfile(user));
 }
+
+async function loadBackendHealth() {
+  try { state.health = await api('/api/health'); }
+  catch { state.health = { status: 'unreachable', firebaseConfigured: false, firebaseMissing: ['Worker API pa reponn'] }; }
+  render();
+}
+loadBackendHealth();
+
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}), { once: true });
+}
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault();
+  state.installPrompt = event;
+  render();
+});
+window.addEventListener('appinstalled', () => {
+  state.installPrompt = null;
+  toast('Kazino Lakay enstale sou aparèy ou.', 'success');
+  render();
+});
