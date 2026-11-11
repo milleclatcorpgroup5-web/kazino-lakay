@@ -5,10 +5,12 @@ import { rouletteWheelSvg, renderRouletteScreen } from '../src/games/roulette.js
 import { readFile } from 'node:fs/promises';
 
 const cases = {
-  crash: { target: 2 }, slots: {}, roulette: { betType: 'color', betValue: 'red' }, blackjack: { standAt: 17 },
-  baccarat: { pick: 'player' }, keno: { numbers: [1, 2, 3, 4, 5] }, dice: { pick: 'over7' },
-  mines: { cells: [1, 2] }, plinko: {}, penalty: { shot: 'left' }, coinflip: { pick: 'heads' },
-  limbo: { target: 2 }, hilo: { pick: 'high' }, scratch: {}, wheel: {}, sicbo: { pick: 'small' }, casinowar: {}
+  crash: { target: 2, volatility: 'normal' }, slots: {}, roulette: { betType: 'color', betValue: 'red' }, blackjack: { standAt: 17, dealerSoft17: 'stand' },
+  baccarat: { pick: 'player' }, keno: { numbers: [1, 2, 3, 4, 5], drawCount: 10 }, dice: { pick: 'over7' },
+  mines: { cells: [1, 2], mineCount: 3 }, plinko: { risk: 'normal', rows: 6 }, penalty: { shot: 'left', difficulty: 'normal' }, coinflip: { pick: 'heads', rounds: 3 },
+  limbo: { target: 2 }, hilo: { pick: 'high', risk: 'normal' }, scratch: { risk: 'normal' }, wheel: { risk: 'normal' }, sicbo: { pick: 'small' }, casinowar: { pick: 'player' },
+  dragontiger: { pick: 'dragon' }, andarbahar: { pick: 'andar', firstSide: 'andar' }, threecard: { pick: 'player' },
+  holdem: { pick: 'player' }, bingo: { pattern: 'row' }
 };
 const rouletteSvg = rouletteWheelSvg();
 assert.equal((rouletteSvg.match(/class="rr-pocket rr-pocket-/g) || []).length, 37, 'Wou SVG a dwe gen 37 pòch Ewopeyen.');
@@ -28,7 +30,7 @@ const adminHtml = await readFile(new URL('../admin.html', import.meta.url), 'utf
 assert.match(mainHtml, /manifest\.webmanifest/);
 assert.match(adminHtml, /src\/admin\.js/);
 
-assert.deepEqual(GAMES.map((game) => game.id), Object.keys(cases), 'Frontend ak backend dwe gen menm 17 jwèt yo nan menm lòd la.');
+assert.deepEqual(GAMES.map((game) => game.id), Object.keys(cases), 'Frontend ak backend dwe gen menm 22 jwèt yo nan menm lòd la.');
 for (const [gameId, choice] of Object.entries(cases)) {
   for (let i = 0; i < 100; i += 1) {
     const output = resolveGame(gameId, 100, choice);
@@ -38,8 +40,9 @@ for (const [gameId, choice] of Object.entries(cases)) {
     assert.ok(output.result.message.length > 0);
     assert.equal(output.result.animationKey, gameId);
     if (gameId === 'plinko') {
-      assert.equal(output.result.details.path.length, 6, 'Plinko dwe gen sis rebond ak sèt pòch.');
+      assert.equal(output.result.details.path.length, output.result.details.rows, 'Chemen Plinko a dwe gen kantite liy yo chwazi a.');
       assert.equal(output.result.details.slot, 1 + output.result.details.path.filter((step) => step === 'R').length, 'Chemen boul la dwe koresponn ak pòch final la.');
+      assert.equal(output.result.details.multiplier, ({low:[0.8,0.9,1,1.1,1,0.9,0.8],normal:[0,0.2,0.8,1.5,0.8,0.2,0],high:[8,2,0.5,0,0.5,2,8]})[choice.risk][output.result.details.slot-1]);
     }
     if (gameId === 'blackjack') {
       const cards = [...output.result.details.player, ...output.result.details.dealer];
@@ -48,6 +51,19 @@ for (const [gameId, choice] of Object.entries(cases)) {
     if (gameId === 'baccarat') {
       const cards = [...output.result.details.playerCards, ...output.result.details.bankerCards];
       assert.equal(new Set(cards).size, cards.length, 'Baccarat pa dwe bay menm kat de fwa nan yon sèl pil.');
+    }
+    if (gameId === 'holdem') {
+      const cards = [...output.result.details.playerCards, ...output.result.details.bankerCards, ...output.result.details.communityCards];
+      assert.equal(cards.length, 9);
+      assert.equal(new Set(cards).size, cards.length, 'Texas Hold’em pa dwe bay menm kat de fwa.');
+      assert.ok(output.result.details.playerHand && output.result.details.bankerHand);
+    }
+    if (gameId === 'bingo') {
+      const { card, drawn, markedCells } = output.result.details;
+      assert.equal(card.length, 25); assert.equal(card[12], 0);
+      assert.equal(new Set(card.filter((n) => n > 0)).size, 24);
+      assert.equal(drawn.length, 35); assert.equal(new Set(drawn).size, 35);
+      assert.ok(markedCells.includes(12), 'Sant Bingo a dwe gratis.');
     }
     if (gameId === 'hilo') assert.notEqual(output.result.details.first, output.result.details.next, 'Hi-Lo dwe tire de kat diferan.');
     if (gameId === 'casinowar') assert.notEqual(output.result.details.playerCard, output.result.details.bankerCard, 'Casino War dwe tire de kat diferan.');
@@ -70,7 +86,13 @@ for (const bet of [
   { betType: 'color', betValue: 'red' },
   { betType: 'color', betValue: 'black' },
   { betType: 'parity', betValue: 'even' },
-  { betType: 'parity', betValue: 'odd' }
+  { betType: 'parity', betValue: 'odd' },
+  { betType: 'dozen', betValue: 1 },
+  { betType: 'dozen', betValue: 2 },
+  { betType: 'dozen', betValue: 3 },
+  { betType: 'column', betValue: 1 },
+  { betType: 'column', betValue: 2 },
+  { betType: 'column', betValue: 3 }
 ]) {
   for (let i = 0; i < 100; i += 1) {
     const output = resolveGame('roulette', 100, bet);
@@ -80,6 +102,8 @@ for (const bet of [
     if (bet.betType === 'number') assert.equal(output.result.multiplier, n === bet.betValue ? 36 : 0);
     if (bet.betType === 'color') assert.equal(output.result.multiplier, output.result.details.color === bet.betValue ? 2 : 0);
     if (bet.betType === 'parity') assert.equal(output.result.multiplier, n !== 0 && (n % 2 === 0 ? 'even' : 'odd') === bet.betValue ? 2 : 0);
+    if (bet.betType === 'dozen') assert.equal(output.result.multiplier, n > 0 && Math.ceil(n/12) === bet.betValue ? 3 : 0);
+    if (bet.betType === 'column') assert.equal(output.result.multiplier, n > 0 && ((n-1)%3)+1 === bet.betValue ? 3 : 0);
   }
 }
 
@@ -90,6 +114,23 @@ assert.throws(() => resolveGame('roulette', 100, { betType: 'color', betValue: '
 assert.throws(() => resolveGame('roulette', 100, { betType: 'parity', betValue: 'zero' }), /pè oswa enpè/);
 assert.throws(() => resolveGame('mines', 100, { cells: [1, 1] }), /kare diferan/);
 assert.throws(() => resolveGame('crash', 100, { target: 99 }), /Objektif Crash/);
+
+
+assert.throws(() => resolveGame('blackjack', 100, { standAt: 17, dealerSoft17: 'invalid' }), /soft 17/);
+assert.throws(() => resolveGame('crash', 100, { target: 2, volatility: 'extreme' }), /volatilite Crash/);
+assert.throws(() => resolveGame('plinko', 100, { risk: 'normal', rows: 9 }), /6 oswa 8 liy/);
+assert.throws(() => resolveGame('dice', 100, { pick: 'exact12' }), /prediksyon Dice/);
+assert.throws(() => resolveGame('bingo', 100, { pattern: 'circle' }), /modèl Bingo/);
+assert.throws(() => resolveGame('holdem', 100, { pick: 'invalid' }), /Chwazi Jwè/);
+const plinkoEight = resolveGame('plinko', 100, { risk: 'high', rows: 8 });
+assert.equal(plinkoEight.result.details.path.length, 8);
+assert.equal(plinkoEight.result.details.slot, 1 + plinkoEight.result.details.path.filter((step) => step === 'R').length);
+for (const pattern of ['row','column','diagonal','corners']) assert.equal(resolveGame('bingo', 100, { pattern }).result.details.pattern, pattern);
+for (const selection of ['player','banker','tie']) {
+  const war = resolveGame('casinowar', 100, { pick: selection });
+  assert.ok(['player','banker','tie'].includes(war.result.details.winner));
+  if (war.result.details.winner === 'tie' && selection !== 'tie') assert.equal(war.result.multiplier, 1);
+}
 
 const invalidStake = await worker.fetch(new Request(`${base}/api/games/demo`, {
   method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -106,7 +147,7 @@ assert.equal(healthBody.mode, 'points-only');
 assert.equal(healthBody.cashValue, false);
 assert.equal(healthBody.demoPlayEnabled, true);
 assert.equal(healthBody.gamesEnabled, true);
-assert.equal(healthBody.gameCount, 17);
+assert.equal(healthBody.gameCount, 22);
 assert.equal(healthBody.firebaseConfigured, false);
 assert.deepEqual(healthBody.firebaseMissing, ['FIREBASE_PROJECT_ID', 'FIREBASE_CLIENT_EMAIL', 'FIREBASE_PRIVATE_KEY']);
 assert.equal(healthBody.adminConfigured, false);
@@ -124,7 +165,7 @@ assert.deepEqual(configuredBody.firebaseInvalid, []);
 const gamesResponse = await worker.fetch(new Request(`${base}/api/games`), env);
 assert.equal(gamesResponse.status, 200);
 const gamesBody = await gamesResponse.json();
-assert.equal(gamesBody.count, 17);
+assert.equal(gamesBody.count, 22);
 assert.deepEqual(gamesBody.games, Object.keys(cases));
 
 for (const path of ['/api/admin/summary', '/api/admin/users', '/api/admin/rounds', '/api/admin/actions']) {
@@ -147,4 +188,4 @@ assert.equal(sameOrigin.headers.get('Access-Control-Allow-Origin'), base);
 const blockedOrigin = await worker.fetch(new Request(`${base}/api/health`, { headers: { Origin: 'https://bad-origin.example' } }), env);
 assert.equal(blockedOrigin.status, 403);
 
-console.log(`OK: ${Object.keys(cases).length} jwèt × 100 rezilta, tout kalite parye roulèt, 17 endpoint DEMO, validasyon, health, lis jwèt, API admin pwoteje ak CORS.`);
+console.log(`OK: ${Object.keys(cases).length} jwèt × 100 rezilta, nouvo Texas Hold’em/Bingo, parye roulèt, endpoint DEMO, validasyon, health, lis jwèt, API admin ak CORS.`);
