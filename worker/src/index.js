@@ -167,6 +167,109 @@ async function commitWrites(writes, env) {
 function adminEmails(env) {
   return (env.INITIAL_ADMIN_EMAILS || '').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean);
 }
+
+async function requireAdmin(request, env) {
+  const identity = await verifyFirebaseIdToken(request, env, true);
+  if (!adminEmails(env).includes(identity.email)) {
+    throw new HttpError(403, 'Aksè sa a rezève pou administratè otorize.');
+  }
+  return identity;
+}
+
+async function listCollection(collectionId, env, pageSize = 100) {
+  const safeCollections = new Set(['users', 'gameRounds', 'adminActions']);
+  if (!safeCollections.has(collectionId)) throw new HttpError(400, 'Koleksyon sa a pa disponib.');
+  const payload = await firestoreRequest(`/${collectionId}?pageSize=${Math.min(100, Math.max(1, pageSize))}`, env);
+  const documents = payload?.documents || [];
+  return documents.map((document) => {
+    const fields = fsDocumentFields(document);
+    const id = String(document.name || '').split('/').pop();
+    return { ...fields, id };
+  });
+}
+
+function sortNewest(items) {
+  return [...items].sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+}
+
+async function adminOverview(env) {
+  const [users, rounds, actions] = await Promise.all([
+    listCollection('users', env, 100),
+    listCollection('gameRounds', env, 100),
+    listCollection('adminActions', env, 25)
+  ]);
+  const activeUsers = users.filter((user) => (user.accountStatus || 'active') === 'active').length;
+  const suspendedUsers = users.filter((user) => user.accountStatus === 'suspended').length;
+  const totalPoints = users.reduce((sum, user) => sum + Math.max(0, Number(user.pointsBalance) || 0), 0);
+  return {
+    usersSampled: users.length,
+    usersLimit: 100,
+    activeUsers,
+    suspendedUsers,
+    totalPointsInSample: totalPoints,
+    roundsSampled: rounds.length,
+    roundsLimit: 100,
+    recentActions: sortNewest(actions).slice(0, 10)
+  };
+}
+
+async function updateManagedUser(request, env, actor) {
+  const body = await readBody(request);
+  const uid = String(body.uid || '').trim();
+  const reason = String(body.reason || '').trim().slice(0, 250);
+  const accountStatus = body.accountStatus == null ? null : String(body.accountStatus);
+  const pointsDelta = body.pointsDelta == null || body.pointsDelta === '' ? 0 : Number(body.pointsDelta);
+  if (!uid || uid.length > 128) throw new HttpError(400, 'ID jwè a pa valab.');
+  if (uid === actor.uid && accountStatus === 'suspended') throw new HttpError(400, 'Ou pa kapab sispann pwòp kont administratè ou.');
+  if (accountStatus !== null && !['active', 'suspended'].includes(accountStatus)) throw new HttpError(400, 'Estati kont lan dwe active oswa suspended.');
+  if (!Number.isInteger(pointsDelta) || Math.abs(pointsDelta) > 100000) throw new HttpError(400, 'Ajisteman pwen an dwe ant -100 000 ak +100 000.');
+  if (!reason || reason.length < 3) throw new HttpError(400, 'Ekri yon rezon ki gen omwen 3 karaktè.');
+  if (accountStatus === null && pointsDelta === 0) throw new HttpError(400, 'Pa gen okenn chanjman pou anrejistre.');
+
+  const document = await getUserDocument(uid, env);
+  if (!document) throw new HttpError(404, 'Kont jwè sa a pa jwenn.');
+  const current = fsDocumentFields(document);
+  const protectedAdmin = adminEmails(env).includes(String(current.email || '').toLowerCase());
+  if (protectedAdmin) throw new HttpError(403, 'Pou sekirite, aksyon sa a pa kapab modifye yon lòt kont administratè.');
+  const currentBalance = Number(current.pointsBalance || 0);
+  const nextBalance = currentBalance + pointsDelta;
+  if (nextBalance < 0 || nextBalance > 1000000000) throw new HttpError(400, 'Nouvo balans lan pa valab.');
+
+  const now = new Date().toISOString();
+  const updated = {
+    ...current,
+    ...(accountStatus ? { accountStatus } : {}),
+    ...(pointsDelta ? { pointsBalance: nextBalance } : {}),
+    updatedAt: now
+  };
+  const actionId = crypto.randomUUID();
+  const action = {
+    id: actionId,
+    type: 'admin_user_update',
+    actorUid: actor.uid,
+    actorEmail: actor.email,
+    targetUid: uid,
+    targetEmail: String(current.email || ''),
+    accountStatus: accountStatus || null,
+    pointsDelta,
+    balanceBefore: currentBalance,
+    balanceAfter: nextBalance,
+    reason,
+    createdAt: now
+  };
+  const userName = `${firestoreBase(env)}/users/${encodeURIComponent(uid)}`;
+  const actionName = `${firestoreBase(env)}/adminActions/${actionId}`;
+  await commitWrites([
+    { update: { name: userName, fields: fsFields(updated) }, currentDocument: { updateTime: document.updateTime } },
+    { update: { name: actionName, fields: fsFields(action) }, currentDocument: { exists: false } }
+  ], env);
+  return {
+    ok: true,
+    user: { uid, email: String(updated.email || ''), displayName: String(updated.displayName || ''), accountStatus: updated.accountStatus || 'active', pointsBalance: Number(updated.pointsBalance || 0) },
+    actionId
+  };
+}
+
 function profileFromDocument(doc, identity, env) {
   const fields = fsDocumentFields(doc);
   const admin = identity.emailVerified && adminEmails(env).includes(identity.email);
@@ -215,7 +318,22 @@ function randomInt(max) {
 }
 const pick = (list) => list[randomInt(list.length)];
 const moneyMultiplier = (stake, mult) => Math.floor(stake * mult);
-const card = () => ({ rank: 2 + randomInt(13), suit: pick(['♠','♥','♦','♣']) });
+function shuffledDeck() {
+  const deck = [];
+  for (const suit of ['♠','♥','♦','♣']) {
+    for (let rank = 2; rank <= 14; rank += 1) deck.push({ rank, suit });
+  }
+  for (let i = deck.length - 1; i > 0; i -= 1) {
+    const j = randomInt(i + 1);
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+  return deck;
+}
+const drawCard = (deck) => {
+  const next = deck.pop();
+  if (!next) throw new Error('Pa gen kat ki rete nan pil la.');
+  return next;
+};
 const cardName = (rank) => ({11:'J',12:'Q',13:'K',14:'A'}[rank] || String(rank));
 
 export function resolveGame(gameId, stake, choice = {}) {
@@ -254,7 +372,8 @@ export function resolveGame(gameId, stake, choice = {}) {
     case 'blackjack': {
       const standAt = Number(choice.standAt);
       if (!Number.isInteger(standAt) || standAt < 12 || standAt > 20) throw new HttpError(400, 'Chwazi yon limit ant 12 ak 20.');
-      const draw = () => card();
+      const shoe = shuffledDeck();
+      const draw = () => drawCard(shoe);
       const handValue = (hand) => {
         let total = hand.reduce((sum, c) => sum + (c.rank === 14 ? 11 : c.rank > 10 ? 10 : c.rank), 0);
         let aces = hand.filter((c) => c.rank === 14).length;
@@ -271,12 +390,13 @@ export function resolveGame(gameId, stake, choice = {}) {
       break;
     }
     case 'baccarat': {
-      const playerCards = [card(), card()], bankerCards = [card(), card()];
+      const shoe = shuffledDeck();
+      const playerCards = [drawCard(shoe), drawCard(shoe)], bankerCards = [drawCard(shoe), drawCard(shoe)];
       const value = (hand) => hand.reduce((sum, c) => sum + (c.rank >= 10 && c.rank <= 13 ? 0 : c.rank === 14 ? 1 : c.rank), 0) % 10;
       let pv = value(playerCards), bv = value(bankerCards);
       let playerThird = null;
       const natural = pv >= 8 || bv >= 8;
-      if (!natural && pv <= 5) { playerThird = card(); playerCards.push(playerThird); pv = value(playerCards); }
+      if (!natural && pv <= 5) { playerThird = drawCard(shoe); playerCards.push(playerThird); pv = value(playerCards); }
       if (!natural) {
         let bankerDraw = false;
         if (!playerThird) bankerDraw = bv <= 5;
@@ -284,7 +404,7 @@ export function resolveGame(gameId, stake, choice = {}) {
           const third = playerThird.rank === 14 ? 1 : playerThird.rank >= 10 ? 0 : playerThird.rank;
           bankerDraw = bv <= 2 || (bv === 3 && third !== 8) || (bv === 4 && third >= 2 && third <= 7) || (bv === 5 && third >= 4 && third <= 7) || (bv === 6 && (third === 6 || third === 7));
         }
-        if (bankerDraw) { bankerCards.push(card()); bv = value(bankerCards); }
+        if (bankerDraw) { bankerCards.push(drawCard(shoe)); bv = value(bankerCards); }
       }
       const winner = pv > bv ? 'player' : bv > pv ? 'banker' : 'tie';
       const bet = String(choice.pick || '');
@@ -325,9 +445,11 @@ export function resolveGame(gameId, stake, choice = {}) {
       break;
     }
     case 'plinko': {
-      const slot = randomInt(7), multipliers = [0.5,1,2,5,2,1,0.5];
-      multiplier = multipliers[slot]; won = multiplier > 0;
-      details = { slot: slot + 1, multiplier, path: Array.from({length:7}, () => randomInt(2) ? 'R' : 'L') };
+      const multipliers = [0.5,1,2,5,2,1,0.5];
+      const path = Array.from({ length: 6 }, () => randomInt(2) ? 'R' : 'L');
+      const slot = 1 + path.filter((step) => step === 'R').length;
+      multiplier = multipliers[slot - 1]; won = multiplier > 0;
+      details = { slot, multiplier, path };
       message = `Boul la tonbe nan pòch ${slot + 1}, ki gen ${multiplier}×.`;
       break;
     }
@@ -361,7 +483,8 @@ export function resolveGame(gameId, stake, choice = {}) {
     case 'hilo': {
       const selection = String(choice.pick || '');
       if (!['high','low'].includes(selection)) throw new HttpError(400, 'Chwazi Pi wo oswa Pi ba.');
-      const first = card(), next = card();
+      const shoe = shuffledDeck();
+      const first = drawCard(shoe), next = drawCard(shoe);
       won = selection === 'high' ? next.rank > first.rank : next.rank < first.rank;
       multiplier = won ? 1.9 : 0;
       details = { first: `${cardName(first.rank)}${first.suit}`, next: `${cardName(next.rank)}${next.suit}`, firstValue: first.rank, nextValue: next.rank, selection };
@@ -396,7 +519,8 @@ export function resolveGame(gameId, stake, choice = {}) {
       break;
     }
     case 'casinowar': {
-      const player = card(), banker = card();
+      const shoe = shuffledDeck();
+      const player = drawCard(shoe), banker = drawCard(shoe);
       won = player.rank > banker.rank; multiplier = player.rank === banker.rank ? 1 : won ? 2 : 0;
       details = { playerCard: `${cardName(player.rank)}${player.suit}`, bankerCard: `${cardName(banker.rank)}${banker.suit}`, playerValue: player.rank, bankerValue: banker.rank };
       message = player.rank === banker.rank ? `Egalite: tou de kat yo se ${cardName(player.rank)}.` : won ? `Kat ou (${cardName(player.rank)}) pi wo pase kat bankye a (${cardName(banker.rank)}).` : `Kat bankye a (${cardName(banker.rank)}) pi wo pase pa w la (${cardName(player.rank)}).`;
@@ -456,10 +580,12 @@ function apiStatus(env) {
     firebaseConfigured: firebase.missing.length === 0 && firebase.invalid.length === 0,
     firebaseMissing: firebase.missing,
     firebaseInvalid: firebase.invalid,
+    adminConfigured: adminEmails(env).length > 0,
+    demoPlayEnabled: true,
     gamesEnabled: true,
     gameCount: GAME_IDS.length,
     gameIds: GAME_IDS,
-    endpoints: ['/api/health', '/api/games', '/api/profile/bootstrap', '/api/me', '/api/history', '/api/games/play']
+    endpoints: ['/api/health', '/api/games', '/api/games/demo', '/api/profile/bootstrap', '/api/me', '/api/history', '/api/games/play', '/api/admin/summary', '/api/admin/users', '/api/admin/rounds', '/api/admin/actions', '/api/admin/users/update']
   };
 }
 
@@ -472,6 +598,14 @@ async function route(request, env) {
   }
   if (url.pathname === '/api/games' && request.method === 'GET') {
     return json({ games: GAME_IDS, count: GAME_IDS.length, enabled: true, mode: 'points-only' });
+  }
+  if (url.pathname === '/api/games/demo' && request.method === 'POST') {
+    const body = await readBody(request);
+    const gameId = String(body.gameId || '');
+    const stakePoints = Number(body.stakePoints);
+    if (!Number.isInteger(stakePoints) || stakePoints < 10 || stakePoints > 1000) throw new HttpError(400, 'Mete ant 10 ak 1 000 pwen demonstrasyon.');
+    const game = resolveGame(gameId, stakePoints, body.choice || {});
+    return json({ demo: true, mode: 'points-only', result: game.result });
   }
   if (url.pathname === '/api/profile/bootstrap' && request.method === 'POST') {
     const identity = await verifyFirebaseIdToken(request, env, false);
@@ -518,7 +652,45 @@ async function route(request, env) {
     ], env);
     return json({ roundId, balancePoints: newBalance, result: game.result });
   }
-  throw new HttpError(404, 'Wout API sa a pa egziste. Wout disponib: GET /api/health, GET /api/games, POST /api/profile/bootstrap, GET /api/me, GET /api/history, POST /api/games/play.');
+  if (url.pathname === '/api/admin/summary' && request.method === 'GET') {
+    await requireAdmin(request, env);
+    return json(await adminOverview(env));
+  }
+  if (url.pathname === '/api/admin/users' && request.method === 'GET') {
+    await requireAdmin(request, env);
+    const urlLimit = Number(url.searchParams.get('limit') || 100);
+    const users = await listCollection('users', env, Number.isInteger(urlLimit) ? urlLimit : 100);
+    return json({ users: users.map((user) => ({
+      uid: user.uid || user.id,
+      email: String(user.email || ''),
+      displayName: String(user.displayName || ''),
+      accountStatus: String(user.accountStatus || 'active'),
+      pointsBalance: Number(user.pointsBalance || 0),
+      createdAt: user.createdAt || null
+    })) });
+  }
+  if (url.pathname === '/api/admin/rounds' && request.method === 'GET') {
+    await requireAdmin(request, env);
+    const rounds = sortNewest(await listCollection('gameRounds', env, 100)).slice(0, 50);
+    return json({ rounds: rounds.map((round) => ({
+      id: round.id,
+      uid: round.uid,
+      gameId: round.gameId,
+      stakePoints: Number(round.stakePoints || 0),
+      payoutPoints: Number(round.payoutPoints || 0),
+      netPoints: Number(round.netPoints || 0),
+      createdAt: round.createdAt || null
+    })) });
+  }
+  if (url.pathname === '/api/admin/actions' && request.method === 'GET') {
+    await requireAdmin(request, env);
+    return json({ actions: sortNewest(await listCollection('adminActions', env, 50)).slice(0, 50) });
+  }
+  if (url.pathname === '/api/admin/users/update' && request.method === 'POST') {
+    const actor = await requireAdmin(request, env);
+    return json(await updateManagedUser(request, env, actor));
+  }
+  throw new HttpError(404, 'Wout API sa a pa egziste. Verifye GET /api/health oswa konsilte lis routes API yo.');
 }
 
 class HttpError extends Error {
