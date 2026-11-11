@@ -362,11 +362,35 @@ export function resolveGame(gameId, stake, choice = {}) {
       const n = randomInt(37);
       const red = new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
       const color = n === 0 ? 'green' : red.has(n) ? 'red' : 'black';
-      const pickColor = String(choice.pick || '');
-      if (!['red','black','green'].includes(pickColor)) throw new HttpError(400, 'Chwazi wouj, nwa oswa vèt.');
-      won = color === pickColor; multiplier = won ? (color === 'green' ? 36 : 2) : 0;
-      details = { number: n, color, selected: pickColor };
-      message = `Wou a kanpe sou ${n} (${color === 'red' ? 'wouj' : color === 'black' ? 'nwa' : 'vèt'}). ${won ? 'Bon prediksyon!' : 'Chwa a pa koresponn.'}`;
+      const betType = String(choice.betType || (choice.pick ? 'legacy-color' : ''));
+      let betValue = choice.betValue;
+      if (betType === 'number') {
+        betValue = Number(betValue);
+        if (!Number.isInteger(betValue) || betValue < 0 || betValue > 36) throw new HttpError(400, 'Chwazi yon nimewo antye ant 0 ak 36.');
+        won = n === betValue;
+        multiplier = won ? 36 : 0;
+      } else if (betType === 'color') {
+        betValue = String(betValue || '').toLowerCase();
+        if (!['red','black'].includes(betValue)) throw new HttpError(400, 'Chwazi koulè wouj oswa nwa. Pou zewo, chwazi nimewo 0.');
+        won = color === betValue;
+        multiplier = won ? 2 : 0;
+      } else if (betType === 'parity') {
+        betValue = String(betValue || '').toLowerCase();
+        if (!['even','odd'].includes(betValue)) throw new HttpError(400, 'Chwazi pè oswa enpè.');
+        won = n !== 0 && (n % 2 === 0 ? 'even' : 'odd') === betValue;
+        multiplier = won ? 2 : 0;
+      } else if (betType === 'legacy-color') {
+        betValue = String(choice.pick || '');
+        if (!['red','black','green'].includes(betValue)) throw new HttpError(400, 'Chwazi wouj, nwa oswa vèt.');
+        won = color === betValue;
+        multiplier = won ? (color === 'green' ? 36 : 2) : 0;
+      } else {
+        throw new HttpError(400, 'Chwazi yon nimewo, koulè oswa pè/enpè.');
+      }
+      const colorLabel = color === 'red' ? 'wouj' : color === 'black' ? 'nwa' : 'vèt';
+      const betLabel = betType === 'number' ? `nimewo ${betValue}` : betType === 'color' ? (betValue === 'red' ? 'wouj' : 'nwa') : betType === 'parity' ? (betValue === 'even' ? 'pè' : 'enpè') : (betValue === 'green' ? 'zewo/vèt' : betValue === 'red' ? 'wouj' : 'nwa');
+      details = { number: n, color, betType, betValue, selected: betValue, multiplier };
+      message = `Wou a kanpe sou ${n} (${colorLabel}). ${won ? `Pari ${betLabel} la genyen.` : `Pari ${betLabel} la pa koresponn.`}`;
       break;
     }
     case 'blackjack': {
