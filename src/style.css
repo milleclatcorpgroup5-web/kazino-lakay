@@ -114,16 +114,21 @@
 .plinko-slots{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:4px}.plinko-slots span{padding:7px 1px;border:1px solid #7d73b8;border-radius:4px;background:#29274b;color:#c7c5e8;text-align:center;font-size:8px;font-weight:900}.plinko-slots .slot-active{background:linear-gradient(#f4dc9d,#b78943);border-color:#fff0bd;color:#251b12;box-shadow:0 0 13px #f9d17c77}
 .phase-rolling .plinko-ball{animation:none}
 
-/* Penalty shootout */
-.penalty-field{position:relative;width:min(100%,440px);height:225px;overflow:hidden;border:2px solid #5bc18d;border-radius:14px;background:repeating-linear-gradient(0deg,#16764d 0 28px,#126a46 28px 56px);box-shadow:inset 0 0 35px #00371d88}
-.penalty-field:before{content:"";position:absolute;left:12%;right:12%;top:12px;height:110px;border:1px solid #d5f4da77;border-bottom:0;border-radius:100px 100px 0 0}
-.goal-net{position:absolute;left:25%;right:25%;top:12px;height:104px;border:4px solid #e8f2df;border-bottom:0;background:repeating-linear-gradient(0deg,transparent 0 12px,#d9f0e633 12px 13px),repeating-linear-gradient(90deg,transparent 0 17px,#d9f0e633 17px 18px);box-shadow:0 0 14px #d4f9de77}
-.goal-post{position:absolute;top:0;bottom:-8px;width:4px;background:#fff}.goal-post.left{left:0}.goal-post.right{right:0}.goal-crossbar{position:absolute;left:0;right:0;top:0;height:4px;background:#fff}
-.keeper{position:absolute;left:50%;top:36px;transform:translateX(-50%);font-size:38px;filter:drop-shadow(0 4px 2px #002b1c);z-index:3}.keeper-left{left:20%;transform:translateX(-50%) rotate(-28deg)}.keeper-right{left:80%;transform:translateX(-50%) rotate(28deg)}
-.football{position:absolute;left:50%;bottom:-37px;z-index:4;font-size:25px;transform:translateX(-50%);filter:drop-shadow(0 4px 3px #002b1c)}.ball-left{left:25%}.ball-center{left:50%}.ball-right{left:75%}
-.field-mark{position:absolute;left:50%;bottom:-48px;width:120px;height:100px;transform:translateX(-50%);border:1px solid #d5f4da88;border-radius:50%}
-.penalty-labels{position:absolute;left:10%;right:10%;bottom:9px;display:flex;justify-content:space-between;color:#d6f7df;font-size:7px;letter-spacing:1px}.penalty-status{position:absolute;right:11px;top:11px;color:#fff5b6;font-size:12px;font-weight:1000;text-shadow:0 2px 5px #000}
-.phase-rolling .football{animation:ballKick .95s .2s cubic-bezier(.2,.7,.2,1) both}.phase-rolling .keeper{animation:keeperDive .85s .32s ease-out both}
+/* Penalty shootout — stadium scene with a realistic goalkeeper */
+.penalty-field{position:relative;width:min(100%,520px);height:clamp(238px,58vw,330px);min-height:238px;overflow:hidden;border:2px solid #7fd9a7;border-radius:16px;background:#0c492c url('/penalty-stadium.webp') center 52%/cover no-repeat;box-shadow:0 14px 32px #0008,inset 0 0 40px #001b0d88;isolation:isolate}
+.penalty-scene-shade{position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,#06172b33 0%,transparent 42%,#001d0d2b 70%,#00170b88 100%);pointer-events:none}
+.penalty-goal-zones{position:absolute;z-index:2;left:13%;right:13%;top:8%;height:48%;display:grid;grid-template-columns:repeat(3,1fr);gap:5px;pointer-events:none}
+.penalty-zone{display:flex;align-items:flex-start;justify-content:center;padding-top:8px;border:1px solid #ffffff30;border-radius:8px 8px 3px 3px;background:linear-gradient(180deg,#d8f2ff12,transparent 76%);color:#ffffffad;font-size:clamp(7px,1.9vw,9px);font-weight:1000;letter-spacing:1.3px;text-shadow:0 2px 5px #001}
+.penalty-field[data-shot="left"] .aim-left,.penalty-field[data-shot="center"] .aim-center,.penalty-field[data-shot="right"] .aim-right{border-color:#ffdf8a;background:linear-gradient(180deg,#ffd66a44,transparent 85%);box-shadow:inset 0 0 22px #ffc44a30,0 0 12px #ffdc7b44;color:#fff4cf}
+.penalty-field[data-keeper="left"] .aim-left,.penalty-field[data-keeper="center"] .aim-center,.penalty-field[data-keeper="right"] .aim-right{outline:2px solid #ff6868;outline-offset:-3px}
+.penalty-field[data-goal="true"] .penalty-zone{border-color:#59f0a1aa}
+.penalty-ball-glow{position:absolute;z-index:2;left:50%;bottom:12%;width:78px;height:22px;transform:translateX(-50%);border-radius:50%;background:#ffe7ad55;filter:blur(12px);pointer-events:none}
+.penalty-status{position:absolute;z-index:3;right:10px;top:10px;padding:7px 11px;border:1px solid #ffffff66;border-radius:999px;background:#061b2ddd;color:#fff2b5;font-size:clamp(9px,2.3vw,12px);font-weight:1000;letter-spacing:.6px;text-shadow:0 2px 5px #000;box-shadow:0 4px 12px #0007}
+.penalty-dive-label{position:absolute;z-index:3;left:50%;bottom:10px;max-width:90%;transform:translateX(-50%);padding:7px 12px;border-radius:999px;border:1px solid #f5d47b88;background:#091b22df;color:#fff4cf;text-align:center;font-size:9px;font-weight:1000;letter-spacing:1px;box-shadow:0 4px 16px #0009;white-space:nowrap}
+.phase-rolling .penalty-field{animation:penaltyCameraPulse .95s ease-in-out both}
+.phase-rolling .penalty-goal-zones{animation:penaltyZonesFlash .95s ease-in-out both}
+@keyframes penaltyCameraPulse{0%{background-position:center 52%;filter:brightness(1)}35%{background-position:center 49%;filter:brightness(1.18)}100%{background-position:center 52%;filter:brightness(1)}}
+@keyframes penaltyZonesFlash{0%,100%{opacity:.65}45%{opacity:1}}
 
 /* Coin flip */
 .coin-table{position:relative;width:min(100%,400px);min-height:220px;display:grid;place-items:center;border-radius:18px;background:radial-gradient(ellipse,#4d482d,#1f292b 68%,#101b2a);box-shadow:inset 0 0 35px #0008}
