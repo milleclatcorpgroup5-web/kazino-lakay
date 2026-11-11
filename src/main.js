@@ -132,8 +132,20 @@ function renderGameStage(gameId, details = null, phase = 'idle') {
       return stageFrame(gameId, 'Plinko Drop', 'Boul la desann atravè pikèt yo epi fini nan pòch miltiplikatè a.', `<div class="plinko-board-wrap"><div class="plinko-top"><span>PLINKO • ${rows} LINES</span><b class="stage-result">${details ? `${Number(d.multiplier).toFixed(1)}×` : '—'}</b></div><div class="plinko-board"><div class="plinko-pegs">${Array.from({length:rows},(_,row)=>`<div class="peg-row">${Array.from({length:row+1},(_,col)=>`<i></i>`).join('')}</div>`).join('')}</div><span class="plinko-ball stage-result" data-path="${path.join('')}" data-slot="${slot}"></span></div><div class="plinko-slots">${slots.map((v,i)=>`<span class="${details && slot===i+1?'slot-active':''}">${v}×</span>`).join('')}</div></div>`, phase);
     }
     case 'penalty': {
-      const shot = d.shot || 'center'; const keeper = d.keeper || 'center';
-      return stageFrame(gameId, 'Penalty Lakay', 'Yon teren foutbòl, yon gadyen ak yon tir ki pran direksyon ou te chwazi a.', `<div class="penalty-field"><div class="goal-net"><span class="goal-post left"></span><span class="goal-post right"></span><span class="goal-crossbar"></span><span class="keeper ${details ? `keeper-${keeper}` : ''}">🧤</span><span class="football ${details ? `ball-${shot}` : ''}">⚽</span></div><div class="field-mark"></div><div class="penalty-labels"><span>AGOCH</span><span>MITAN</span><span>ADWAT</span></div><div class="penalty-status stage-result">${details ? (d.goal ? 'GÒL!' : 'BLOKAJ!') : 'PRAN TIR LA'}</div></div>`, phase);
+      const shot = d.shot || 'center';
+      const keeper = d.keeper || 'center';
+      const outcome = details ? (d.goal ? 'GÒL!' : 'BLOKAJ!') : 'CHWAZI KOTE OU VLE TIRE';
+      return stageFrame(gameId, 'Penalty Lakay', 'Yon sèn penalty reyalis ak yon gadyen foutbòl devan gòl la. Chwazi direksyon tir ou.', `<div class="penalty-field" ${details ? `data-shot="${esc(shot)}" data-keeper="${esc(keeper)}" data-goal="${Boolean(d.goal)}"` : ''}>
+        <div class="penalty-scene-shade"></div>
+        <div class="penalty-goal-zones" aria-hidden="true">
+          <span class="penalty-zone aim-left">AGOCH</span>
+          <span class="penalty-zone aim-center">MITAN</span>
+          <span class="penalty-zone aim-right">ADWAT</span>
+        </div>
+        <div class="penalty-ball-glow" aria-hidden="true"></div>
+        <div class="penalty-status stage-result">${outcome}</div>
+        ${details ? `<div class="penalty-dive-label">${d.goal ? 'TIR LA PASE!' : `GADYEN AN BLOKE ${keeper === 'left' ? 'AGOCH' : keeper === 'right' ? 'ADWAT' : 'NAN MITAN'}`}</div>` : ''}
+      </div>`, phase);
     }
     case 'coinflip': {
       const result = d.result || 'heads';
