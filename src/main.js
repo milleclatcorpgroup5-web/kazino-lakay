@@ -56,11 +56,11 @@ function renderGameStage(gameId, details = null, phase = 'idle') {
     case 'crash': {
       const mult = details ? `${Number(d.crashAt || 1).toFixed(2)}×` : '1.00×';
       const target = details ? `${Number(d.target || 2).toFixed(2)}×` : '2.00×';
-      return stageFrame(gameId, 'Vòl Eksprès', 'Gade avyon an monte sou koub la. Rezilta a soti nan sèvè a.', `<div class="crash-screen"><div class="crash-readout"><small>MILTILIKATÈ</small><strong class="stage-result">${mult}</strong><span>OBJEKTIF ${target}</span></div><svg class="crash-chart" viewBox="0 0 520 190" role="img" aria-label="Grafik vòl"><defs><linearGradient id="crashFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#43efcb" stop-opacity=".42"/><stop offset="1" stop-color="#43efcb" stop-opacity="0"/></linearGradient></defs><path class="chart-grid" d="M0 38H520M0 86H520M0 134H520M80 0V190M180 0V190M280 0V190M380 0V190M480 0V190"/><path class="crash-area" d="M0 178 C70 175 82 158 130 155 S205 130 240 122 S300 92 330 88 S405 43 520 12 L520 190 L0 190Z"/><path class="crash-line" d="M0 178 C70 175 82 158 130 155 S205 130 240 122 S300 92 330 88 S405 43 520 12"/><g class="crash-plane"><text x="0" y="0">✈</text></g></svg><div class="crash-foot"><span>● LIVE SIMILASYON</span><span>${details ? (d.reached ? 'OBJEKTIF ATENN' : 'VÒL LA FINI') : 'AP PREPARE'}</span></div></div>`, phase);
+      return stageFrame(gameId, 'Vòl Eksprès', 'Gade avyon an monte sou koub la. Rezilta a soti nan sèvè a.', `<div class="crash-screen"><div class="crash-readout"><small>MILTILIKATÈ</small><strong class="stage-result">${mult}</strong><span>OBJEKTIF ${target}</span></div><svg class="crash-chart" viewBox="0 0 520 190" role="img" aria-label="Grafik vòl"><defs><linearGradient id="crashFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#43efcb" stop-opacity=".42"/><stop offset="1" stop-color="#43efcb" stop-opacity="0"/></linearGradient></defs><path class="chart-grid" d="M0 38H520M0 86H520M0 134H520M80 0V190M180 0V190M280 0V190M380 0V190M480 0V190"/><path class="crash-area" d="M0 178 C70 175 82 158 130 155 S205 130 240 122 S300 92 330 88 S405 43 520 12 L520 190 L0 190Z"/><path class="crash-line" d="M0 178 C70 175 82 158 130 155 S205 130 240 122 S300 92 330 88 S405 43 520 12"/><g class="crash-plane"><text x="0" y="0">✈</text></g></svg><div class="crash-foot"><span>● LIVE SIMILASYON</span><span>${details ? `${d.reached ? 'OBJEKTIF ATENN' : 'VÒL LA FINI'} • ${String(d.volatility || 'normal').toUpperCase()}` : 'AP PREPARE'}</span></div></div>`, phase);
     }
     case 'slots': {
       const symbols = d.symbols || ['🍒', '🔔', '💎'];
-      return stageFrame(gameId, 'Slots — Fwi an Lò', 'Twa bobin mekanik ak senbòl ki revele youn apre lòt.', `<div class="slots-cabinet"><div class="slots-marquee">✦ FWI AN LÒ ✦ <small>JACKPOT ROOM</small></div><div class="slots-frame">${symbols.map((symbol, i) => `<div class="slot-reel"><div class="reel-ghost">${['⭐','🍋','🔔'][i]}</div><div class="reel-symbol stage-result">${esc(symbol)}</div><div class="reel-ghost">${['💎','🍒','7️⃣'][i]}</div></div>`).join('')}</div><div class="slots-lights"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="slots-status">${details ? (Number(d.multiplier) > 0 ? `KONBO: ${Number(d.multiplier).toFixed(1)}×` : 'PA GEN KONBO') : 'CHWAZI POU W VIRE BOBIN YO'}</div></div>`, phase);
+      return stageFrame(gameId, 'Slots — Fwi an Lò', 'Twa bobin mekanik ak senbòl ki revele youn apre lòt.', `<div class="slots-cabinet"><div class="slots-marquee">✦ FWI AN LÒ ✦ <small>JACKPOT ROOM</small></div><div class="slots-frame">${symbols.map((symbol, i) => `<div class="slot-reel"><div class="reel-ghost">${['⭐','🍋','🔔'][i]}</div><div class="reel-symbol stage-result">${esc(symbol)}</div><div class="reel-ghost">${['💎','🍒','7️⃣'][i]}</div></div>`).join('')}</div><div class="slots-lights"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="slots-status">${details ? (Number(d.multiplier) > 0 ? `KONBO: ${Number(d.multiplier).toFixed(1)}× • ${String(d.risk || 'normal').toUpperCase()}` : `PA GEN KONBO • ${String(d.risk || 'normal').toUpperCase()}`) : 'CHWAZI POU W VIRE BOBIN YO'}</div></div>`, phase);
     }
     case 'roulette': {
       const n = details ? Number(d.number) : 0;
@@ -69,20 +69,45 @@ function renderGameStage(gameId, details = null, phase = 'idle') {
       const nums = [0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26];
       return stageFrame(gameId, 'Roulèt Royal', 'Wou Ewopeyen 37 pòch la vire epi boul la sispann sou yon nimewo.', `<div class="roulette-table"><div class="roulette-wheel-wrap"><div class="roulette-pointer"></div><div class="roulette-wheel"><div class="roulette-pockets">${nums.map((num,i)=>`<i style="--i:${i}" class="${num === 0 ? 'pocket-green' : reds.has(num) ? 'pocket-red' : 'pocket-black'}">${num}</i>`).join('')}</div><div class="roulette-hub"><small>ROYAL</small><strong class="stage-result">${details ? n : '00'}</strong><span>${details ? color.toUpperCase() : 'SPIN'}</span></div></div><div class="roulette-ball"></div></div><div class="roulette-footer"><span>EUROPEAN ROULETTE</span><b class="stage-result">${details ? `${n} · ${color.toUpperCase()}` : '0 — 36'}</b></div></div>`, phase);
     }
+    case 'holdem': {
+      const player = d.playerCards || [];
+      const banker = d.bankerCards || [];
+      const community = d.communityCards || [];
+      const cards = (arr, count) => Array.from({length:count},(_,index)=>arr[index] ? stageCard(arr[index]) : stageCard('',true)).join('');
+      return stageFrame(gameId, 'Texas Hold’em', 'De kat prive pou chak bò, senk kat kominotè, epi pi bon men senk kat la.', `<div class="holdem-table"><div class="holdem-brand">KAZINO LAKAY <span>NO-LIMIT HOLD’EM • DEMO TABLE</span></div><section class="holdem-player"><header><b>JWÈ</b><strong>${esc(d.playerHand || 'MEN OU')}</strong></header><div class="holdem-hole-cards">${cards(player,2)}</div></section><section class="holdem-board"><small>KAT KOMINOTÈ</small><div>${cards(community,5)}</div></section><section class="holdem-player holdem-banker"><header><b>BANKYE</b><strong>${esc(d.bankerHand || 'MEN BANKYE')}</strong></header><div class="holdem-hole-cards">${cards(banker,2)}</div></section><footer>${details ? `${String(d.winner || '').toUpperCase()} • MEN YO KONPARE` : 'PREPARE POU FLOP • TURN • RIVER'}</footer></div>`, phase);
+    }
+    case 'bingo': {
+      const card = d.card || [1,16,31,46,61,2,17,32,47,62,3,18,0,48,63,4,19,33,49,64,5,20,34,50,65];
+      const called = new Set(d.drawn || []);
+      const marked = new Set(d.markedCells || []);
+      const balls = (d.drawn || []).slice(-16);
+      return stageFrame(gameId, 'Bingo Lakay', 'Kat 5×5 la ap make nimewo ki soti nan tiraj 1–75 la.', `<div class="bingo-table"><div class="bingo-header"><strong>BINGO LAKAY</strong><span>${details ? `${d.completedPatterns?.length || 0} MODÈL KONPLÈ` : '35 BOUL • 1–75'}</span></div><div class="bingo-letters"><b>B</b><b>I</b><b>N</b><b>G</b><b>O</b></div><div class="bingo-card-grid">${card.map((number,index)=>`<span class="bingo-cell ${number===0?'is-free':''} ${marked.has(index)||number===0?'is-marked':''} ${called.has(number)&&number!==0?'is-called':''}">${number===0?'KL':number}</span>`).join('')}</div><div class="bingo-draw-history"><small>DÈNYE BOUL KI SOTI</small><div>${balls.map((number)=>`<i>${number}</i>`).join('') || '<span>AP TANN TIRAJ LA</span>'}</div></div><div class="bingo-status">${details ? (d.multiplier>0?'BINGO! MODÈL LA KONPLÈ':'PA GEN BINGO NAN MODÈL SA A') : 'CHWAZI MODÈL OU ANVAN TIRAJ LA'}</div></div>`, phase);
+    }
     case 'blackjack':
     case 'baccarat':
-    case 'casinowar': {
+    case 'casinowar':
+    case 'threecard':
+    case 'dragontiger': {
       const blackjack = gameId === 'blackjack';
       const baccarat = gameId === 'baccarat';
-      const pCards = blackjack ? (d.player || []) : baccarat ? (d.playerCards || []) : (d.playerCard ? [d.playerCard] : []);
-      const bCards = blackjack ? (d.dealer || []) : baccarat ? (d.bankerCards || []) : (d.bankerCard ? [d.bankerCard] : []);
-      const leftName = blackjack ? 'JWÈ' : baccarat ? 'JWÈ' : 'OU';
-      const rightName = blackjack ? 'KOUTYE' : baccarat ? 'BANKYE' : 'BANKYE';
-      const leftScore = blackjack ? d.playerTotal : baccarat ? d.playerScore : d.playerValue;
-      const rightScore = blackjack ? d.dealerTotal : baccarat ? d.bankerScore : d.bankerValue;
+      const dragonTiger = gameId === 'dragontiger';
+      const threecard = gameId === 'threecard';
+      const pCards = blackjack ? (d.player || []) : baccarat || threecard ? (d.playerCards || []) : dragonTiger ? (d.dragonCard ? [d.dragonCard] : []) : (d.playerCard ? [d.playerCard] : []);
+      const bCards = blackjack ? (d.dealer || []) : baccarat || threecard ? (d.bankerCards || []) : dragonTiger ? (d.tigerCard ? [d.tigerCard] : []) : (d.bankerCard ? [d.bankerCard] : []);
+      const leftName = dragonTiger ? 'DRAGON' : blackjack || baccarat || threecard ? 'JWÈ' : 'OU';
+      const rightName = dragonTiger ? 'TIGER' : blackjack ? 'KOUTYE' : 'BANKYE';
+      const leftScore = blackjack ? d.playerTotal : baccarat ? d.playerScore : dragonTiger ? d.dragonValue : threecard ? d.playerHand : d.playerValue;
+      const rightScore = blackjack ? d.dealerTotal : baccarat ? d.bankerScore : dragonTiger ? d.tigerValue : threecard ? d.bankerHand : d.bankerValue;
       const cards = (arr) => arr.length ? arr.map((c) => stageCard(c)).join('') : stageCard('', true);
-      const title = blackjack ? 'Blackjack 21' : baccarat ? 'Baccarat Lakay' : 'Casino War';
-      return stageFrame(gameId, title, 'Kat yo vire sou yon tab vèt, ak valè chak men vizib.', `<div class="felt-table"><div class="felt-brand">KAZINO LAKAY <span>◆</span> TABLE ${baccarat ? 'BACCARAT' : 'CARD ROOM'}</div><div class="card-duel"><div class="card-hand"><div class="hand-label">${leftName}<b class="stage-result">${leftScore ?? '—'}</b></div><div class="hand-cards">${cards(pCards)}</div></div><div class="versus">VS</div><div class="card-hand"><div class="hand-label">${rightName}<b class="stage-result">${rightScore ?? '—'}</b></div><div class="hand-cards">${cards(bCards)}</div></div></div><div class="felt-footer"><span>DEALER • TABLE 01</span><span>${details ? 'MEN REVELE' : 'PARE POU KAT YO'}</span></div></div>`, phase);
+      const title = blackjack ? 'Blackjack 21' : baccarat ? 'Baccarat Lakay' : dragonTiger ? 'Dragon Tiger' : threecard ? 'Poker 3 Kat' : 'Casino War';
+      return stageFrame(gameId, title, 'Kat yo parèt sou yon tab pwofesyonèl, ak men ak valè yo vizib.', `<div class="felt-table"><div class="felt-brand">KAZINO LAKAY <span>◆</span> TABLE ${baccarat ? 'BACCARAT' : 'CARD ROOM'}</div><div class="card-duel"><div class="card-hand"><div class="hand-label">${leftName}<b class="stage-result">${leftScore ?? '—'}</b></div><div class="hand-cards">${cards(pCards)}</div></div><div class="versus">VS</div><div class="card-hand"><div class="hand-label">${rightName}<b class="stage-result">${rightScore ?? '—'}</b></div><div class="hand-cards">${cards(bCards)}</div></div></div><div class="felt-footer"><span>DEALER • TABLE 01</span><span>${details ? 'MEN REVELE' : 'PARE POU KAT YO'}</span></div></div>`, phase);
+    }
+    case 'andarbahar': {
+      const center = d.centerCard || 'A♠';
+      const andar = d.andarCards || [];
+      const bahar = d.baharCards || [];
+      const winner = d.winner || '';
+      return stageFrame(gameId, 'Andar Bahar', 'Kat santral la se referans lan. Kat yo distribye youn apre lòt ant de bò yo.', `<div class="andarbahar-table"><div class="andarbahar-center"><small>KAT SANTRAL</small>${stageCard(center)}<b>${d.centerValue ?? '—'}</b></div><div class="andarbahar-lanes"><section class="andarbahar-lane ${winner==='andar'?'lane-winner':''}"><header>ANDAR <b>${andar.length}</b></header><div>${andar.slice(-7).map((card)=>stageCard(card)).join('') || stageCard('',true)}</div></section><section class="andarbahar-lane ${winner==='bahar'?'lane-winner':''}"><header>BAHAR <b>${bahar.length}</b></header><div>${bahar.slice(-7).map((card)=>stageCard(card)).join('') || stageCard('',true)}</div></section></div><div class="andarbahar-status">${details ? `${winner.toUpperCase()} • ${d.cardsDrawn} KAT TIRE` : 'CHWAZI ANDAR OSWA BAHAR'}</div></div>`, phase);
     }
     case 'hilo': {
       const a = d.first || 'A♠'; const b = d.next || 'K♥';
@@ -99,11 +124,12 @@ function renderGameStage(gameId, details = null, phase = 'idle') {
     }
     case 'mines': {
       const chosen = new Set(d.selectedCells || [3,8,12,18,22]); const mines = new Set(d.revealedMines || []); const hits = new Set(d.hitMines || []);
-      return stageFrame(gameId, 'Mines — Min Lakay', 'Tablo sekirite 5 × 5 la revele dyaman ak min yo apre wonn nan.', `<div class="mines-board-wrap"><div class="mines-top"><span>MIN LAKAY <small>3 MIN KACHE</small></span><b>${details ? (hits.size ? 'MIN DETEKTE' : 'ZÒN SEKIRIZE') : 'CHWAZI KARE'}</b></div><div class="mines-board">${Array.from({length:25},(_,i)=>{const n=i+1;const isMine=mines.has(n);const isSafe=details && chosen.has(n) && !isMine;return `<span class="mine-cell ${chosen.has(n)?'is-chosen':''} ${isMine?'is-mine':''} ${isSafe?'is-safe':''}" style="--i:${i}">${isMine?'✹':isSafe?'◆':chosen.has(n)?'•':'?'}</span>`}).join('')}</div><div class="mines-footer"><span>◆ DIAMYAN</span><span>✹ MIN</span></div></div>`, phase);
+      return stageFrame(gameId, 'Mines — Min Lakay', 'Tablo sekirite 5 × 5 la revele dyaman ak min yo apre wonn nan.', `<div class="mines-board-wrap"><div class="mines-top"><span>MIN LAKAY <small>${d.mineCount || 3} MIN KACHE</small></span><b>${details ? (hits.size ? 'MIN DETEKTE' : 'ZÒN SEKIRIZE') : 'CHWAZI KARE'}</b></div><div class="mines-board">${Array.from({length:25},(_,i)=>{const n=i+1;const isMine=mines.has(n);const isSafe=details && chosen.has(n) && !isMine;return `<span class="mine-cell ${chosen.has(n)?'is-chosen':''} ${isMine?'is-mine':''} ${isSafe?'is-safe':''}" style="--i:${i}">${isMine?'✹':isSafe?'◆':chosen.has(n)?'•':'?'}</span>`}).join('')}</div><div class="mines-footer"><span>◆ DIAMYAN</span><span>✹ MIN</span></div></div>`, phase);
     }
     case 'plinko': {
       const path = d.path || ['L','R','L','R','L','R']; const slot = Number(d.slot || 4);
-      return stageFrame(gameId, 'Plinko Drop', 'Boul la desann atravè pikèt yo epi fini nan pòch miltiplikatè a.', `<div class="plinko-board-wrap"><div class="plinko-top"><span>PLINKO • DROP ZONE</span><b class="stage-result">${details ? `${Number(d.multiplier).toFixed(1)}×` : '—'}</b></div><div class="plinko-board"><div class="plinko-pegs">${Array.from({length:6},(_,row)=>`<div class="peg-row">${Array.from({length:row+1},(_,col)=>`<i></i>`).join('')}</div>`).join('')}</div><span class="plinko-ball stage-result" data-path="${path.join('')}" data-slot="${slot}"></span></div><div class="plinko-slots">${[0.5,1,2,5,2,1,0.5].map((v,i)=>`<span class="${details && slot===i+1?'slot-active':''}">${v}×</span>`).join('')}</div></div>`, phase);
+      const rows = Number(d.rows || 6); const slotTables = {6:{low:[0.8,0.9,1,1.1,1,0.9,0.8],normal:[0,0.2,0.8,1.5,0.8,0.2,0],high:[8,2,0.5,0,0.5,2,8]},8:{low:[0.7,0.8,0.9,1,1.1,1,0.9,0.8,0.7],normal:[0,0.1,0.3,0.8,1.5,0.8,0.3,0.1,0],high:[12,4,1,0.3,0,0.3,1,4,12]}}; const slots = slotTables[rows][d.risk || 'normal'];
+      return stageFrame(gameId, 'Plinko Drop', 'Boul la desann atravè pikèt yo epi fini nan pòch miltiplikatè a.', `<div class="plinko-board-wrap"><div class="plinko-top"><span>PLINKO • ${rows} LINES</span><b class="stage-result">${details ? `${Number(d.multiplier).toFixed(1)}×` : '—'}</b></div><div class="plinko-board"><div class="plinko-pegs">${Array.from({length:rows},(_,row)=>`<div class="peg-row">${Array.from({length:row+1},(_,col)=>`<i></i>`).join('')}</div>`).join('')}</div><span class="plinko-ball stage-result" data-path="${path.join('')}" data-slot="${slot}"></span></div><div class="plinko-slots">${slots.map((v,i)=>`<span class="${details && slot===i+1?'slot-active':''}">${v}×</span>`).join('')}</div></div>`, phase);
     }
     case 'penalty': {
       const shot = d.shot || 'center'; const keeper = d.keeper || 'center';
@@ -111,17 +137,18 @@ function renderGameStage(gameId, details = null, phase = 'idle') {
     }
     case 'coinflip': {
       const result = d.result || 'heads';
-      return stageFrame(gameId, 'Coin Flip', 'Pyès la vire nan lè a epi li montre Fas oswa Pil.', `<div class="coin-table"><div class="coin-shadow"></div><div class="coin-3d stage-result ${details ? `coin-${result}` : ''}"><div class="coin-side coin-front">KL<small>FAS</small></div><div class="coin-side coin-back">✦<small>PIL</small></div></div><div class="coin-outcome">${details ? (result === 'heads' ? 'FAS' : 'PIL') : 'LANSE PYÈS LA'}</div></div>`, phase);
+      const flips = d.flips || [result];
+      return stageFrame(gameId, 'Coin Flip', 'Pyès la vire nan lè a epi li montre Fas oswa Pil.', `<div class="coin-table"><div class="coin-shadow"></div><div class="coin-3d stage-result ${details ? `coin-${result}` : ''}"><div class="coin-side coin-front">KL<small>FAS</small></div><div class="coin-side coin-back">✦<small>PIL</small></div></div><div class="coin-outcome">${details ? (result === 'heads' ? 'FAS' : 'PIL') : 'LANSE PYÈS LA'}</div><div class="coin-rounds">${flips.map((flip)=>`<span>${flip==='heads'?'F':'P'}</span>`).join('')}</div></div>`, phase);
     }
     case 'limbo': {
       return stageFrame(gameId, 'Limbo', 'Miltiplikatè a monte sou ekran an jiskaske li sispann sou rezilta final la.', `<div class="limbo-screen"><div class="limbo-lines"></div><small>LI-MIT MULTIPLIER</small><strong class="stage-result">${details ? `${Number(d.result).toFixed(2)}×` : '1.00×'}</strong><div class="limbo-target">OBJEKTIF OU: <b>${details ? `${Number(d.target).toFixed(2)}×` : '2.00×'}</b></div><div class="limbo-meter"><i style="--progress:${details ? Math.min(100,Number(d.result)/20*100) : 8}%"></i></div></div>`, phase);
     }
     case 'scratch': {
       const symbols = d.symbols || ['🍒','🔔','💎'];
-      return stageFrame(gameId, 'Scratch Cards', 'Kat la gen yon kouch metalik ki retire pou revele twa senbòl.', `<div class="scratch-table"><div class="scratch-title">LUCKY TICKET <small>INSTANT REVEAL</small></div><div class="scratch-ticket"><div class="scratch-prize">GANYE 3 SENBÒL MENM JAN</div><div class="scratch-symbols">${symbols.map(x=>`<span class="scratch-symbol stage-result">${esc(x)}</span>`).join('')}</div><div class="scratch-foil ${details?'foil-revealed':''}">${details?'REZILTA REVELE':'GRATE POU REVELE'}</div></div><div class="scratch-foot">KAZINO LAKAY • TIKÈ SIMILASYON</div></div>`, phase);
+      return stageFrame(gameId, 'Scratch Cards', 'Kat la gen yon kouch metalik ki retire pou revele twa senbòl.', `<div class="scratch-table"><div class="scratch-title">LUCKY TICKET <small>INSTANT REVEAL</small></div><div class="scratch-ticket"><div class="scratch-prize">GANYE 3 SENBÒL MENM JAN</div><div class="scratch-symbols">${symbols.map(x=>`<span class="scratch-symbol stage-result">${esc(x)}</span>`).join('')}</div><div class="scratch-foil ${details?'foil-revealed':''}">${details?`REZILTA REVELE • ${String(d.risk || 'normal').toUpperCase()}`:'GRATE POU REVELE'}</div></div><div class="scratch-foot">KAZINO LAKAY • TIKÈ SIMILASYON</div></div>`, phase);
     }
     case 'wheel': {
-      const segments = [0,0.5,1,1.2,1.5,2,3,5]; const value = Number(d.multiplier || 0);
+      const segments = ({low:[0.4,0.6,0.8,1,1,1.2,1.4,1.6],normal:[0,0.2,0.5,0.8,1,1.5,2,3],high:[0,0,0.1,0.2,0.5,1,2,5]})[d.risk || 'normal']; const value = Number(d.multiplier || 0);
       return stageFrame(gameId, 'Wheel of Fortune', 'Wou a vire anba flèch la pou revele segman final la.', `<div class="fortune-table"><div class="fortune-pointer">▼</div><div class="fortune-wheel stage-result" style="--wheel-turn:${details?segments.indexOf(value):0}">${segments.map((v,i)=>`<span class="fortune-segment" style="--i:${i}"><b>${v}×</b></span>`).join('')}<div class="fortune-hub">KL</div></div><div class="fortune-value">${details?`${value}×`:'VIRE WOU A'}</div></div>`, phase);
     }
     default:
@@ -148,6 +175,11 @@ function gameCardIcon(game) {
     wheel: `<circle cx="50" cy="50" r="37"/><circle cx="50" cy="50" r="9"/><path d="M50 13v28M50 59v28M13 50h28M59 50h28M24 24l19 19M57 57l19 19M76 24 57 43M43 57 24 76"/><path d="M50 4v11" stroke-width="5"/>`,
     sicbo: `<rect x="8" y="28" width="38" height="45" rx="8"/><rect x="54" y="10" width="38" height="45" rx="8"/><rect x="38" y="54" width="38" height="38" rx="8"/><g fill="currentColor" stroke="none"><circle cx="20" cy="41" r="3"/><circle cx="34" cy="60" r="3"/><circle cx="67" cy="22" r="3"/><circle cx="79" cy="43" r="3"/><circle cx="50" cy="66" r="3"/><circle cx="64" cy="80" r="3"/></g>`,
     casinowar: `<path d="M15 23q0-8 8-8h39q8 0 8 8v57H23q-8 0-8-8z"/><path d="M34 14 70 9q8-1 10 7l9 53q1 8-7 10l-8 2"/><path d="m42 41 8-13 8 13-8 13zM50 54v12"/>`,
+    dragontiger: `<path d="M14 20q20-12 36 4 16-16 36-4v55q-20-12-36 4-16-16-36-4z"/><path d="M50 24v55M26 39l11 11-11 11M74 39 63 50l11 11"/><circle cx="31" cy="29" r="6"/><circle cx="69" cy="29" r="6"/>`,
+    andarbahar: `<circle cx="50" cy="50" r="37"/><circle cx="50" cy="50" r="20"/><path d="M50 12v17M50 71v17M12 50h17M71 50h17M23 23l12 12M65 65l12 12M77 23 65 35M35 65 23 77"/><text x="41" y="57" font-size="20" fill="currentColor" stroke="none">A</text>`,
+    threecard: `<path d="M14 22q0-8 8-8h34q8 0 8 8v56H22q-8 0-8-8z"/><path d="M34 14h36q8 0 8 8v50"/><path d="m42 41 8-13 8 13-8 13zM50 54v13"/>`,
+    holdem: `<path d="M12 22q0-8 8-8h33q8 0 8 8v56H20q-8 0-8-8z"/><path d="M39 14h33q8 0 8 8v56q0 8-8 8H39"/><path d="m38 38 12-11 12 11-12 11z"/><path d="M50 50v20"/>`,
+    bingo: `<rect x="15" y="15" width="70" height="70" rx="8"/><path d="M15 33h70M15 51h70M15 69h70M33 15v70M51 15v70M69 15v70"/><circle cx="51" cy="51" r="8"/>`,
   }[game.id] || '<circle cx="50" cy="50" r="30"/><path d="M50 25v50M25 50h50"/>';
   return `<svg class="game-symbol-svg" viewBox="0 0 100 100" role="img" aria-label="${esc(game.name)}" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><circle class="game-icon-halo" cx="50" cy="50" r="45" stroke-width="1.5"/><g>${art}</g></svg>`;
 }
@@ -183,15 +215,15 @@ function render() {
     <main id="top" class="shell">
       ${!firebaseReady ? `<div class="config-alert"><strong>Kont jwè yo poko aktive.</strong><span>Konfigirasyon frontend Firebase ki manke: ${firebaseMissing.map(esc).join(', ')}. Ou kapab eseye jwèt yo nan mòd demonstrasyon; pou kont, balans sove ak administrasyon, fini konfigirasyon Firebase la.</span></div>` : ''}
       ${state.health && !state.health.firebaseConfigured ? `<div class="config-alert"><strong>Backend Firebase poko konekte.</strong><span>Jwèt DEMO yo disponib. Kont, balans ki sove, istwa ak admin ap rete bloke jiskaske sekrè Firebase Worker yo konfigire. Paramèt ki manke: ${(state.health.firebaseMissing || []).map(esc).join(', ') || 'verifye kle prive a'}.</span></div>` : ''}
-      <section class="hero"><div class="hero-copy"><span class="eyebrow">GAME CENTER • KAZINO LAKAY</span><h1>Jwe ak lespri.<br><em>Konprann chak mouvman.</em></h1><p>Eksplore jwèt yo, aprann règ yo, epi swiv rezilta ou. Chak jwèt gen eksplikasyon klè anvan ou kòmanse.</p><div class="hero-actions"><a class="button button-primary" href="#games">Eksplore 17 jwèt yo <span>↘</span></a><span class="hero-note">Pwen jwèt san valè lajan</span></div></div>
+      <section class="hero"><div class="hero-copy"><span class="eyebrow">GAME CENTER • KAZINO LAKAY</span><h1>Jwe ak lespri.<br><em>Konprann chak mouvman.</em></h1><p>Eksplore jwèt yo, aprann règ yo, epi swiv rezilta ou. Chak jwèt gen eksplikasyon klè anvan ou kòmanse.</p><div class="hero-actions"><a class="button button-primary" href="#games">Eksplore 22 jwèt yo <span>↘</span></a><span class="hero-note">Pwen jwèt san valè lajan</span></div></div>
         <div class="hero-art" aria-hidden="true"><div class="hero-orbit orbit-a"></div><div class="hero-orbit orbit-b"></div><div class="hero-chip">KL</div><div class="hero-card hero-card-a">A<span>♠</span></div><div class="hero-card hero-card-b">7<span>♦</span></div></div></section>
       ${state.user && !state.user.emailVerified ? `<div class="config-alert verify-alert"><strong>Verifye imel ou.</strong><span>Nou voye yon lyen verifikasyon nan ${esc(state.user.email || 'adrès imel ou')}.</span><button class="button button-ghost" data-action="resend-verification">Voye imel verifikasyon ankò</button></div>` : ''}
       <section class="quick-info"><div><span class="quick-icon">ⓘ</span><div><strong>Sa ou dwe konnen</strong><p>Pwen yo se sèlman pwen jwèt. Yo pa gen valè lajan, yo pa ka achte, transfere, vann oswa retire kòm lajan.</p></div></div><div><span class="quick-icon">🛡️</span><div><strong>Rezilta verifye sou sèvè</strong><p>Rezilta jwèt ak balans lan soti nan backend la, pa nan bouton navigatè a.</p></div></div></section>
-      <section class="section-head" id="games"><div><span class="eyebrow">KOLEKSYON AN</span><h2>Chwazi jwèt ou</h2><p class="section-sub">17 jwèt • Règ yo disponib anvan chak wonn</p></div><label class="search"><span>⌕</span><input id="search" type="search" value="${esc(state.query)}" placeholder="Chèche yon jwèt..." autocomplete="off"></label></section>
+      <section class="section-head" id="games"><div><span class="eyebrow">KOLEKSYON AN</span><h2>Chwazi jwèt ou</h2><p class="section-sub">22 jwèt • Plis chwa, plis detay ak règ klè</p></div><label class="search"><span>⌕</span><input id="search" type="search" value="${esc(state.query)}" placeholder="Chèche yon jwèt..." autocomplete="off"></label></section>
       <nav class="category-nav" aria-label="Filtre jwèt">${CATEGORIES.map((cat) => `<button class="category ${state.category === cat ? 'active' : ''}" data-category="${cat}">${cat}</button>`).join('')}</nav>
       <div class="game-grid">${filtered.map(gameCard).join('')}</div>
       ${filtered.length === 0 ? '<div class="empty-state">Pa gen jwèt ki mache ak rechèch sa a.</div>' : ''}
-      <section class="help-panel"><div><span class="eyebrow">KONPRANN JWE A</span><h2>Règ yo anvan aksyon an.</h2><p>Chak fich jwèt gen objektif, etap pou jwe, fason pou kalkile retou ak yon rapèl sou pwen jwèt yo.</p></div><div class="help-stat"><strong>17</strong><span>fich jwèt ak règ klè</span></div></section>
+      <section class="help-panel"><div><span class="eyebrow">KONPRANN JWE A</span><h2>Règ yo anvan aksyon an.</h2><p>Chak fich jwèt gen objektif, etap pou jwe, fason pou kalkile retou ak yon rapèl sou pwen jwèt yo.</p></div><div class="help-stat"><strong>22</strong><span>fich jwèt ak règ klè</span></div></section>
     </main>
     <footer><span>© ${new Date().getFullYear()} Kazino Lakay</span><span>Game Center • Pwen jwèt san valè lajan</span></footer>
     <div id="modal-root"></div><div id="toast" class="toast" role="status"></div>`;
@@ -256,7 +288,7 @@ function renderGameModal() {
   const balanceLabel = state.profile ? `${fmt(state.profile.pointsBalance)} P` : 'DEMO';
   const rules = `<div class="kl-rule-card"><strong>Objektif</strong><p>${esc(game.summary)}</p></div><div class="kl-rule-card"><strong>Kijan pou jwe?</strong><p>${esc(game.how)}</p></div><div class="kl-rule-card"><strong>Retou posib</strong><p>${esc(game.payout)}</p></div>`;
   document.querySelector('#modal-root').innerHTML = `<section class="kl-game-screen game-room-${esc(game.id)}" id="game-room-screen" aria-label="${esc(game.name)}">
-    <header class="kl-game-topbar"><button type="button" class="kl-menu-button" data-game-action="menu" aria-label="Ouvri meni" aria-expanded="${state.gameMenuOpen}"><span></span><span></span><span></span></button>
+    <header class="kl-game-topbar"><button type="button" class="kl-back-button" data-game-action="back" aria-label="Retounen nan lis jwèt yo">← <span>RETOU</span></button><button type="button" class="kl-menu-button" data-game-action="menu" aria-label="Ouvri meni" aria-expanded="${state.gameMenuOpen}"><span></span><span></span><span></span></button>
       <div class="kl-game-title"><small>KAZINO LAKAY • GAME CENTER</small><h1>${esc(game.name)}</h1></div>
       <div class="kl-game-stats"><span><small>BALANS</small><b data-game-balance>${balanceLabel}</b></span><span><small>JETON</small><b data-game-stake>${state.gameStake} P</b></span></div>
     </header>
@@ -293,7 +325,9 @@ function updateRouletteControls() {
     if (!state.rouletteBet) label.textContent = 'Chwazi yon nimewo oswa yon parye';
     else if (state.rouletteBet.type === 'number') label.textContent = `Nimewo ${state.rouletteBet.value}`;
     else if (state.rouletteBet.type === 'color') label.textContent = state.rouletteBet.value === 'red' ? 'Wouj' : 'Nwa';
-    else label.textContent = state.rouletteBet.value === 'even' ? 'Pè' : 'Enpè';
+    else if (state.rouletteBet.type === 'parity') label.textContent = state.rouletteBet.value === 'even' ? 'Pè' : 'Enpè';
+    else if (state.rouletteBet.type === 'dozen') label.textContent = `Douzèn ${state.rouletteBet.value}`;
+    else if (state.rouletteBet.type === 'column') label.textContent = `Kolòn ${state.rouletteBet.value}`;
   }
   const stake = screen.querySelector('[data-roulette-stake]');
   if (stake) stake.textContent = `${state.rouletteStake} P`;
@@ -571,7 +605,7 @@ async function playGame(form, demoMode = false) {
 async function animateResult(panel, gameId) {
   const stage = panel.querySelector('.casino-stage');
   if (!stage) return;
-  const duration = ['crash','roulette','wheel','plinko','slots'].includes(gameId) ? 1900 : 1450;
+  const duration = ['crash','roulette','wheel','plinko','slots','andarbahar'].includes(gameId) ? 1900 : 1450;
   stage.classList.add('phase-rolling');
   const moving = [...stage.querySelectorAll('.stage-result, .die, .playing-card')].filter((node) => !node.classList.contains('plinko-ball') && !node.classList.contains('fortune-wheel'));
   const animations = moving.map((node, index) => {
