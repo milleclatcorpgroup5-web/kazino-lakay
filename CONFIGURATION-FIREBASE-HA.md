@@ -1,112 +1,34 @@
-# Kazino Lakay V1.2.2 — konfigirasyon Firebase ak sekirite
+# Konfigirasyon Firebase + Admin — Kazino Lakay V1.3.0
 
-## Sa nouvo vèsyon an aktive
+## Firebase Web App
+Nan Cloudflare Build Variables mete kat valè Web App Firebase yo: `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_APP_ID`. Yo se paramèt piblik kliyan Firebase; pa konfonn yo ak sekrè service account lan.
 
-Tout 17 jwèt ki nan `src/games/catalog.js` gen yon motè rezilta sou Worker la:
+Aktive Authentication > Sign-in method > Email/Password. Jwè dwe verifye imel yo anvan jwèt ki ekri balans/istwa nan kont yo.
 
-`crash`, `slots`, `roulette`, `blackjack`, `baccarat`, `keno`, `dice`, `mines`, `plinko`, `penalty`, `coinflip`, `limbo`, `hilo`, `scratch`, `wheel`, `sicbo`, `casinowar`.
+## Worker service account
+Nan menm pwojè Firebase/Google Cloud la, kreye yon service account epi bay li wòl minimòm `roles/datastore.user`. Mete:
+- Text `FIREBASE_PROJECT_ID`
+- Text `FIREBASE_CLIENT_EMAIL`
+- Secret `FIREBASE_PRIVATE_KEY`
 
-`GET /api/games` retounen lis jwèt backend la konnen. `GET /api/health` montre kantite jwèt ak non paramèt Firebase runtime ki manke oswa ki mal fòmate. Health la pa janm retounen valè sekrè yo.
+Private key la dwe rete kòm Cloudflare encrypted secret. Pa mete li nan GitHub, frontend, `wrangler.toml`, ZIP oswa chat. Pa janm pataje JSON service account lan.
 
-**Tout jwèt yo rete an mòd pwen demonstrasyon. Pwen yo pa lajan, pa ka achte, vann, transfere oswa retire.**
+## Kreye admin
+1. Chwazi yon kont Firebase Email/Password ou kontwole.
+2. Verifye imel kont sa a.
+3. Nan Cloudflare Worker Settings > Variables mete `INITIAL_ADMIN_EMAILS` ak imel la egzakteman (ti/lèt majiskil pa konte). Pou plizyè admin: `admin1@example.com,admin2@example.com`.
+4. Redéploye Worker la.
+5. Konekte ak menm kont sa a nan `/admin.html`.
 
-## 1. Aplike Firestore Rules yo
+Admin pa chwazi wòl li nan navigatè a. Worker la verifye siyati Firebase ID token, `email_verified`, epi imel la dwe sou lis `INITIAL_ADMIN_EMAILS`. Pa sèvi ak yon admin email ki pa verifye.
 
-Nan Firebase Console:
+## Règ ak aksyon admin
+`firestore.rules` fèmen aksè dirèk kliyan. Admin API la itilize Worker service account ak lis imel la; li kapab lis kont, lis wonn, aktive/sispann kont ki pa admin, epi ajiste pwen DEMO. Chak modifye ekri nan `adminActions`. Pa gen efasman itilizatè nan panèl sa a.
 
-1. Chwazi pwojè Firebase Kazino Lakay la.
-2. Louvri **Firestore Database**.
-3. Louvri onglet **Rules**.
-4. Ranplase ansyen règ yo ak kontni fichye `firestore.rules` ki nan rasin ZIP sa a.
-5. Peze **Publish**.
+## Dyagnostik
+`GET /api/health` pa retounen okenn sekrè. Li montre sèlman non paramèt ki manke/mal fòmate:
+- `firebaseConfigured: true` — twa paramèt runtime yo prezan nan bon fòm; sa poko pwouve kle a otantik oswa IAM gen aksè.
+- `adminConfigured: true` — omwen yon imel nan lis admin lan.
+- `demoPlayEnabled: true` — jwèt DEMO yo disponib san Firebase.
 
-Règ sa yo bloke tout lekti/ekriti dirèk depi navigatè a. Frontend lan itilize Firebase Authentication sèlman; li pase tout lekti/ekriti done yo nan Worker API a. Worker la verifye Firebase ID token epi li itilize service account IAM pou pale ak Firestore. Service account la se yon kont sèvè privilejye; Firestore Security Rules pa ranplase IAM oswa verifikasyon nan Worker la.
-
-## 2. Konfigire Firebase Authentication
-
-Nan Firebase Console > **Authentication** > **Sign-in method**, aktive **Email/Password**. Itilizatè yo dwe verifye imel yo anvan yo ka jwe.
-
-Nan **Project settings > General > Your apps**, pran kat valè Web App yo. Sèvi ak valè ki soti nan pwojè Kazino Lakay la, pa yon lòt pwojè.
-
-## 3. Mete Build Variables nan Cloudflare
-
-Worker `kazino-lakay` > Settings/Builds > Build variables (non meni an ka varye selon ekran Cloudflare la):
-
-- `VITE_FIREBASE_API_KEY` — Web App `apiKey`
-- `VITE_FIREBASE_AUTH_DOMAIN` — Web App `authDomain`
-- `VITE_FIREBASE_PROJECT_ID` — Firebase `projectId`
-- `VITE_FIREBASE_APP_ID` — Web App `appId`
-
-Sa yo se valè piblik Web App ki antre nan frontend pandan build la. Pa mete service-account private key la nan Build Variables.
-
-## 4. Kreye service account pou Worker la
-
-Nan Google Cloud Console, chwazi menm pwojè Firebase la:
-
-1. Louvri **IAM & Admin > Service Accounts**.
-2. Kreye service account pou Kazino Lakay.
-3. Bay li wòl minimòm **Cloud Datastore User** (`roles/datastore.user`). Pa bay li Owner oswa Editor.
-4. Kreye kle JSON lan. Kenbe fichye sa a prive.
-5. Sèlman pran `client_email` ak `private_key` nan fichye a.
-
-## 5. Mete Runtime Variables/Secrets nan Worker la
-
-Nan Cloudflare > Worker `kazino-lakay` > Settings > Variables and Secrets:
-
-**Variables (Text):**
-
-- `FIREBASE_PROJECT_ID` — valè egzak Firebase `projectId`
-- `FIREBASE_CLIENT_EMAIL` — `client_email` service account lan
-- `INITIAL_ADMIN_EMAILS` — opsyonèl; imel admin an, separe ak vigil si gen plis pase youn
-- `ALLOWED_ORIGINS` — kite vid si sit la ak API a sou menm adrès Worker la
-
-**Secret (Encrypted):**
-
-- `FIREBASE_PRIVATE_KEY` — tout valè `private_key` service account lan, depi `-----BEGIN PRIVATE KEY-----` rive `-----END PRIVATE KEY-----`.
-
-Pa janm mete private key la nan GitHub, nan ZIP, nan `wrangler.toml`, nan frontend oswa nan chat. Pa voye fichye service-account JSON lan bay pèsonn.
-
-## 6. Endèks Firestore
-
-Pake a gen `firestore.indexes.json` pou query istwa jwèt la. Si Firestore mande yon endèks konpoze, kreye li nan Firestore Console pou:
-
-- Collection: `gameRounds`
-- `uid`: Ascending
-- `createdAt`: Descending
-
-## 7. Deplwaman GitHub / Cloudflare
-
-Repo a dwe gen `package.json` nan rasin repository a (pa anndan yon lòt folder ekstra).
-
-- Branch: `main`
-- Root directory: `/`
-- Build command: `npm run build`
-- Deploy command: `npm run deploy:worker`
-- Preview builds: dezaktive pandan premye deplwaman sa a
-
-`worker/wrangler.toml` deja nonmen Worker `kazino-lakay`, sèvi `../dist` kòm static assets, epi dirije `/api/*` sou Worker la.
-
-## 8. Tès apre deplwaman
-
-Louvri:
-
-- Sit la: `https://kazino-lakay.milleclatcorpgroup5.workers.dev/`
-- Health: `https://kazino-lakay.milleclatcorpgroup5.workers.dev/api/health`
-- Lis jwèt: `https://kazino-lakay.milleclatcorpgroup5.workers.dev/api/games`
-
-Health dwe montre:
-
-- `status: "ok"`
-- `gameCount: 17`
-- `gamesEnabled: true`
-- `firebaseConfigured: true`
-- `firebaseMissing: []`
-- `firebaseInvalid: []`
-
-Si `firebaseMissing` montre non paramèt, mete paramèt sa yo nan Worker Runtime Variables/Secrets. Si gen `firebaseInvalid`, korije fòma valè a. `firebaseConfigured: true` se yon verifikasyon prezans/fòma senp; li poko pwouve kle a valab ni IAM lan gen bon dwa. Tès reyèl kont ak wonn dwe toujou fèt.
-
-## Limit sekirite ak pwodwi
-
-- Pa gen depo, retrè, peman, balans lajan oswa valè lajan.
-- Tout rezilta yo se pwen demonstrasyon; tout kalkil yo fèt sou Worker la avèk Web Crypto.
-- Pa konsidere pake sa a pare pou jwèt ak lajan reyèl, oswa pou operasyon komèsyal reglemante.
+Si `firebaseConfigured` rete false, jwèt kont yo ak Admin pa pral mache. Mòd DEMO a dwe mache san Firebase, men li pa sove balans.
