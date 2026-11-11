@@ -1,64 +1,64 @@
-# Kazino Lakay V1.2.2 — enstriksyon pou aplike PATCH sou V1.2.0
+# Kazino Lakay V1.3.0 — enstriksyon patch
 
-ZIP sa a **pa yon pwojè konplè**. Li gen sèlman fichye ki nouvo oswa ki dwe ranplase nan baz `KAZINO-LAKAY-V1.2.0-FULL-CORRECTED.zip` la.
+Patch sa a fèt pou repository ki deja gen tout patch V1.2.1 ak V1.2.2 yo. Li gen sèlman fichye ki nouvo oswa ki chanje pou ajoute PWA, mòd jwèt DEMO ki mache san Firebase, epi panèl administratè.
 
-## Kijan pou aplike l
+## Aplike patch la
 
-1. Kenbe yon kopi sekou ZIP V1.2.0 ou a.
-2. Dekonprese ZIP patch V1.2.2 sa a.
-3. Louvri folder `kazino-lakay-v1` ki soti nan patch la.
-4. Kopi sa ki anndan folder sa a nan rasin pwojè/repository `kazino-lakay` ki deja genyen V1.2.0 la.
-5. Lè Android/GitHub mande si pou ranplase fichye ki egziste deja yo, chwazi **Replace / Remplacer** pou fichye patch yo.
-6. Pa efase okenn lòt fichye V1.2.0 ki pa parèt nan patch sa a.
-7. Anrejistre/commit chanjman yo sou branch `main`; Cloudflare Workers Builds ap pran nouvo commit la.
+1. Fè yon backup repository GitHub `milleclatcorpgroup5-web/kazino-lakay` la.
+2. Louvri ZIP la epi antre nan folder `kazino-lakay-v1`.
+3. Kopi tout sa ki anndan folder sa a nan rasin repository GitHub la. Kenbe menm chemen folder yo (`src/`, `worker/src/`, `public/`).
+4. Lè GitHub mande si pou ranplase fichye ki egziste, aksepte pou fichye patch la. Fichye ki nouvo yo dwe ajoute.
+5. Fè commit sou branch `main` pou Cloudflare ka konstwi ak deplwaye vèsyon an.
 
-## Fichye ki nan patch la
+Pa mete ZIP la kòm yon fichye ZIP andedan repository a. Pa efase lòt fichye ki pa nan patch la.
 
-### Nouvo fichye
-- `CONFIGURATION-FIREBASE-HA.md`
+## Fichye ki nouvo
 
-### Fichye pou ranplase
-- `DEPLOY-HA.md`
-- `README.md`
-- `VERIFICATION-HA.md`
-- `firestore.rules`
+- `admin.html`
+- `vite.config.js`
+- `src/admin.js`
+- `src/admin.css`
+- `public/manifest.webmanifest`
+- `public/sw.js`
+- `public/icons/icon-192.png`
+- `public/icons/icon-512.png`
+
+## Fichye ki ranplase
+
+- `index.html`
 - `package.json`
 - `src/main.js`
 - `src/style.css`
 - `worker/src/index.js`
 - `worker/test-engine.mjs`
+- `DEPLOY-HA.md`
+- `CONFIGURATION-FIREBASE-HA.md`
+- `README.md`
+- `VERIFICATION-HA.md`
 
-Tout lòt fichye V1.2.0 yo rete menm jan; yo pa enkli nan ZIP patch la.
+## Fichye pou konsève jan yo ye
 
-## Sa chak pati pote
+Pa ranplase `worker/wrangler.toml`, `firestore.rules`, `firestore.indexes.json`, `src/firebase.js`, `src/auth.js`, `src/api.js`, `src/games/catalog.js`, `.env.example`, `worker/.dev.vars.example` oswa `firebase.json`. Yo pa chanje nan patch sa a.
 
-- Backend V1.2.1: 17 jwèt sou Worker la, `GET /api/games`, dyagnostik Firebase, epi tès motè jwèt.
-- UI V1.2.2: nouvo ekran jwèt, tab/espas jwèt, eleman 3D ak animasyon vizyèl.
-- Firestore Rules: refize lekti/ekriti dirèk navigatè a; done pase nan Worker la.
-- `package.json`: nimewo vèsyon an vin `1.2.2`, epi build la kouri verifikasyon ak tès anvan Vite.
+## Cloudflare
 
-## Aplike Firestore Rules yo se yon aksyon apa
-
-Mete `firestore.rules` nan GitHub pa pibliye règ yo otomatikman nan Firebase. Nan Firebase Console, ale nan **Firestore Database → Rules**, ranplase règ aktyèl yo ak kontni nouvo fichye `firestore.rules`, epi peze **Publish**.
-
-**Atansyon:** Règ sa yo bloke tout aksè dirèk nan navigatè a. Anvan ou pibliye yo, verifye Worker Cloudflare la gen `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL` ak sekrè `FIREBASE_PRIVATE_KEY`, epi service account lan gen wòl `roles/datastore.user` sou menm pwojè Firebase la. Pa mete kle prive a nan GitHub, ZIP, frontend oswa chat.
-
-## Deplwaman
-
-Pou Worker ki deja konekte ak GitHub:
+Kenbe pwojè Worker la sou menm non `kazino-lakay`.
 
 - Root directory: `/`
+- Branch: `main`
 - Build command: `npm run build`
 - Deploy command: `npm run deploy:worker`
-- Branch: `main`
 
-`worker/wrangler.toml` pa enkli paske li deja gen bon non Worker `kazino-lakay` ak chemen `../dist` nan V1.2.0.
+Konfigirasyon Worker la itilize `worker/wrangler.toml` ki deja nan repository a epi li sèvi ak `dist/` kòm static assets.
 
-## Tès ki fèt sou pake konbine a
+## PWA
 
-- `npm run check`: PASS.
-- `npm test`: PASS — 17 jwèt × 100 wonn = 1 700 tès rezolisyon.
-- `npm run build`: pa konfime nan anviwònman sa a paske `vite` pa t enstale (`vite: not found`). Cloudflare dwe enstale depandans yo nan build pa li.
-- Pa gen Rules ki pibliye nan pwojè Firebase ou ni deplwaman Cloudflare ki fèt pa ZIP sa a.
+Apre deplwaman, ouvri adrès sit la nan Chrome Android. Lè opsyon enstalasyon an parèt, chwazi **Enstale app** oswa meni Chrome `⋮` > **Enstale aplikasyon** / **Add to Home screen**. Sou iPhone/iPad, sèvi ak meni Share nan Safari > **Add to Home Screen**.
 
-Tout jwèt yo rete nan mòd **pwen demonstrasyon sèlman**, san depo, retrè oswa lajan reyèl.
+## Firebase ak administrasyon
+
+Pake a gen mòd DEMO ki sèvi ak Worker la san kont ni Firestore; pa gen balans kont ki modifye nan DEMO. Pou kont, balans ki sove, istwa ak Admin, mete kat Firebase Web App build variables yo, sekrè service account Worker yo, epi `INITIAL_ADMIN_EMAILS` jan gid `CONFIGURATION-FIREBASE-HA.md` la eksplike.
+
+Mete adrès imel Firebase ki verifye pou administratè a nan `INITIAL_ADMIN_EMAILS`. Pa mete kle prive oswa modpas nan GitHub, ZIP, oswa chat. Pa kreye okenn modpas admin default.
+
+Tout pwen rete demonstrasyon san valè lajan. Pa gen depo, retrè, MonCash, NatCash oswa peman reyèl.
