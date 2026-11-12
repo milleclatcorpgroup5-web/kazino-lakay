@@ -1,0 +1,19 @@
+KAZINO LAKAY V1.6.1 — NÒT CHANJMAN PENALTY
+
+1. Chwa ekip: lis 16 ekip. Itilizatè a chwazi pwòp ekip li sèlman.
+2. Advèsè otomatik: jwèt la chwazi advèsè a san mande itilizatè a.
+3. Tir ak dwèt: kenbe boul la, glise nan direksyon zòn gòl la, epi lage.
+4. Vize: 9 zòn gòl; direksyon dwèt la detèmine zòn nan, longè glisman an enfliyanse pisans lan.
+5. Animasyon tir: jwè a pran elan, pye a balanse pou frape boul la, epi boul la vole nan gòl la.
+6. Gadyen: li plonje nan direksyon zòn li chwazi a dapre rezilta Worker la.
+7. Rezilta: gòl oswa arè gadyen an parèt apre animasyon an.
+8. DEMO: sistèm pwen demonstrasyon an rete san valè lajan.
+
+TÈS KI PASE:
+- node --check pou fichye JavaScript ki modifye yo.
+- Tès motè: 22 jwèt × 100 rezilta, ansanm ak tès validasyon penal la.
+- Tès sentaks CSS ak balans akolad yo.
+
+PA FÈ:
+- Pa fè Vite build nan anviwònman sa a; depandans pwojè yo pa enstale.
+- Pa fè okenn deplwaman Cloudflare.
