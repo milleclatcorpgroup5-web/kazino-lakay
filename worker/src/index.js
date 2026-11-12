@@ -463,7 +463,7 @@ const drawCard = (deck) => {
 };
 const cardName = (rank) => ({11:'J',12:'Q',13:'K',14:'A'}[rank] || String(rank));
 
-function rankThreeCardHand(cards) {
+export function rankThreeCardHand(cards) {
   const ranks = cards.map((card) => card.rank).sort((a, b) => b - a);
   const sameSuit = cards.every((card) => card.suit === cards[0].suit);
   const counts = new Map();
@@ -478,7 +478,7 @@ function rankThreeCardHand(cards) {
   else if (straight) { category = 3; tie = [straightHigh]; }
   else if (sameSuit) { category = 2; tie = ranks; }
   else if (values[0][1] === 2) { category = 1; tie = [values[0][0], ...ranks.filter((rank) => rank !== values[0][0])]; }
-  return { category, tie, label: ['Kat wo','Pè','Koulè','Sekans','Sekans koulè','Twa menm'][category] };
+  return { category, tie, label: ['Kat wo','Pè','Koulè','Sekans','Twa menm','Sekans koulè'][category] };
 }
 
 function compareHandRanks(a, b) {
@@ -544,7 +544,7 @@ function createBingoCard() {
 }
 
 export function resolveGame(gameId, stake, choice = {}) {
-  let won = false, multiplier = 0, title = 'Wonn fini', message = '', details = {}, animationKey = gameId;
+  let won = false, multiplier = 0, title = 'Wonn fini', message = '', details = {}, animationKey = gameId, exactPayoutPoints = null;
   switch (gameId) {
     case 'crash': {
       const target = Number(choice.target);
@@ -579,45 +579,97 @@ export function resolveGame(gameId, stake, choice = {}) {
       const n = randomInt(37);
       const red = new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
       const color = n === 0 ? 'green' : red.has(n) ? 'red' : 'black';
-      const betType = String(choice.betType || (choice.pick ? 'legacy-color' : ''));
-      let betValue = choice.betValue;
-      if (betType === 'number') {
-        betValue = Number(betValue);
-        if (!Number.isInteger(betValue) || betValue < 0 || betValue > 36) throw new HttpError(400, 'Chwazi yon nimewo antye ant 0 ak 36.');
-        won = n === betValue;
-        multiplier = won ? 36 : 0;
-      } else if (betType === 'color') {
-        betValue = String(betValue || '').toLowerCase();
-        if (!['red','black'].includes(betValue)) throw new HttpError(400, 'Chwazi koulè wouj oswa nwa. Pou zewo, chwazi nimewo 0.');
-        won = color === betValue;
-        multiplier = won ? 2 : 0;
-      } else if (betType === 'parity') {
-        betValue = String(betValue || '').toLowerCase();
-        if (!['even','odd'].includes(betValue)) throw new HttpError(400, 'Chwazi pè oswa enpè.');
-        won = n !== 0 && (n % 2 === 0 ? 'even' : 'odd') === betValue;
-        multiplier = won ? 2 : 0;
-      } else if (betType === 'dozen') {
-        betValue = Number(betValue);
-        if (![1,2,3].includes(betValue)) throw new HttpError(400, 'Chwazi premye, dezyèm oswa twazyèm douzèn lan.');
-        won = n > 0 && Math.ceil(n / 12) === betValue;
-        multiplier = won ? 3 : 0;
-      } else if (betType === 'column') {
-        betValue = Number(betValue);
-        if (![1,2,3].includes(betValue)) throw new HttpError(400, 'Chwazi kolòn 1, 2 oswa 3.');
-        won = n > 0 && ((n - 1) % 3) + 1 === betValue;
-        multiplier = won ? 3 : 0;
-      } else if (betType === 'legacy-color') {
-        betValue = String(choice.pick || '');
-        if (!['red','black','green'].includes(betValue)) throw new HttpError(400, 'Chwazi wouj, nwa oswa vèt.');
-        won = color === betValue;
-        multiplier = won ? (color === 'green' ? 36 : 2) : 0;
-      } else {
-        throw new HttpError(400, 'Chwazi yon nimewo, koulè oswa pè/enpè.');
+      const rawBets = Array.isArray(choice.bets) ? choice.bets : null;
+      const bets = rawBets || [{
+        betType: String(choice.betType || (choice.pick ? 'legacy-color' : '')),
+        betValue: choice.betType ? choice.betValue : choice.pick,
+        stakePoints: stake
+      }];
+      if (!bets.length || bets.length > 30) throw new HttpError(400, 'Mete ant 1 ak 30 pari diferan sou tab roulèt la.');
+
+      const seen = new Set();
+      const settledBets = [];
+      let totalStaked = 0;
+      let totalPayout = 0;
+      const betDescription = (type, value) => {
+        if (type === 'number') return `nimewo ${value}`;
+        if (type === 'color') return value === 'red' ? 'wouj' : 'nwa';
+        if (type === 'parity') return value === 'even' ? 'pè' : 'enpè';
+        if (type === 'dozen') return `douzèn ${value}`;
+        if (type === 'column') return `kolòn ${value}`;
+        return 'paryaj';
+      };
+
+      for (const item of bets) {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) throw new HttpError(400, 'Yon pari roulèt pa gen bon fòma.');
+        const type = String(item.betType || item.type || '');
+        let value = item.betValue ?? item.value;
+        const itemStake = Number(item.stakePoints ?? item.stake);
+        if (!Number.isInteger(itemStake) || itemStake < 10 || itemStake > 1000 || itemStake % 10 !== 0) {
+          throw new HttpError(400, 'Chak pari dwe genyen ant 10 ak 1 000 pwen, an miltip 10.');
+        }
+        totalStaked += itemStake;
+        if (totalStaked > 1000) throw new HttpError(400, 'Total pari yon sèl wonn roulèt pa kapab depase 1 000 pwen.');
+
+        let hit = false;
+        let odds = 0;
+        if (type === 'number') {
+          value = Number(value);
+          if (!Number.isInteger(value) || value < 0 || value > 36) throw new HttpError(400, 'Chwazi yon nimewo antye ant 0 ak 36.');
+          odds = 36;
+          hit = n === value;
+        } else if (type === 'color') {
+          value = String(value || '').toLowerCase();
+          if (!['red','black'].includes(value)) throw new HttpError(400, 'Chwazi koulè wouj oswa nwa. Zewo pa yon koulè paryab.');
+          odds = 2;
+          hit = color === value;
+        } else if (type === 'parity') {
+          value = String(value || '').toLowerCase();
+          if (!['even','odd'].includes(value)) throw new HttpError(400, 'Chwazi pè oswa enpè.');
+          odds = 2;
+          hit = n !== 0 && (n % 2 === 0 ? 'even' : 'odd') === value;
+        } else if (type === 'dozen') {
+          value = Number(value);
+          if (![1,2,3].includes(value)) throw new HttpError(400, 'Chwazi premye, dezyèm oswa twazyèm douzèn lan.');
+          odds = 3;
+          hit = n > 0 && Math.ceil(n / 12) === value;
+        } else if (type === 'column') {
+          value = Number(value);
+          if (![1,2,3].includes(value)) throw new HttpError(400, 'Chwazi kolòn 1, 2 oswa 3.');
+          odds = 3;
+          hit = n > 0 && ((n - 1) % 3) + 1 === value;
+        } else if (type === 'legacy-color') {
+          value = String(value || '').toLowerCase();
+          if (!['red','black','green'].includes(value)) throw new HttpError(400, 'Chwazi wouj, nwa oswa vèt.');
+          odds = value === 'green' ? 36 : 2;
+          hit = color === value;
+        } else {
+          throw new HttpError(400, 'Kalite pari roulèt sa a pa disponib.');
+        }
+
+        const key = `${type}:${String(value)}`;
+        if (seen.has(key)) throw new HttpError(400, 'Pa voye menm kalite pari a de fwa. Ajoute montan yo sou menm pari a.');
+        seen.add(key);
+        const betPayout = hit ? moneyMultiplier(itemStake, odds) : 0;
+        totalPayout += betPayout;
+        settledBets.push({ betType: type, betValue: value, label: betDescription(type, value), stakePoints: itemStake, odds, won: hit, payoutPoints: betPayout });
       }
-      const colorLabel = color === 'red' ? 'wouj' : color === 'black' ? 'nwa' : 'vèt';
-      const betLabel = betType === 'number' ? `nimewo ${betValue}` : betType === 'color' ? (betValue === 'red' ? 'wouj' : 'nwa') : betType === 'parity' ? (betValue === 'even' ? 'pè' : 'enpè') : betType === 'dozen' ? `douzèn ${betValue}` : betType === 'column' ? `kolòn ${betValue}` : (betValue === 'green' ? 'zewo/vèt' : betValue === 'red' ? 'wouj' : 'nwa');
-      details = { number: n, color, betType, betValue, selected: betValue, multiplier };
-      message = `Wou a kanpe sou ${n} (${colorLabel}). ${won ? `Pari ${betLabel} la genyen.` : `Pari ${betLabel} la pa koresponn.`}`;
+
+      if (totalStaked !== stake) throw new HttpError(400, 'Total miz la pa koresponn ak sòm tout pari yo.');
+      multiplier = totalPayout / totalStaked;
+      exactPayoutPoints = totalPayout;
+      won = totalPayout > 0;
+      const winningCount = settledBets.filter((bet) => bet.won).length;
+      const winningSummary = winningCount ? `${winningCount} sou ${settledBets.length} pari genyen.` : `Okenn nan ${settledBets.length} pari yo pa genyen.`;
+      details = {
+        number: n, color, bets: settledBets, totalBetPoints: totalStaked,
+        winningBets: winningCount, betCount: settledBets.length,
+        multiplier, payoutPoints: totalPayout,
+        // Legacy fields remain for older UI/history readers when one bet was placed.
+        ...(settledBets.length === 1 ? { betType: settledBets[0].betType, betValue: settledBets[0].betValue, selected: settledBets[0].betValue } : {})
+      };
+      message = `Wou a kanpe sou ${n} (${color === 'red' ? 'wouj' : color === 'black' ? 'nwa' : 'zewo/vèt'}). ${winningSummary} Retou total: ${totalPayout} pwen.`;
+      // Preserve exact per-bet gross returns; the weighted multiplier below reproduces this total.
       break;
     }
     case 'blackjack': {
@@ -643,9 +695,19 @@ export function resolveGame(gameId, stake, choice = {}) {
       };
       while ((handValue(dealer) < 17 || (dealerSoft17 === 'hit' && isSoft17(dealer))) && dealer.length < 6) dealer.push(draw());
       const p = handValue(player), d = handValue(dealer);
-      won = p <= 21 && (d > 21 || p > d); multiplier = p > 21 ? 0 : (d > 21 || p > d) ? 2 : p === d ? 1 : 0;
-      details = { player: player.map((c) => `${cardName(c.rank)}${c.suit}`), dealer: dealer.map((c) => `${cardName(c.rank)}${c.suit}`), playerTotal: p, dealerTotal: d, standAt, dealerSoft17 };
-      message = p > 21 ? `Men ou fè ${p}: ou depase 21.` : d > 21 ? `Koutye a fè ${d}: koutye a depase 21.` : p === d ? `Egalite: tou de men yo fè ${p}.` : won ? `Ou fè ${p}, koutye a fè ${d}. Ou genyen.` : `Koutye a fè ${d}, men ou fè ${p}.`;
+      const isNatural = (hand) => hand.length === 2 && handValue(hand) === 21;
+      const playerNatural = isNatural(player), dealerNatural = isNatural(dealer);
+      let outcome = 'loss';
+      if (playerNatural && dealerNatural) { multiplier = 1; outcome = 'push'; }
+      else if (playerNatural) { multiplier = 2.5; outcome = 'blackjack'; }
+      else if (dealerNatural) { multiplier = 0; outcome = 'dealer_blackjack'; }
+      else if (p > 21) { multiplier = 0; outcome = 'bust'; }
+      else if (d > 21 || p > d) { multiplier = 2; outcome = 'win'; }
+      else if (p === d) { multiplier = 1; outcome = 'push'; }
+      else { multiplier = 0; outcome = 'loss'; }
+      won = multiplier > 1;
+      details = { player: player.map((c) => `${cardName(c.rank)}${c.suit}`), dealer: dealer.map((c) => `${cardName(c.rank)}${c.suit}`), playerTotal: p, dealerTotal: d, standAt, dealerSoft17, playerNatural, dealerNatural, outcome };
+      message = outcome === 'blackjack' ? 'Blackjack natirèl! Men ou gen 21 ak de premye kat yo; retou a se 3:2 plis miz orijinal la.' : outcome === 'dealer_blackjack' ? 'Koutye a gen blackjack natirèl. Men ou an pèdi.' : outcome === 'push' ? `Egalite: jwè ${p}, koutye ${d}. Miz la retounen.` : outcome === 'bust' ? `Men ou fè ${p}: ou depase 21.` : outcome === 'win' ? (d > 21 ? `Koutye a depase 21 (${d}). Ou genyen.` : `Ou fè ${p}, koutye a fè ${d}. Ou genyen.`) : `Koutye a fè ${d}, men ou fè ${p}. Koutye a genyen.`;
       break;
     }
     case 'baccarat': {
@@ -814,7 +876,7 @@ export function resolveGame(gameId, stake, choice = {}) {
       const dice = [1 + randomInt(6),1 + randomInt(6),1 + randomInt(6)];
       const sum = dice.reduce((a,b) => a+b,0), triple = dice.every((n) => n === dice[0]), selection = String(choice.pick || '');
       if (!['small','big','triple','even','odd'].includes(selection)) throw new HttpError(400, 'Chwazi Ti, Gwo, Triple, pè oswa enpè.');
-      won = selection === 'triple' ? triple : selection === 'even' ? sum % 2 === 0 : selection === 'odd' ? sum % 2 === 1 : !triple && (selection === 'small' ? sum >= 4 && sum <= 10 : sum >= 11 && sum <= 17);
+      won = selection === 'triple' ? triple : !triple && (selection === 'even' ? sum % 2 === 0 : selection === 'odd' ? sum % 2 === 1 : selection === 'small' ? sum >= 4 && sum <= 10 : sum >= 11 && sum <= 17);
       multiplier = won ? (selection === 'triple' ? 25 : selection === 'even' || selection === 'odd' ? 1.9 : 1.9) : 0;
       details = { dice, total: sum, triple, selection };
       message = `Twa zo yo bay ${dice.join(' + ')} = ${sum}${triple ? ' (Triple)' : ''}. ${won ? 'Prediksyon ou mache.' : 'Prediksyon ou pa mache.'}`;
@@ -874,7 +936,7 @@ export function resolveGame(gameId, stake, choice = {}) {
       const comparison = compareHandRanks(playerRank, bankerRank);
       const winner = comparison === 0 ? 'tie' : comparison > 0 ? 'player' : 'banker';
       won = selection === winner; multiplier = won ? (winner === 'tie' ? 8 : 2) : winner === 'tie' ? 1 : 0;
-      details = { playerCards: player.map((card) => `${cardName(card.rank)}${card.suit}`), bankerCards: banker.map((card) => `${cardName(card.rank)}${card.suit}`), playerHand: playerRank.label, bankerHand: bankerRank.label, playerCategory: playerRank.category, bankerCategory: bankerRank.category, winner, selection };
+      details = { playerCards: player.map((card) => `${cardName(card.rank)}${card.suit}`), bankerCards: banker.map((card) => `${cardName(card.rank)}${card.suit}`), playerHand: playerRank.label, bankerHand: bankerRank.label, playerCategory: playerRank.category, bankerCategory: bankerRank.category, playerTieBreak: playerRank.tie, bankerTieBreak: bankerRank.tie, winner, selection, variant: 'three-card-showdown' };
       message = `Jwè: ${playerRank.label}. Bankye: ${bankerRank.label}. ${winner === 'tie' ? 'Egalite.' : winner === 'player' ? 'Jwè genyen.' : 'Bankye genyen.'}`;
       break;
     }
@@ -918,7 +980,7 @@ export function resolveGame(gameId, stake, choice = {}) {
     }
     default: throw new HttpError(404, 'Jwèt sa a pa disponib.');
   }
-  const payoutPoints = moneyMultiplier(stake, multiplier);
+  const payoutPoints = exactPayoutPoints === null ? moneyMultiplier(stake, multiplier) : exactPayoutPoints;
   return { payoutPoints, result: { title: won ? 'Bon kou!' : multiplier === 1 ? 'Egalite' : 'Wonn fini', message, multiplier, payoutPoints, animationKey, details } };
 }
 
