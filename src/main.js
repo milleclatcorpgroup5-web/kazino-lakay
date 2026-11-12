@@ -6,7 +6,7 @@ import { api } from './api.js';
 import { renderRouletteScreen, rouletteCardIcon, rouletteResultMarkup, animateRouletteSpin, playRouletteSound } from './games/roulette.js';
 
 const root = document.querySelector('#app');
-const state = { user: null, profile: null, health: null, gameControl: { globalEnabled: true, gameSettings: {} }, category: 'Tout jwèt', query: '', activeGame: null, selected: new Set(), busy: false, installPrompt: null, rouletteStake: 100, rouletteBet: null, rouletteMenuOpen: false, rouletteSoundOn: true, rouletteBusy: false, rouletteResult: null, gameStake: 100, gameMenuOpen: false, gameSoundOn: true, gameResult: null, penaltyTeam: 'haiti', penaltyOpponent: 'france', penaltyAim: null, penaltyGesture: null };
+const state = { user: null, profile: null, health: null, gameControl: { globalEnabled: true, gameSettings: {} }, category: 'Tout jwèt', query: '', activeGame: null, selected: new Set(), busy: false, installPrompt: null, rouletteStake: 100, rouletteBets: [], rouletteBetHistory: [], rouletteMenuOpen: false, rouletteSoundOn: true, rouletteBusy: false, rouletteResult: null, gameStake: 100, gameMenuOpen: false, gameSoundOn: true, gameResult: null, penaltyTeam: 'haiti', penaltyOpponent: 'france', penaltyAim: null, penaltyGesture: null };
 
 const PENALTY_TEAMS = [
   { id: 'haiti', name: 'Ayiti', flag: '🇭🇹', primary: '#123b89', secondary: '#d92e43' },
@@ -346,7 +346,7 @@ function renderGameModal() {
     document.querySelector('#modal-root').innerHTML = renderRouletteScreen({
       balanceLabel,
       stake: state.rouletteStake,
-      selection: state.rouletteBet,
+      bets: state.rouletteBets,
       menuOpen: state.rouletteMenuOpen,
       soundOn: state.rouletteSoundOn,
       busy: state.rouletteBusy,
@@ -380,33 +380,39 @@ function renderGameModal() {
 function updateRouletteControls() {
   const screen = document.querySelector('#roulette-fullscreen');
   if (!screen) return;
+  const bets = state.rouletteBets || [];
+  const totalStake = bets.reduce((sum, bet) => sum + Number(bet.stakePoints || 0), 0);
+  screen.querySelectorAll('[data-roulette-action="bet"]').forEach((button) => {
+    const match = bets.find((bet) => bet.betType === button.dataset.betType && String(bet.betValue) === String(button.dataset.betValue));
+    const amount = Number(match?.stakePoints || 0);
+    button.classList.toggle('is-selected', amount > 0);
+    button.setAttribute('aria-pressed', String(amount > 0));
+    const marker = button.querySelector('.rr-chip-marker');
+    if (marker) marker.textContent = amount ? String(amount) : '';
+  });
+  const label = screen.querySelector('[data-roulette-bet-label]');
+  if (label) label.textContent = bets.length ? `${bets.length} pari sou tab la · ${totalStake.toLocaleString('fr-FR')} P` : 'Chwazi plizyè kote pou mete jeton';
+  const total = screen.querySelector('[data-roulette-total-stake]');
+  if (total) total.textContent = totalStake.toLocaleString('fr-FR');
+  const count = screen.querySelector('[data-roulette-bet-count]');
+  if (count) count.textContent = String(bets.length);
+  const stake = screen.querySelector('[data-roulette-stake]');
+  if (stake) stake.textContent = `${state.rouletteStake} P`;
   screen.querySelectorAll('[data-roulette-action="chip"]').forEach((button) => {
     const active = Number(button.dataset.chipValue) === state.rouletteStake;
     button.classList.toggle('is-active', active);
     button.setAttribute('aria-pressed', String(active));
   });
-  screen.querySelectorAll('[data-roulette-action="bet"]').forEach((button) => {
-    const active = Boolean(state.rouletteBet && state.rouletteBet.type === button.dataset.betType && String(state.rouletteBet.value) === String(button.dataset.betValue));
-    button.classList.toggle('is-selected', active);
-    button.setAttribute('aria-pressed', String(active));
-  });
-  screen.querySelectorAll('.rr-chip-marker').forEach((marker) => { marker.textContent = String(state.rouletteStake); });
-  const label = screen.querySelector('[data-roulette-bet-label]');
-  if (label) {
-    if (!state.rouletteBet) label.textContent = 'Chwazi yon nimewo oswa yon parye';
-    else if (state.rouletteBet.type === 'number') label.textContent = `Nimewo ${state.rouletteBet.value}`;
-    else if (state.rouletteBet.type === 'color') label.textContent = state.rouletteBet.value === 'red' ? 'Wouj' : 'Nwa';
-    else if (state.rouletteBet.type === 'parity') label.textContent = state.rouletteBet.value === 'even' ? 'Pè' : 'Enpè';
-    else if (state.rouletteBet.type === 'dozen') label.textContent = `Douzèn ${state.rouletteBet.value}`;
-    else if (state.rouletteBet.type === 'column') label.textContent = `Kolòn ${state.rouletteBet.value}`;
-  }
-  const stake = screen.querySelector('[data-roulette-stake]');
-  if (stake) stake.textContent = `${state.rouletteStake} P`;
   const demo = screen.querySelector('[data-roulette-action="demo"]');
   const account = screen.querySelector('[data-roulette-action="account"]');
+  const undo = screen.querySelector('[data-roulette-action="undo"]');
+  const clear = screen.querySelector('[data-roulette-action="clear"]');
   const canAccountPlay = Boolean(state.user && state.user.emailVerified && firebaseReady && state.health?.firebaseConfigured === true);
-  if (demo) { demo.disabled = state.rouletteBusy || !state.rouletteBet; demo.textContent = state.rouletteBusy ? 'WOU A AP VIRE…' : 'VIRE WOU A'; }
-  if (account) account.disabled = state.rouletteBusy || !state.rouletteBet || !canAccountPlay;
+  const overLimit = totalStake > 1000;
+  if (demo) { demo.disabled = state.rouletteBusy || !bets.length || overLimit; demo.textContent = state.rouletteBusy ? 'WOU A AP VIRE…' : `VIRE WOU A · ${totalStake} P`; }
+  if (account) account.disabled = state.rouletteBusy || !bets.length || overLimit || !canAccountPlay;
+  if (undo) undo.disabled = state.rouletteBusy || !bets.length;
+  if (clear) clear.disabled = state.rouletteBusy || !bets.length;
 }
 
 async function closeRouletteGame() {
@@ -423,7 +429,10 @@ async function closeRouletteGame() {
 
 async function playRouletteRound(demoMode = false) {
   if (!isGameAvailable('roulette')) return toast(state.gameControl?.maintenanceMessage || 'Roulèt la tanporèman sispann.', 'warning');
-  if (!state.rouletteBet) return toast('Chwazi kote ou vle mete jeton an.', 'warning');
+  const bets = (state.rouletteBets || []).map((bet) => ({ ...bet }));
+  const totalStake = bets.reduce((sum, bet) => sum + Number(bet.stakePoints || 0), 0);
+  if (!bets.length) return toast('Mete omwen yon pari anvan ou vire wou a.', 'warning');
+  if (!Number.isInteger(totalStake) || totalStake < 10 || totalStake > 1000) return toast('Total pari yo dwe ant 10 ak 1 000 pwen.', 'warning');
   if (!demoMode && !state.user) return toast('Konekte anvan ou jwe ak pwen kont ou.', 'warning');
   if (!demoMode && !state.user.emailVerified) return toast('Verifye imel ou anvan ou jwe ak pwen kont ou.', 'warning');
   if (!demoMode && (!firebaseReady || state.health?.firebaseConfigured !== true)) return toast('Firebase poko konfigire. Sèvi ak mòd demonstrasyon pou kounye a.', 'warning');
@@ -431,14 +440,14 @@ async function playRouletteRound(demoMode = false) {
   state.rouletteBusy = true;
   const screen = document.querySelector('#roulette-fullscreen');
   const status = screen?.querySelector('[data-roulette-status]');
-  if (status) status.textContent = 'SÈVÈ A AP KONFIME PARyE A';
+  if (status) status.textContent = 'SÈVÈ A AP KONFIME TOUT PARI YO';
   updateRouletteControls();
   playRouletteSound(state.rouletteSoundOn, 'spin');
   try {
-    const choice = { betType: state.rouletteBet.type, betValue: state.rouletteBet.value };
+    const choice = { bets };
     const response = await api(demoMode ? '/api/games/demo' : '/api/games/play', {
       method: 'POST',
-      body: { gameId: 'roulette', stakePoints: state.rouletteStake, choice }
+      body: { gameId: 'roulette', stakePoints: totalStake, choice }
     });
     const gameResult = response.result;
     await animateRouletteSpin(screen, gameResult.details.number);
@@ -448,22 +457,14 @@ async function playRouletteRound(demoMode = false) {
       const balance = screen?.querySelector('[data-roulette-balance]');
       if (balance) balance.textContent = `${fmt(response.balancePoints)} P`;
     }
-    const resultForScreen = {
-      ...gameResult,
-      stakePoints: state.rouletteStake,
-      demoMode,
-      message: gameResult.message
-    };
+    const resultForScreen = { ...gameResult, stakePoints: totalStake, demoMode, message: gameResult.message };
     state.rouletteResult = resultForScreen;
     const layer = screen?.querySelector('[data-roulette-result-layer]');
-    if (layer) {
-      layer.innerHTML = rouletteResultMarkup(resultForScreen);
-      layer.hidden = false;
-    }
+    if (layer) { layer.innerHTML = rouletteResultMarkup(resultForScreen); layer.hidden = false; }
     if (status) status.textContent = 'REZILTA KONFIME';
     const last = screen?.querySelector('[data-roulette-last]');
     if (last) last.textContent = String(gameResult.details.number);
-    playRouletteSound(state.rouletteSoundOn, gameResult.payoutPoints > state.rouletteStake ? 'win' : 'loss');
+    playRouletteSound(state.rouletteSoundOn, gameResult.payoutPoints > totalStake ? 'win' : 'loss');
     toast(demoMode ? 'Rezilta DEMO a pare. Balans kont ou pa chanje.' : 'Wonn fini. Balans kont ou mete ajou.', 'success');
   } catch (error) {
     if (status) status.textContent = 'WOU A PARE';
@@ -486,13 +487,35 @@ async function handleRouletteAction(button) {
     updateRouletteControls();
   } else if (action === 'bet') {
     if (state.rouletteBusy) return;
-    const type = button.dataset.betType;
-    const value = type === 'number' ? Number(button.dataset.betValue) : button.dataset.betValue;
-    state.rouletteBet = { type, value };
+    const betType = button.dataset.betType;
+    const betValue = betType === 'number' || betType === 'dozen' || betType === 'column' ? Number(button.dataset.betValue) : button.dataset.betValue;
+    const bets = state.rouletteBets || (state.rouletteBets = []);
+    const existing = bets.find((bet) => bet.betType === betType && String(bet.betValue) === String(betValue));
+    const total = bets.reduce((sum, bet) => sum + Number(bet.stakePoints || 0), 0);
+    if (total + state.rouletteStake > 1000) return toast('Limit total paryaj la se 1 000 pwen pou chak wonn.', 'warning');
+    if (!existing && bets.length >= 30) return toast('Ou rive nan limit 30 pari diferan pou yon sèl wonn.', 'warning');
+    state.rouletteBetHistory.push({ betType, betValue, stakePoints: state.rouletteStake });
+    if (existing) existing.stakePoints += state.rouletteStake;
+    else bets.push({ betType, betValue, stakePoints: state.rouletteStake });
     state.rouletteResult = null;
     const layer = document.querySelector('[data-roulette-result-layer]');
     if (layer) { layer.hidden = true; layer.innerHTML = ''; }
-    playRouletteSound(state.rouletteSoundOn, 'click');
+    playRouletteSound(state.rouletteSoundOn, 'chip');
+    updateRouletteControls();
+  } else if (action === 'undo') {
+    if (state.rouletteBusy || !state.rouletteBetHistory.length) return;
+    const last = state.rouletteBetHistory.pop();
+    const item = state.rouletteBets.find((bet) => bet.betType === last.betType && String(bet.betValue) === String(last.betValue));
+    if (item) { item.stakePoints -= last.stakePoints; if (item.stakePoints <= 0) state.rouletteBets = state.rouletteBets.filter((bet) => bet !== item); }
+    state.rouletteResult = null;
+    const layer = document.querySelector('[data-roulette-result-layer]');
+    if (layer) { layer.hidden = true; layer.innerHTML = ''; }
+    updateRouletteControls();
+  } else if (action === 'clear') {
+    if (state.rouletteBusy) return;
+    state.rouletteBets = []; state.rouletteBetHistory = []; state.rouletteResult = null;
+    const layer = document.querySelector('[data-roulette-result-layer]');
+    if (layer) { layer.hidden = true; layer.innerHTML = ''; }
     updateRouletteControls();
   } else if (action === 'menu') {
     state.rouletteMenuOpen = !state.rouletteMenuOpen;
@@ -897,7 +920,8 @@ root.addEventListener('click', async (event) => {
     state.selected = new Set();
     if (state.activeGame?.id === 'roulette') {
       state.rouletteStake = 100;
-      state.rouletteBet = null;
+      state.rouletteBets = [];
+      state.rouletteBetHistory = [];
       state.rouletteMenuOpen = false;
       state.rouletteBusy = false;
       state.rouletteResult = null;
