@@ -601,15 +601,28 @@ export function resolveGame(gameId, stake, choice = {}) {
       break;
     }
     case 'penalty': {
-      const shot = String(choice.shot || '');
-      if (!['left','center','right'].includes(shot)) throw new HttpError(400, 'Chwazi agoch, nan mitan oswa adwat.');
+      const zones = ['top-left','top-center','top-right','middle-left','middle-center','middle-right','bottom-left','bottom-center','bottom-right'];
+      const aliases = { left: 'middle-left', center: 'middle-center', right: 'middle-right' };
+      const rawShot = String(choice.shot || '');
+      const shot = aliases[rawShot] || rawShot;
+      if (!zones.includes(shot)) throw new HttpError(400, 'Vize youn nan 9 zòn gòl la.');
       const difficulty = String(choice.difficulty || 'normal');
-      const blockChance = { easy: 0.2, normal: 1/3, hard: 0.5 }[difficulty];
+      const blockChance = { easy: 1/9, normal: 2/9, hard: 1/3 }[difficulty];
       if (blockChance === undefined) throw new HttpError(400, 'Chwazi nivo difikilte gadyen an.');
-      const keeper = randomInt(100) < blockChance * 100 ? shot : pick(['left','center','right'].filter((side) => side !== shot));
+      const power = Number(choice.power ?? 0.65);
+      if (!Number.isFinite(power) || power < 0.3 || power > 1) throw new HttpError(400, 'Pisans tir la dwe ant 30% ak 100%.');
+      const teams = ['haiti','france','argentina','brazil','cameroon','england','germany','ghana','morocco','nigeria','senegal','spain','portugal','tunisia','southafrica','ivorycoast'];
+      const team = String(choice.team || 'haiti');
+      if (!teams.includes(team)) throw new HttpError(400, 'Chwazi yon ekip ki disponib.');
+      const candidates = teams.filter((id) => id !== team);
+      const requestedOpponent = String(choice.opponent || '');
+      const opponent = candidates.includes(requestedOpponent) ? requestedOpponent : pick(candidates);
+      const keeper = randomInt(1000) < blockChance * 1000 ? shot : pick(zones.filter((zone) => zone !== shot));
+      const zoneNames = { 'top-left':'anwo agoch', 'top-center':'anwo mitan', 'top-right':'anwo adwat', 'middle-left':'mitan agoch', 'middle-center':'mitan', 'middle-right':'mitan adwat', 'bottom-left':'anba agoch', 'bottom-center':'anba mitan', 'bottom-right':'anba adwat' };
+      const teamNames = { haiti:'Ayiti', france:'Lafrans', argentina:'Ajantin', brazil:'Brezil', cameroon:'Kamewoun', england:'Angletè', germany:'Almay', ghana:'Gana', morocco:'Mawòk', nigeria:'Nijerya', senegal:'Senegal', spain:'Espay', portugal:'Pòtigal', tunisia:'Tinizi', southafrica:'Afrik di Sid', ivorycoast:'Kotdivwa' };
       won = shot !== keeper; multiplier = won ? 2 : 0;
-      details = { shot, keeper, goal: won, difficulty };
-      message = won ? `GÒL! Ou tire ${shot === 'left' ? 'agoch' : shot === 'right' ? 'adwat' : 'nan mitan'}, gadyen an plonje ${keeper === 'left' ? 'agoch' : keeper === 'right' ? 'adwat' : 'nan mitan'}.` : `Gadyen an bloke tir ou nan ${keeper === 'left' ? 'agoch' : keeper === 'right' ? 'adwat' : 'nan mitan'}.`;
+      details = { shot, keeper, goal: won, difficulty, power, team, opponent };
+      message = won ? `GÒL! ${teamNames[team]} make gòl kont ${teamNames[opponent]}. Ou tire ${zoneNames[shot]}, gadyen an plonje ${zoneNames[keeper]}.` : `Gadyen ${teamNames[opponent]} bloke tir ${teamNames[team]} nan ${zoneNames[keeper]}.`;
       break;
     }
     case 'coinflip': {
