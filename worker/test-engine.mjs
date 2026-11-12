@@ -26,9 +26,17 @@ assert.equal(manifest.display, 'standalone');
 assert.ok(manifest.icons.some((icon) => icon.sizes === '192x192'));
 assert.ok(manifest.icons.some((icon) => icon.sizes === '512x512'));
 const mainHtml = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+const viteConfig = await readFile(new URL('../vite.config.js', import.meta.url), 'utf8');
+const serviceWorker = await readFile(new URL('../public/sw.js', import.meta.url), 'utf8');
 const adminHtml = await readFile(new URL('../admin.html', import.meta.url), 'utf8');
 assert.match(mainHtml, /manifest\.webmanifest/);
 assert.match(adminHtml, /src\/admin\.js/);
+assert.match(viteConfig, /admin: resolve\(here, 'admin\.html'\)/, 'Build la dwe enkli paj admin lan.');
+assert.match(viteConfig, /main: resolve\(here, 'index\.html'\)/, 'Build la dwe enkli paj prensipal la.');
+assert.ok(await readFile(new URL('../public/icons/icon-192.png', import.meta.url)));
+assert.ok(await readFile(new URL('../public/icons/icon-512.png', import.meta.url)));
+assert.match(serviceWorker, /'\/admin\.html'/);
+assert.match(serviceWorker, /'\/icons\/icon-192\.png'/);
 
 assert.deepEqual(GAMES.map((game) => game.id), Object.keys(cases), 'Frontend ak backend dwe gen menm 22 jwèt yo nan menm lòd la.');
 for (const [gameId, choice] of Object.entries(cases)) {
@@ -170,6 +178,18 @@ const configuredBody = await configuredHealth.json();
 assert.equal(configuredBody.firebaseConfigured, true);
 assert.deepEqual(configuredBody.firebaseMissing, []);
 assert.deepEqual(configuredBody.firebaseInvalid, []);
+assert.equal(configuredBody.gameControlReadOk, false);
+assert.match(configuredBody.gameControlReadError || '', /FIREBASE_PRIVATE_KEY|Service Account|Firestore|OAuth|backend/i);
+assert.equal(JSON.stringify(configuredBody).includes('TEST_KEY'), false, 'Health pa dwe ekspoze kle prive a.');
+const brokenGamesResponse = await worker.fetch(new Request(`${base}/api/games`), {
+  FIREBASE_PROJECT_ID: 'kazino-lakay-demo',
+  FIREBASE_CLIENT_EMAIL: 'kazino-worker@kazino-lakay-demo.iam.gserviceaccount.com',
+  FIREBASE_PRIVATE_KEY: '-----BEGIN PRIVATE KEY-----\nTEST_KEY\n-----END PRIVATE KEY-----'
+});
+assert.equal(brokenGamesResponse.status, 503, 'Backend Firestore la dwe bay yon erè sèvis eksplisit, pa yon 500 jenerik.');
+const brokenGamesBody = await brokenGamesResponse.json();
+assert.match(brokenGamesBody.error || '', /FIREBASE_PRIVATE_KEY|Service Account|Firestore|OAuth/i);
+assert.equal(JSON.stringify(brokenGamesBody).includes('TEST_KEY'), false, 'API jwèt la pa dwe ekspoze kle prive a.');
 
 const gamesResponse = await worker.fetch(new Request(`${base}/api/games`), env);
 assert.equal(gamesResponse.status, 200);
