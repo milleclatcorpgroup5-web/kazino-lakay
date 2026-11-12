@@ -59,40 +59,41 @@ export function rouletteCardIcon() {
   return `<svg class="game-symbol-svg" viewBox="0 0 100 100" aria-hidden="true"><defs><radialGradient id="rrCardGlow"><stop stop-color="#f7d98f"/><stop offset="1" stop-color="#8a5427"/></radialGradient></defs><circle cx="50" cy="50" r="43" fill="#142c24" stroke="#d9b66d" stroke-width="5"/><circle cx="50" cy="50" r="34" fill="#1f1a14" stroke="#f4d58f" stroke-width="2"/><g transform="translate(50 50)">${Array.from({length:12},(_,i)=>`<path d="M0 -33 L-5 -18 L5 -18 Z" transform="rotate(${i*30})" fill="${i%3===0?'#b52d42':'#111821'}" stroke="#d8b66f" stroke-width=".6"/>`).join('')}</g><circle cx="50" cy="50" r="12" fill="url(#rrCardGlow)" stroke="#fff0bd" stroke-width="2"/><circle cx="50" cy="50" r="4" fill="#432d17"/></svg>`;
 }
 
-function betLabel(selection) {
-  if (!selection) return 'Chwazi yon nimewo oswa yon parye';
-  if (selection.type === 'number') return `Nimewo ${selection.value}`;
-  if (selection.type === 'color') return selection.value === 'red' ? 'Wouj' : 'Nwa';
-  return selection.value === 'even' ? 'Pè' : 'Enpè';
+function betLabel(bets) {
+  const total = (bets || []).reduce((sum, bet) => sum + Number(bet.stakePoints || 0), 0);
+  if (!bets?.length) return 'Chwazi plizyè kote pou mete jeton';
+  return `${bets.length} pari sou tab la · ${total.toLocaleString('fr-FR')} P`;
 }
 
-function betButton(type, value, label, extraClass = '', stake = 100) {
-  return `<button type="button" class="rr-bet-button ${extraClass}" data-roulette-action="bet" data-bet-type="${type}" data-bet-value="${value}" aria-pressed="false">${label}<span class="rr-chip-marker" aria-hidden="true">${stake}</span></button>`;
+function matchingBet(bets, type, value) {
+  return (bets || []).find((bet) => bet.betType === type && String(bet.betValue) === String(value));
 }
 
-function betIsSelected(selection, type, value) {
-  return selection && selection.type === type && String(selection.value) === String(value);
+function betButton(type, value, label, extraClass = '', bets = []) {
+  const amount = Number(matchingBet(bets, type, value)?.stakePoints || 0);
+  const selected = amount > 0;
+  return `<button type="button" class="rr-bet-button ${extraClass} ${selected ? 'is-selected' : ''}" data-roulette-action="bet" data-bet-type="${type}" data-bet-value="${value}" aria-pressed="${selected}">${label}<span class="rr-chip-marker" aria-hidden="true">${amount || ''}</span></button>`;
 }
 
 export function renderRouletteScreen(options) {
   const {
-    balanceLabel = 'DEMO', stake = 100, selection = null, menuOpen = false,
+    balanceLabel = 'DEMO', stake = 100, bets = [], menuOpen = false,
     soundOn = true, busy = false, canAccountPlay = false, result = null
   } = options;
+  const totalStake = bets.reduce((sum, bet) => sum + Number(bet.stakePoints || 0), 0);
   const rows = [];
   for (const rowValue of [3, 2, 1]) for (let column = 0; column < 12; column += 1) rows.push(column * 3 + rowValue);
   const numberButtons = rows.map((number) => {
     const color = rouletteNumberColor(number);
-    const selected = betIsSelected(selection, 'number', number);
-    return `<button type="button" class="rr-number rr-number-${color} ${selected ? 'is-selected' : ''}" data-roulette-action="bet" data-bet-type="number" data-bet-value="${number}" aria-label="Mize sou nimewo ${number}" aria-pressed="${selected}">${number}<span class="rr-chip-marker" aria-hidden="true">${stake}</span></button>`;
+    return betButton('number', number, String(number), `rr-number rr-number-${color}`, bets);
   }).join('');
-  const colorSelected = (value) => betIsSelected(selection, 'color', value);
-  const paritySelected = (value) => betIsSelected(selection, 'parity', value);
+  const colorSelected = (value) => matchingBet(bets, 'color', value);
+  const paritySelected = (value) => matchingBet(bets, 'parity', value);
   return `<section class="rr-screen" id="roulette-fullscreen" aria-label="Roulèt Royal">
     <header class="rr-topbar">
       <button class="rr-menu-button" type="button" data-roulette-action="menu" aria-label="Ouvri meni jwèt la" aria-expanded="${menuOpen}"><span></span><span></span><span></span></button>
       <div class="rr-heading"><span class="rr-brand-kicker">KAZINO LAKAY</span><h1>Roulèt Royal</h1></div>
-      <div class="rr-top-stats"><div><small>Balans</small><strong data-roulette-balance>${balanceLabel}</strong></div><div><small>Miz</small><strong data-roulette-stake>${stake} P</strong></div></div>
+      <div class="rr-top-stats"><div><small>Balans</small><strong data-roulette-balance>${balanceLabel}</strong></div><div><small>Jeton aktif</small><strong data-roulette-stake>${stake} P</strong></div></div>
     </header>
     <main class="rr-main">
       <section class="rr-wheel-area" aria-label="Wou Ewopeyen an">
@@ -105,14 +106,25 @@ export function renderRouletteScreen(options) {
       </section>
       <section class="rr-betting-area" aria-label="Tab parye roulèt">
         <div class="rr-table-brand"><span>ROYAL TABLE</span><small>EUROPEAN SINGLE ZERO</small></div>
-        <div class="rr-number-layout"><div class="rr-zero-column">${betButton('number', 0, '0', 'rr-number-green rr-zero-button', stake)}</div><div class="rr-number-grid">${numberButtons}</div></div>
+        <div class="rr-number-layout"><div class="rr-zero-column">${betButton('number', 0, '0', 'rr-number rr-number-green rr-zero-button', bets)}</div><div class="rr-number-grid">${numberButtons}</div></div>
         <div class="rr-outside-bets">
-          ${betButton('color', 'red', 'WOUJ', `rr-color-red ${colorSelected('red') ? 'is-selected' : ''}`, stake)}
-          ${betButton('color', 'black', 'NWA', `rr-color-black ${colorSelected('black') ? 'is-selected' : ''}`, stake)}
-          ${betButton('parity', 'even', 'PÈ', paritySelected('even') ? 'is-selected' : '', stake)}
-          ${betButton('parity', 'odd', 'ENPÈ', paritySelected('odd') ? 'is-selected' : '', stake)}
+          ${betButton('color', 'red', 'WOUJ', 'rr-color-red', bets)}
+          ${betButton('color', 'black', 'NWA', 'rr-color-black', bets)}
+          ${betButton('parity', 'even', 'PÈ', '', bets)}
+          ${betButton('parity', 'odd', 'ENPÈ', '', bets)}
         </div>
-        <div class="rr-bet-readout"><span>PARyE CHWAZI</span><strong data-roulette-bet-label>${betLabel(selection)}</strong></div>
+        <div class="rr-dozen-bets" aria-label="Pari douzèn">
+          ${betButton('dozen', 1, '1ye DOUZÈN · 1–12', '', bets)}
+          ${betButton('dozen', 2, '2yèm DOUZÈN · 13–24', '', bets)}
+          ${betButton('dozen', 3, '3yèm DOUZÈN · 25–36', '', bets)}
+        </div>
+        <div class="rr-column-bets" aria-label="Pari kolòn">
+          ${betButton('column', 1, 'KOLÒN 1', '', bets)}
+          ${betButton('column', 2, 'KOLÒN 2', '', bets)}
+          ${betButton('column', 3, 'KOLÒN 3', '', bets)}
+        </div>
+        <div class="rr-bet-readout"><span>PARI SOU TAB LA</span><strong data-roulette-bet-label>${betLabel(bets)}</strong></div>
+        <div class="rr-bet-tools"><span><b data-roulette-bet-count>${bets.length}</b> pari · Total <b data-roulette-total-stake>${totalStake}</b> P</span><div><button type="button" data-roulette-action="undo" ${busy || !bets.length ? 'disabled' : ''}>Retire dènye</button><button type="button" data-roulette-action="clear" ${busy || !bets.length ? 'disabled' : ''}>Efase tout</button></div></div>
       </section>
     </main>
     <footer class="rr-controls">
@@ -122,17 +134,17 @@ export function renderRouletteScreen(options) {
       </div>
       <div class="rr-play-row">
         <span class="rr-demo-note">DEMO • Pwen san valè lajan</span>
-        <button class="rr-play-button rr-play-account" type="button" data-roulette-action="account" ${busy || !canAccountPlay || !selection ? 'disabled' : ''}>Jwe ak balans</button>
-        <button class="rr-play-button rr-play-demo" type="button" data-roulette-action="demo" ${busy || !selection ? 'disabled' : ''}>${busy ? 'WOU A AP VIRE…' : 'VIRE WOU A'}</button>
+        <button class="rr-play-button rr-play-account" type="button" data-roulette-action="account" ${busy || !canAccountPlay || !bets.length ? 'disabled' : ''}>Jwe ak balans</button>
+        <button class="rr-play-button rr-play-demo" type="button" data-roulette-action="demo" ${busy || !bets.length ? 'disabled' : ''}>${busy ? 'WOU A AP VIRE…' : `VIRE WOU A · ${totalStake} P`}</button>
       </div>
     </footer>
     <aside class="rr-menu-layer" data-roulette-menu-layer ${menuOpen ? '' : 'hidden'}>
       <button type="button" class="rr-menu-backdrop" data-roulette-action="menu-close" aria-label="Fèmen meni"></button>
       <section class="rr-menu-panel" role="dialog" aria-modal="true" aria-labelledby="rr-menu-title">
         <div class="rr-menu-head"><div><span class="rr-brand-kicker">ROYAL TABLE</span><h2 id="rr-menu-title">Kijan pou jwe?</h2></div><button type="button" class="rr-menu-close" data-roulette-action="menu-close" aria-label="Fèmen meni">×</button></div>
-        <div class="rr-rule-card"><strong>Objektif</strong><p>Chwazi yon nimewo 0–36, yon koulè wouj/nwa, oswa yon rezilta pè/enpè. Boul la dwe kanpe sou rezilta ou chwazi a.</p></div>
-        <div class="rr-rule-card"><strong>Etap jwèt la</strong><p>1. Chwazi yon jeton 10, 50, 100 oswa 500 pwen. 2. Tape sou nimewo oswa parye ou vle a. 3. Peze “Vire wou a”. Rezilta a konfime sou sèvè a.</p></div>
-        <div class="rr-rule-card"><strong>Retou posib</strong><p>Nimewo egzak: 36× retou total. Wouj/nwa oswa pè/enpè: 2× retou total. Zewo pa genyen sou pè/enpè.</p></div>
+        <div class="rr-rule-card"><strong>Objektif</strong><p>Wou Ewopeyen an gen 37 pòch: 0 rive 36. Zewo a vèt; 18 nimewo wouj ak 18 nwa.</p></div>
+        <div class="rr-rule-card"><strong>Plizyè pari nan menm wonn</strong><p>Chwazi yon valè jeton, epi tape sou chak nimewo, koulè, pè/enpè, douzèn oswa kolòn ou vle. Chak tape ajoute yon jeton nan pari sa a. Ou kapab melanje plizyè kalite pari anvan ou vire wou a. Total tout pari yo pa ka depase 1 000 pwen.</p></div>
+        <div class="rr-rule-card"><strong>Retou brit</strong><p>Nimewo egzak: 36×. Wouj/nwa oswa pè/enpè: 2×. Douzèn/kolòn: 3×. Se retou brit ki gen ladan miz orijinal la. Sou 0, wouj/nwa, pè/enpè, douzèn ak kolòn pèdi.</p></div>
         <div class="rr-menu-actions"><button type="button" class="rr-menu-action" data-roulette-action="sound">${soundOn ? '🔊 Son aktive' : '🔇 Son dezaktive'}</button><button type="button" class="rr-menu-action rr-menu-back" data-roulette-action="back">← Retounen nan lis jwèt yo</button></div>
         <p class="rr-menu-disclaimer">Mòd demonstrasyon sèlman. Pwen yo pa gen valè lajan, yo pa kapab achte, vann, transfere oswa retire.</p>
       </section>
@@ -155,7 +167,8 @@ export function rouletteResultMarkup(result) {
     <h2 id="rr-result-title">${won ? 'BON KOU!' : neutral ? 'EGALITE' : 'WONN FINI'}</h2>
     <strong class="rr-result-change">${change}</strong>
     <p>${result.message || `Wou a kanpe sou ${number}.`}</p>
-    <div class="rr-result-details"><span>Jeton<strong>${Number(result.stakePoints || 0).toLocaleString('fr-FR')} P</strong></span><span>Retou<strong>${Number(result.payoutPoints || 0).toLocaleString('fr-FR')} P</strong></span><span>Rezilta<strong>${number} • ${color === 'red' ? 'Wouj' : color === 'black' ? 'Nwa' : 'Vèt'}</strong></span></div>
+    <div class="rr-result-details"><span>Total pari<strong>${Number(result.stakePoints || 0).toLocaleString('fr-FR')} P</strong></span><span>Retou brit<strong>${Number(result.payoutPoints || 0).toLocaleString('fr-FR')} P</strong></span><span>Rezilta<strong>${number} • ${color === 'red' ? 'Wouj' : color === 'black' ? 'Nwa' : 'Vèt'}</strong></span></div>
+    ${Array.isArray(details.bets) ? `<div class="rr-settled-bets">${details.bets.map((bet) => `<div class="rr-settled-bet ${bet.won ? 'is-winner' : ''}"><span>${bet.label}</span><b>${bet.stakePoints} P</b><strong>${bet.won ? `+${bet.payoutPoints} P` : '0 P'}</strong></div>`).join('')}</div>` : ''}
     <small>${result.demoMode ? 'Balans kont ou pa chanje.' : 'Balans kont ou mete ajou.'} Pwen yo pa gen valè lajan.</small>
     <button type="button" class="rr-result-continue" data-roulette-action="result-close">Kontinye</button>
   </div>`;
