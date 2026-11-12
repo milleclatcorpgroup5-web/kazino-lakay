@@ -7,7 +7,7 @@ import { readFile } from 'node:fs/promises';
 const cases = {
   crash: { target: 2, volatility: 'normal' }, slots: {}, roulette: { betType: 'color', betValue: 'red' }, blackjack: { standAt: 17, dealerSoft17: 'stand' },
   baccarat: { pick: 'player' }, keno: { numbers: [1, 2, 3, 4, 5], drawCount: 10 }, dice: { pick: 'over7' },
-  mines: { cells: [1, 2], mineCount: 3 }, plinko: { risk: 'normal', rows: 6 }, penalty: { shot: 'left', difficulty: 'normal' }, coinflip: { pick: 'heads', rounds: 3 },
+  mines: { cells: [1, 2], mineCount: 3 }, plinko: { risk: 'normal', rows: 6 }, penalty: { shot: 'top-left', difficulty: 'normal', team: 'haiti', opponent: 'france', power: 0.72 }, coinflip: { pick: 'heads', rounds: 3 },
   limbo: { target: 2 }, hilo: { pick: 'high', risk: 'normal' }, scratch: { risk: 'normal' }, wheel: { risk: 'normal' }, sicbo: { pick: 'small' }, casinowar: { pick: 'player' },
   dragontiger: { pick: 'dragon' }, andarbahar: { pick: 'andar', firstSide: 'andar' }, threecard: { pick: 'player' },
   holdem: { pick: 'player' }, bingo: { pattern: 'row' }
@@ -39,6 +39,12 @@ for (const [gameId, choice] of Object.entries(cases)) {
     assert.equal(typeof output.result.message, 'string');
     assert.ok(output.result.message.length > 0);
     assert.equal(output.result.animationKey, gameId);
+    if (gameId === 'penalty') {
+      assert.ok(['top-left','top-center','top-right','middle-left','middle-center','middle-right','bottom-left','bottom-center','bottom-right'].includes(output.result.details.shot));
+      assert.ok(['top-left','top-center','top-right','middle-left','middle-center','middle-right','bottom-left','bottom-center','bottom-right'].includes(output.result.details.keeper));
+      assert.equal(output.result.details.goal, output.result.details.shot !== output.result.details.keeper);
+      assert.notEqual(output.result.details.team, output.result.details.opponent);
+    }
     if (gameId === 'plinko') {
       assert.equal(output.result.details.path.length, output.result.details.rows, 'Chemen Plinko a dwe gen kantite liy yo chwazi a.');
       assert.equal(output.result.details.slot, 1 + output.result.details.path.filter((step) => step === 'R').length, 'Chemen boul la dwe koresponn ak pòch final la.');
@@ -122,6 +128,9 @@ assert.throws(() => resolveGame('plinko', 100, { risk: 'normal', rows: 9 }), /6 
 assert.throws(() => resolveGame('dice', 100, { pick: 'exact12' }), /prediksyon Dice/);
 assert.throws(() => resolveGame('bingo', 100, { pattern: 'circle' }), /modèl Bingo/);
 assert.throws(() => resolveGame('holdem', 100, { pick: 'invalid' }), /Chwazi Jwè/);
+assert.throws(() => resolveGame('penalty', 100, { shot: 'outside', difficulty: 'normal' }), /9 zòn/);
+assert.throws(() => resolveGame('penalty', 100, { shot: 'top-left', difficulty: 'normal', power: 1.5 }), /Pisans tir la/);
+assert.throws(() => resolveGame('penalty', 100, { shot: 'top-left', difficulty: 'normal', team: 'unknown' }), /ekip ki disponib/);
 const plinkoEight = resolveGame('plinko', 100, { risk: 'high', rows: 8 });
 assert.equal(plinkoEight.result.details.path.length, 8);
 assert.equal(plinkoEight.result.details.slot, 1 + plinkoEight.result.details.path.filter((step) => step === 'R').length);
