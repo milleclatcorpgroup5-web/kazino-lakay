@@ -97,13 +97,35 @@ async function getServiceAccessToken(env) {
     exp: issuedAt + 3600
   })));
   const unsigned = `${header}.${payload}`;
-  const key = await crypto.subtle.importKey('pkcs8', pemToDer(env.FIREBASE_PRIVATE_KEY), { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']);
-  const signature = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, encoder.encode(unsigned));
+  let key;
+  try {
+    key = await crypto.subtle.importKey('pkcs8', pemToDer(env.FIREBASE_PRIVATE_KEY), { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']);
+  } catch (error) {
+    console.error('[Kazino Lakay] FIREBASE_PRIVATE_KEY import failed:', error?.name || 'Error');
+    throw new HttpError(503, 'FIREBASE_PRIVATE_KEY pa nan fòma PKCS#8 valab. Verifye Secret la soti nan JSON Service Account pwojè kazino-lakay la. Pa voye kle a nan chat.');
+  }
+  let signature;
+  try {
+    signature = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, encoder.encode(unsigned));
+  } catch (error) {
+    console.error('[Kazino Lakay] Service account signing failed:', error?.name || 'Error');
+    throw new HttpError(503, 'Worker la pa kapab siyen jeton Service Account lan. Verifye kle prive Firebase la.');
+  }
   const assertion = `${unsigned}.${b64url(signature)}`;
   const body = new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion });
-  const response = await fetch(GOOGLE_TOKEN_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
+  let response;
+  try {
+    response = await fetch(GOOGLE_TOKEN_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
+  } catch (error) {
+    console.error('[Kazino Lakay] Google OAuth fetch failed:', error?.name || 'Error');
+    throw new HttpError(503, 'Worker la pa rive kontakte Google OAuth. Verifye sèvis la ak koneksyon rezo Cloudflare la.');
+  }
   const result = await response.json().catch(() => ({}));
-  if (!response.ok || !result.access_token) throw new HttpError(503, 'Backend la pa kapab otantifye ak Firebase. Verifye sekrè Google Cloud yo.');
+  if (!response.ok || !result.access_token) {
+    const providerCode = String(result.error || response.status || 'unknown').slice(0, 48);
+    console.error('[Kazino Lakay] Google OAuth rejected service account:', providerCode);
+    throw new HttpError(503, `Google OAuth pa aksepte Service Account lan (${providerCode}). Verifye FIREBASE_CLIENT_EMAIL ak FIREBASE_PRIVATE_KEY soti nan menm pwojè a.`);
+  }
   accessTokenCache = { token: result.access_token, expiresAt: Date.now() + Number(result.expires_in || 3600) * 1000 };
   return result.access_token;
 }
@@ -142,18 +164,26 @@ function firestoreBase(env) {
 }
 async function firestoreRequest(path, env, options = {}) {
   const token = await getServiceAccessToken(env);
-  const response = await fetch(`${firestoreBase(env)}${path}`, {
-    method: options.method || 'GET',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: options.body ? JSON.stringify(options.body) : undefined
-  });
+  let response;
+  try {
+    response = await fetch(`${firestoreBase(env)}${path}`, {
+      method: options.method || 'GET',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: options.body ? JSON.stringify(options.body) : undefined
+    });
+  } catch (error) {
+    console.error('[Kazino Lakay] Firestore fetch failed:', error?.name || 'Error');
+    throw new HttpError(503, 'Worker la pa rive kontakte Firestore Google. Verifye aksè rezo ak sèvis Firebase la.');
+  }
   const text = await response.text();
   let payload = {};
   try { payload = text ? JSON.parse(text) : {}; } catch { payload = {}; }
   if (!response.ok) {
     const code = Number(payload.error?.code || response.status);
-    if (code === 404) return null;
+    if (code === 404 && (options.method || 'GET') === 'GET' && path.startsWith('/')) return null;
     if (code === 409 || code === 400 && /FAILED_PRECONDITION|ABORTED|update time/i.test(payload.error?.message || '')) throw new HttpError(409, 'Balans lan chanje nan yon lòt demann. Tanpri rekòmanse jwèt la.');
+    if (code === 403) throw new HttpError(503, 'Firestore refize aksè Service Account lan (403). Bay sèvis la wòl Cloud Datastore User sou pwojè kazino-lakay la.');
+    if (code === 401) throw new HttpError(503, 'Firestore pa aksepte jeton Google la (401). Verifye Service Account lan ak pwojè Firebase la.');
     throw new HttpError(503, `Firestore pa aksepte operasyon an (${code}).`);
   }
   return payload;
@@ -946,11 +976,20 @@ async function apiStatus(env) {
   const webFirebase = firebaseWebDiagnostics(env);
   let control = defaultGameControl();
   let gameControlReadOk = false;
+  let gameControlReadError = null;
   if (firebase.missing.length === 0 && firebase.invalid.length === 0) {
     try {
       control = (await getGameControlRecord(env)).settings;
       gameControlReadOk = true;
-    } catch { /* Health diagnostics must still work when Firestore is temporarily unavailable. */ }
+    } catch (error) {
+      // Expose only safe diagnostic text; never return secrets or raw upstream payloads.
+      gameControlReadError = error instanceof HttpError
+        ? error.message
+        : `Erè backend ki pa klase (${String(error?.name || 'Error').slice(0, 40)}). Gade Worker Logs pou kòd teknik la.`;
+      console.error('[Kazino Lakay] Health game-control read failed:', error?.name || 'Error');
+    }
+  } else {
+    gameControlReadError = 'Paramèt Firebase backend yo manke oswa gen fòma ki pa valab.';
   }
   return {
     service: 'kazino-lakay',
@@ -967,6 +1006,7 @@ async function apiStatus(env) {
     gamesEnabled: control.globalEnabled,
     enabledGameCount: GAME_IDS.filter((id) => control.games[id]).length,
     gameControlReadOk,
+    gameControlReadError,
     gameCount: GAME_IDS.length,
     gameIds: GAME_IDS,
     endpoints: ['/firebase-config.js', '/api/health', '/api/games', '/api/games/demo', '/api/profile/bootstrap', '/api/me', '/api/history', '/api/games/play', '/api/admin/summary', '/api/admin/users', '/api/admin/rounds', '/api/admin/actions', '/api/admin/users/update', '/api/admin/games/control']
