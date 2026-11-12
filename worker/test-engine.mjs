@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import worker, { resolveGame } from './src/index.js';
+import worker, { resolveGame, rankThreeCardHand } from './src/index.js';
 import { GAMES } from '../src/games/catalog.js';
 import { rouletteWheelSvg, renderRouletteScreen } from '../src/games/roulette.js';
 import { readFile } from 'node:fs/promises';
@@ -12,13 +12,30 @@ const cases = {
   dragontiger: { pick: 'dragon' }, andarbahar: { pick: 'andar', firstSide: 'andar' }, threecard: { pick: 'player' },
   holdem: { pick: 'player' }, bingo: { pattern: 'row' }
 };
+const threeCardRanks = [
+  { cards: [{ rank: 2, suit: '♠' }, { rank: 5, suit: '♠' }, { rank: 9, suit: '♠' }], category: 2, label: 'Koulè' },
+  { cards: [{ rank: 3, suit: '♠' }, { rank: 4, suit: '♥' }, { rank: 5, suit: '♦' }], category: 3, label: 'Sekans' },
+  { cards: [{ rank: 7, suit: '♠' }, { rank: 7, suit: '♥' }, { rank: 7, suit: '♦' }], category: 4, label: 'Twa menm' },
+  { cards: [{ rank: 10, suit: '♠' }, { rank: 11, suit: '♠' }, { rank: 12, suit: '♠' }], category: 5, label: 'Sekans koulè' },
+  { cards: [{ rank: 14, suit: '♠' }, { rank: 2, suit: '♥' }, { rank: 3, suit: '♦' }], category: 3, label: 'Sekans' }
+];
+for (const sample of threeCardRanks) {
+  const rank = rankThreeCardHand(sample.cards);
+  assert.equal(rank.category, sample.category);
+  assert.equal(rank.label, sample.label, 'Three Card Poker dwe montre non kategori ki koresponn ak règ men an.');
+}
+
 const rouletteSvg = rouletteWheelSvg();
 assert.equal((rouletteSvg.match(/class="rr-pocket rr-pocket-/g) || []).length, 37, 'Wou SVG a dwe gen 37 pòch Ewopeyen.');
-const rouletteUi = renderRouletteScreen({ selection: { type: 'number', value: 0 }, stake: 100, soundOn: true });
+const rouletteUi = renderRouletteScreen({ bets: [{ betType: 'number', betValue: 0, stakePoints: 100 }], stake: 100, soundOn: true });
 assert.match(rouletteUi, /id="roulette-fullscreen"/);
 assert.match(rouletteUi, /data-roulette-menu-layer hidden/);
 assert.match(rouletteUi, /data-roulette-action="chip" data-chip-value="500"/);
 assert.match(rouletteUi, /data-bet-type="parity" data-bet-value="even"/);
+assert.match(rouletteUi, /data-bet-type="dozen" data-bet-value="1"/);
+assert.match(rouletteUi, /data-bet-type="column" data-bet-value="3"/);
+assert.match(rouletteUi, /data-roulette-action="undo"/);
+assert.match(rouletteUi, /data-roulette-action="clear"/);
 const base = 'https://kazino-lakay.milleclatcorpgroup5.workers.dev';
 const env = { ALLOWED_ORIGINS: '' };
 const manifest = JSON.parse(await readFile(new URL('../public/manifest.webmanifest', import.meta.url), 'utf8'));
@@ -59,6 +76,8 @@ for (const [gameId, choice] of Object.entries(cases)) {
       assert.equal(output.result.details.multiplier, ({low:[0.8,0.9,1,1.1,1,0.9,0.8],normal:[0,0.2,0.8,1.5,0.8,0.2,0],high:[8,2,0.5,0,0.5,2,8]})[choice.risk][output.result.details.slot-1]);
     }
     if (gameId === 'blackjack') {
+      assert.ok(['blackjack','dealer_blackjack','push','bust','win','loss'].includes(output.result.details.outcome));
+      assert.equal(output.result.details.playerNatural, output.result.details.player.length === 2 && output.result.details.playerTotal === 21);
       const cards = [...output.result.details.player, ...output.result.details.dealer];
       assert.equal(new Set(cards).size, cards.length, 'Blackjack pa dwe bay menm kat de fwa nan yon sèl pil.');
     }
@@ -121,6 +140,44 @@ for (const bet of [
   }
 }
 
+
+// Roulèt dwe pèmèt plizyè pari nan menm wonn, epi kalkile retou chak pari apa.
+for (let i = 0; i < 250; i += 1) {
+  const bets = [
+    { betType: 'color', betValue: 'red', stakePoints: 100 },
+    { betType: 'parity', betValue: 'even', stakePoints: 50 },
+    { betType: 'dozen', betValue: 2, stakePoints: 100 },
+    { betType: 'number', betValue: 0, stakePoints: 10 },
+    { betType: 'column', betValue: 3, stakePoints: 40 }
+  ];
+  const output = resolveGame('roulette', 300, { bets });
+  const n = output.result.details.number;
+  const color = output.result.details.color;
+  const expected = bets.reduce((sum, bet) => {
+    const hit = bet.betType === 'number' ? n === bet.betValue
+      : bet.betType === 'color' ? color === bet.betValue
+      : bet.betType === 'parity' ? n !== 0 && (n % 2 === 0 ? 'even' : 'odd') === bet.betValue
+      : bet.betType === 'dozen' ? n > 0 && Math.ceil(n / 12) === bet.betValue
+      : n > 0 && ((n - 1) % 3) + 1 === bet.betValue;
+    const odds = bet.betType === 'number' ? 36 : ['dozen','column'].includes(bet.betType) ? 3 : 2;
+    return sum + (hit ? bet.stakePoints * odds : 0);
+  }, 0);
+  assert.equal(output.payoutPoints, expected, 'Retou total roulèt la dwe egal sòm retou tout pari ki genyen yo.');
+  assert.equal(output.result.details.bets.length, bets.length);
+  assert.equal(output.result.details.totalBetPoints, 300);
+}
+assert.throws(() => resolveGame('roulette', 210, { bets: [
+  { betType: 'color', betValue: 'red', stakePoints: 100 },
+  { betType: 'color', betValue: 'black', stakePoints: 100 }
+] }), /Total miz la pa koresponn/);
+assert.throws(() => resolveGame('roulette', 200, { bets: [
+  { betType: 'color', betValue: 'red', stakePoints: 100 },
+  { betType: 'color', betValue: 'red', stakePoints: 100 }
+] }), /menm kalite pari a de fwa/);
+assert.throws(() => resolveGame('roulette', 1010, { bets: [
+  { betType: 'color', betValue: 'red', stakePoints: 1010 }
+] }), /Chak pari dwe genyen/);
+
 assert.throws(() => resolveGame('keno', 100, { numbers: [1, 2, 3, 4] }), /Chwazi egzakteman/);
 assert.throws(() => resolveGame('roulette', 100, { pick: 'purple' }), /Chwazi wouj/);
 assert.throws(() => resolveGame('roulette', 100, { betType: 'number', betValue: 37 }), /nimewo antye/);
@@ -143,6 +200,20 @@ const plinkoEight = resolveGame('plinko', 100, { risk: 'high', rows: 8 });
 assert.equal(plinkoEight.result.details.path.length, 8);
 assert.equal(plinkoEight.result.details.slot, 1 + plinkoEight.result.details.path.filter((step) => step === 'R').length);
 for (const pattern of ['row','column','diagonal','corners']) assert.equal(resolveGame('bingo', 100, { pattern }).result.details.pattern, pattern);
+
+let foundTriple = false;
+for (let i = 0; i < 4000 && !foundTriple; i += 1) {
+  const result = resolveGame('sicbo', 100, { pick: 'even' }).result;
+  const { dice, triple, total } = result.details;
+  if (triple) {
+    foundTriple = true;
+    assert.equal(result.multiplier, 0, 'Triple Sic Bo a dwe pèdi sou pari Even/Odd.');
+    assert.ok(dice.every((face) => face === dice[0]));
+    assert.equal(total, dice[0] * 3);
+  }
+}
+assert.ok(foundTriple, 'Tès la dwe rankontre omwen yon triple nan Sic Bo.');
+
 for (const selection of ['player','banker','tie']) {
   const war = resolveGame('casinowar', 100, { pick: selection });
   assert.ok(['player','banker','tie'].includes(war.result.details.winner));
