@@ -425,3 +425,6 @@
 
 /* V1.6.3 PWA install control: keep the compact header usable on phones. */
 @media(max-width:700px){.topbar-actions{gap:5px}.topbar-actions [data-action=install-app]{max-width:95px;white-space:normal;line-height:1.1;padding:8px 9px}}
+
+/* Global admin availability state */
+.game-card-disabled{opacity:.58;filter:saturate(.35);cursor:not-allowed}.game-card-disabled .game-card-artwork{filter:grayscale(.8)}.game-paused-badge{position:absolute;top:12px;right:12px;padding:6px 9px;border-radius:99px;background:#8a3040e8;border:1px solid #ff9aa966;color:#fff;font-size:9px;font-weight:900;letter-spacing:.8px}.game-card-art{position:relative}
