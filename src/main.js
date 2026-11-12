@@ -38,14 +38,14 @@ const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const esc = (value = '') => String(value).replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 const fmt = (n = 0) => Math.floor(Number(n) || 0).toLocaleString('fr-FR');
 
-function toast(message, type = 'info') {
+function toast(message, type = 'info', duration = 3200) {
   const node = document.querySelector('#toast');
   if (!node) return;
   node.textContent = message;
   node.dataset.type = type;
   node.classList.add('show');
   clearTimeout(toast.timer);
-  toast.timer = setTimeout(() => node.classList.remove('show'), 3200);
+  toast.timer = setTimeout(() => node.classList.remove('show'), duration);
 }
 
 function stageCard(value = '—', hidden = false) {
@@ -270,12 +270,13 @@ function render() {
   root.innerHTML = `<header class="topbar"><a class="brand" href="#top"><span class="brand-mark">KL</span><span>KAZINO <b>LAKAY</b></span></a>
     <div class="topbar-actions"><span class="points"><small>${state.profile ? 'Pwen kont' : 'Mòd demonstrasyon'}</small><strong>${state.profile ? `${fmt(state.profile.pointsBalance)} P` : 'DEMO'}</strong></span>
       ${state.profile?.role === 'admin' ? `<a class="button button-ghost" href="/admin.html">Admin</a>` : ''}
-      ${state.installPrompt ? `<button class="button button-ghost" data-action="install-app">Enstale app</button>` : ''}
+      <button class="button button-ghost" data-action="install-app">${state.installPrompt ? 'Enstale app' : 'Kijan pou enstale?'}</button>
       ${state.user ? `<button class="button button-ghost" data-action="history">Istwa</button><span class="user-label">${esc(state.user.displayName || state.user.email || 'Jwè')}</span><button class="button button-ghost" data-action="logout">Dekonekte</button>` : `<button class="button button-ghost" data-action="login">Konekte</button><button class="button button-primary" data-action="register">Kreye kont</button>`}
     </div></header>
     <main id="top" class="shell">
-      ${!firebaseReady ? `<div class="config-alert"><strong>Kont jwè yo poko aktive.</strong><span>Konfigirasyon frontend Firebase ki manke: ${firebaseMissing.map(esc).join(', ')}. Ou kapab eseye jwèt yo nan mòd demonstrasyon; pou kont, balans sove ak administrasyon, fini konfigirasyon Firebase la.</span></div>` : ''}
-      ${state.health && !state.health.firebaseConfigured ? `<div class="config-alert"><strong>Backend Firebase poko konekte.</strong><span>Jwèt DEMO yo disponib. Kont, balans ki sove, istwa ak admin ap rete bloke jiskaske sekrè Firebase Worker yo konfigire. Paramèt ki manke: ${(state.health.firebaseMissing || []).map(esc).join(', ') || 'verifye kle prive a'}.</span></div>` : ''}
+      ${!firebaseReady ? `<div class="config-alert"><strong>Kont jwè yo poko aktive.</strong><span>Konfigirasyon frontend Firebase ki manke: ${firebaseMissing.map(esc).join(', ')}. Mete valè piblik Firebase Web App yo nan Cloudflare Worker Variables; jwèt DEMO yo ap kontinye mache pandan sa.</span></div>` : ''}
+      ${state.health && state.health.frontendFirebaseConfigured === false ? `<div class="config-alert"><strong>Konfigirasyon Firebase Web la manke.</strong><span>Mete paramèt piblik yo nan Cloudflare Worker Variables: ${(state.health.frontendFirebaseMissing || []).map(esc).join(', ')}.</span></div>` : ''}
+      ${state.health && !state.health.firebaseConfigured ? `<div class="config-alert"><strong>Backend Firebase poko konekte.</strong><span>Kont, balans pwen ki sove, istwa ak Admin ap rete bloke jiskaske service account Firebase la konfigire. Paramèt ki manke: ${(state.health.firebaseMissing || []).map(esc).join(', ') || 'verifye kle prive a'}.</span></div>` : ''}
       <section class="hero"><div class="hero-copy"><span class="eyebrow">GAME CENTER • KAZINO LAKAY</span><h1>Jwe ak lespri.<br><em>Konprann chak mouvman.</em></h1><p>Eksplore jwèt yo, aprann règ yo, epi swiv rezilta ou. Chak jwèt gen eksplikasyon klè anvan ou kòmanse.</p><div class="hero-actions"><a class="button button-primary" href="#games">Eksplore 22 jwèt yo <span>↘</span></a><span class="hero-note">Pwen jwèt san valè lajan</span></div></div>
         <div class="hero-art" aria-hidden="true"><div class="hero-orbit orbit-a"></div><div class="hero-orbit orbit-b"></div><div class="hero-chip">KL</div><div class="hero-card hero-card-a">A<span>♠</span></div><div class="hero-card hero-card-b">7<span>♦</span></div></div></section>
       ${state.user && !state.user.emailVerified ? `<div class="config-alert verify-alert"><strong>Verifye imel ou.</strong><span>Nou voye yon lyen verifikasyon nan ${esc(state.user.email || 'adrès imel ou')}.</span><button class="button button-ghost" data-action="resend-verification">Voye imel verifikasyon ankò</button></div>` : ''}
@@ -925,10 +926,19 @@ root.addEventListener('click', async (event) => {
   else if (action?.dataset.action === 'history') await showHistory();
   else if (action?.dataset.action === 'install-app') {
     if (state.installPrompt) {
-      await state.installPrompt.prompt();
-      await state.installPrompt.userChoice.catch(() => null);
+      const promptEvent = state.installPrompt;
       state.installPrompt = null;
+      await promptEvent.prompt();
+      const choice = await promptEvent.userChoice.catch(() => null);
+      if (choice?.outcome === 'accepted') toast('Enstalasyon an ap fini. Chèche Kazino Lakay sou ekran prensipal la.', 'success', 6500);
       render();
+    } else {
+      const ua = navigator.userAgent || '';
+      let help;
+      if (/iPhone|iPad|iPod/i.test(ua)) help = 'Sou iPhone/iPad: ouvri paj la nan Safari, peze bouton Pataje a, epi chwazi “Add to Home Screen / Ajoute sou ekran dakèy”.';
+      else if (/Android/i.test(ua)) help = 'Sou Android: ouvri sit la nan Google Chrome, peze meni ⋮ anlè adwat, epi chwazi “Install app / Enstale app” oswa “Add to Home screen”. Si opsyon an pa parèt, verifye w sou adrès HTTPS la epi rafrechi paj la.';
+      else help = 'Sou òdinatè: nan Chrome oswa Edge, ouvri meni navigatè a epi chwazi “Install Kazino Lakay” oswa itilize ikòn enstalasyon ki nan ba adrès la.';
+      toast(help, 'info', 8500);
     }
   }
   else if (action?.dataset.action === 'resend-verification') { try { await resendVerification(); toast('Nou voye yon nouvo imel verifikasyon.', 'success'); } catch (error) { toast(error.message, 'error'); } }
@@ -1062,7 +1072,14 @@ async function loadBackendHealth() {
 loadBackendHealth();
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}), { once: true });
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' })
+      .then((registration) => registration.update().catch(() => {}))
+      .catch((error) => {
+        console.error('Kazino Lakay service worker registration failed:', error);
+        toast('Navigatè a pa aktive sèvis enstalasyon an. Ouvri sit la nan Chrome/Edge sou HTTPS, epi rafrechi paj la.', 'warning', 6500);
+      });
+  }, { once: true });
 }
 window.addEventListener('beforeinstallprompt', (event) => {
   event.preventDefault();
