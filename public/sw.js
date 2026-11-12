@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kazino-lakay-shell-v164-global-admin-controls';
+const CACHE_NAME = 'kazino-lakay-shell-v165-admin-build-fix';
 const APP_SHELL = ['/', '/admin.html', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png'];
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE_NAME)
