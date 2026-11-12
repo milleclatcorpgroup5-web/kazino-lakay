@@ -33,10 +33,10 @@ assert.match(mainHtml, /manifest\.webmanifest/);
 assert.match(adminHtml, /src\/admin\.js/);
 assert.match(viteConfig, /admin: resolve\(here, 'admin\.html'\)/, 'Build la dwe enkli paj admin lan.');
 assert.match(viteConfig, /main: resolve\(here, 'index\.html'\)/, 'Build la dwe enkli paj prensipal la.');
-assert.ok(await readFile(new URL('../public/icons/icon-192.png', import.meta.url)));
-assert.ok(await readFile(new URL('../public/icons/icon-512.png', import.meta.url)));
+assert.ok(await readFile(new URL('../public/icones/icon-192.png', import.meta.url)));
+assert.ok(await readFile(new URL('../public/icones/icon-512.png', import.meta.url)));
 assert.match(serviceWorker, /'\/admin\.html'/);
-assert.match(serviceWorker, /'\/icons\/icon-192\.png'/);
+assert.match(serviceWorker, /'\/icones\/icon-192\.png'/);
 
 assert.deepEqual(GAMES.map((game) => game.id), Object.keys(cases), 'Frontend ak backend dwe gen menm 22 jwèt yo nan menm lòd la.');
 for (const [gameId, choice] of Object.entries(cases)) {
