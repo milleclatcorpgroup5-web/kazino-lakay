@@ -1,23 +1,61 @@
-KAZINO LAKAY V1.7.0 — LISTE FICHYE PATCH SELEKTIF
+KAZINO LAKAY V1.7.0 — PATCH MEKANIK JÈT AK ROULÈT MULTI-PARI
 
-Ranplase fichye sa yo sou menm chemen yo:
-- package.json
-- index.html
-- admin.html
-- vite.config.js (ajoute si li pa egziste; kite vite-config.js la an plas)
-- public/manifest.webmanifest
-- public/sw.js
-- public/icones/icon-192.png
-- public/icones/icon-512.png
-- src/main.js
-- src/games/catalog.js
-- src/games/roulette.js
-- src/style.css
-- worker/src/index.js
-- worker/test-engine.mjs
+OBJEKTIF
+- Kenbe 22 jwèt yo nan mòd DEMO ak pwen san valè lajan.
+- Rann validasyon ak règ motè jwèt yo pi strik.
+- Ajoute plizyè pari nan menm wonn Roulèt Royal.
+- Ajoute pari douzèn ak kolòn nan tablo roulèt la.
 
-Dokiman:
-- PATCH-INSTRUCTION-V1.7.0-HA.txt
-- PATCH-FILES-V1.7.0-HA.txt
+FICHYE POU RANPLASE (MENM CHEMEN)
+1. worker/src/index.js
+2. worker/test-engine.mjs
+3. src/main.js
+4. src/games/roulette.js
+5. src/games/catalog.js
+6. src/style.css
 
-Pa efase lòt fichye. Pa modifye firestore.rules, firebase.json, public/firebase-config.js, wrangler.toml oswa nenpòt Cloudflare Secret/Variable.
+NOUVO FICHYE
+Pa gen nouvo fichye obligatwa pou patch mekanik sa a.
+
+FONKSYON ROULÈT
+- Mete jiska 30 kalite pari diferan nan menm wonn.
+- Ogmante miz sou menm kare a lè ou tape ankò.
+- Retire dènye jeton ou te ajoute oswa efase tout pari yo.
+- Total yon wonn limite a 1 000 pwen; chak pari dwe yon kantite antye omwen 10, an miltip 10.
+- Retou brit: nimewo 36×; wouj/nwa ak pè/enpè 2×; douzèn/kolòn 3×.
+- Zewo pa peye pari koulè, pè/enpè, douzèn oswa kolòn.
+- Worker la verifye sòm tout pari yo; kliyan an pa kapab chanje total la.
+
+LÒT AJISTEMAN RÈG
+- Blackjack: rekonèt blackjack natirèl 21 ak de premye kat yo; retou brit 2.5× (pwofi 3:2), push lè de bò gen natirèl.
+- Sic Bo: triple pèdi sou ti/gwo ak pè/enpè; pari Triple rete apa.
+- Tout rezilta yo kontinye kalkile sou Worker la avèk Web Crypto; navigatè a pa chwazi rezilta a.
+
+FICHYE KI PA DWE MANYEN
+- firestore.rules
+- firebase.json
+- public/firebase-config.js
+- Cloudflare Variables/Secrets (sitou FIREBASE_PRIVATE_KEY)
+- wrangler.toml
+
+APLIKASYON
+1. Fè yon backup/commit anvan.
+2. Louvri ZIP patch la.
+3. Kopye 6 fichye yo sou menm chemen yo nan menm repository/branch Cloudflare la.
+4. Kouri npm run check.
+5. Kouri npm test.
+6. Kouri npm run build.
+7. Si tout tès yo pase, deplwaye menm Worker kazino-lakay la.
+
+TÈS APRE DEPLOY
+- /api/health
+- /api/games
+- Louvri Roulèt Royal, mete 3-5 pari diferan, epi konfime total miz la.
+- Teste bouton Retire dènye ak Efase tout.
+- Fè yon wonn DEMO; rezilta a dwe montre chak pari, sa ki genyen ak retou brit yo.
+
+LIMIT ENPÒTAN
+Sa se yon jwèt demonstrasyon sèlman. Pwen yo pa lajan, pa gen depo, retrè, transfè oswa peman reyèl. Patch sa a pa transfòme aplikasyon an an kazino ki gen lajan reyèl.
+
+VERIFYE
+Tès lokal yo dwe pase anvan deplwaman. Koneksyon Firebase ak build sou Cloudflare toujou dwe verifye nan anviwònman pwojè a.
