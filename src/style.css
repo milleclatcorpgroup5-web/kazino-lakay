@@ -422,3 +422,6 @@
  .stage-penalty .stage-visual{padding:2px}.penalty-field{height:clamp(245px,70vh,360px);min-height:230px}.penalty-broadcast-top{top:4px}.penalty-matchup{top:38px}.penalty-camera-tag{top:86px}.penalty-keeper{top:43%;height:47%;width:clamp(110px,19%,190px)}.penalty-striker{height:72%;width:clamp(115px,19%,190px)}
 }
 @media(prefers-reduced-motion:reduce){.penalty-crowd:before,.penalty-crowd i,.penalty-live i,.penalty-aim-dot,.penalty-ball{animation:none!important}}
+
+/* V1.6.3 PWA install control: keep the compact header usable on phones. */
+@media(max-width:700px){.topbar-actions{gap:5px}.topbar-actions [data-action=install-app]{max-width:95px;white-space:normal;line-height:1.1;padding:8px 9px}}
