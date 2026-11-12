@@ -166,7 +166,7 @@ function renderGameStage(gameId, details = null, phase = 'idle') {
       const keeper = d.keeper || '';
       const goal = Boolean(d.goal);
       const point = PENALTY_ZONE_POINTS[shot] || state.penaltyAim || { x: .5, y: .5 };
-      const aimTop = 14 + Number(point.y ?? .5) * 40;
+      const aimTop = 22 + Number(point.y ?? .5) * 34;
       const aimLeft = Number(point.x ?? .5) * 100;
       const power = Number(d.power || state.penaltyAim?.power || .65);
       const label = details ? (goal ? 'GÒL!' : 'GADYEN AN BLOKE TIR LA') : 'GLISE SOTI SOU BALÒN AN';
@@ -607,7 +607,7 @@ function chooseGameOption(button) {
       field.style.setProperty('--team-primary', selected.primary);
       field.style.setProperty('--team-secondary', selected.secondary);
       const matchup = field.querySelector('[data-penalty-matchup]');
-      if (matchup) matchup.innerHTML = `<span><b>${selected.flag}</b>${esc(selected.name)}</span><strong>VS</strong><span><b>${opponent.flag}</b>${esc(opponent.name)}</span><small>ADVÈSÈ OTÒMATIK</small>`;
+      if (matchup) matchup.innerHTML = `<span class="penalty-home-team"><b>${selected.flag}</b><em>${esc(selected.name)}</em></span><strong class="penalty-score">0<i>:</i>0</strong><span class="penalty-away-team"><b>${opponent.flag}</b><em>${esc(opponent.name)}</em></span><small>SHOOTOUT</small>`;
     }
     const opponentInput = document.querySelector('[data-penalty-opponent]');
     if (opponentInput) opponentInput.value = state.penaltyOpponent;
@@ -624,7 +624,7 @@ function penaltyAimFromPoint(field, clientX, clientY) {
   if (dy > -14) return null;
   // Kat jaden an an 3 kolòn ak 3 ranje reyèl anndan zòn gòl la.
   const x = clamp((clientX - rect.left) / rect.width, .08, .92);
-  const y = clamp(((clientY - rect.top) / rect.height - .15) / .42, .08, .92);
+  const y = clamp(((clientY - rect.top) / rect.height - .22) / .36, .08, .92);
   const column = x < .34 ? 'left' : x > .66 ? 'right' : 'center';
   const row = y < .34 ? 'top' : y > .66 ? 'bottom' : 'middle';
   const power = clamp(Math.hypot(dx, dy) / (rect.height * .72), .3, 1);
@@ -633,7 +633,7 @@ function penaltyAimFromPoint(field, clientX, clientY) {
 
 function showPenaltyAim(field, aim, save = true) {
   if (!field || !aim) return;
-  const top = 14 + aim.y * 40;
+  const top = 22 + aim.y * 34;
   const left = aim.x * 100;
   const dot = field.querySelector('[data-penalty-aim-dot]');
   const line = field.querySelector('.penalty-aim-line line');
@@ -762,9 +762,9 @@ async function animatePenaltySequence(stage) {
   const keeperPoint = PENALTY_ZONE_POINTS[keeperZone] || PENALTY_ZONE_POINTS['middle-center'];
   const goal = field.dataset.goal === 'true';
   const dx = (shotPoint.x - .5) * rect.width;
-  const dy = ((.14 + shotPoint.y * .40) - .82) * rect.height;
+  const dy = ((.22 + shotPoint.y * .34) - .82) * rect.height;
   const kdx = (keeperPoint.x - .5) * rect.width * .78;
-  const kdy = ((.20 + keeperPoint.y * .40) - .40) * rect.height * .72;
+  const kdy = ((.22 + keeperPoint.y * .34) - .42) * rect.height * .72;
   const rotation = keeperPoint.x < .4 ? -68 : keeperPoint.x > .6 ? 68 : keeperPoint.y < .3 ? -18 : keeperPoint.y > .7 ? 18 : (keeperPoint.x < .5 ? -28 : 28);
   const power = clamp(Number(field.dataset.power || 65) / 100, .3, 1);
   const duration = Math.round(1050 - power * 250);
