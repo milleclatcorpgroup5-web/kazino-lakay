@@ -1,0 +1,23 @@
+KAZINO LAKAY V1.7.0 — LISTE FICHYE PATCH SELEKTIF
+
+Ranplase fichye sa yo sou menm chemen yo:
+- package.json
+- index.html
+- admin.html
+- vite.config.js (ajoute si li pa egziste; kite vite-config.js la an plas)
+- public/manifest.webmanifest
+- public/sw.js
+- public/icones/icon-192.png
+- public/icones/icon-512.png
+- src/main.js
+- src/games/catalog.js
+- src/games/roulette.js
+- src/style.css
+- worker/src/index.js
+- worker/test-engine.mjs
+
+Dokiman:
+- PATCH-INSTRUCTION-V1.7.0-HA.txt
+- PATCH-FILES-V1.7.0-HA.txt
+
+Pa efase lòt fichye. Pa modifye firestore.rules, firebase.json, public/firebase-config.js, wrangler.toml oswa nenpòt Cloudflare Secret/Variable.
