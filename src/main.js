@@ -6,7 +6,7 @@ import { api } from './api.js';
 import { renderRouletteScreen, rouletteCardIcon, rouletteResultMarkup, animateRouletteSpin, playRouletteSound } from './games/roulette.js';
 
 const root = document.querySelector('#app');
-const state = { user: null, profile: null, health: null, category: 'Tout jwèt', query: '', activeGame: null, selected: new Set(), busy: false, installPrompt: null, rouletteStake: 100, rouletteBet: null, rouletteMenuOpen: false, rouletteSoundOn: true, rouletteBusy: false, rouletteResult: null, gameStake: 100, gameMenuOpen: false, gameSoundOn: true, gameResult: null, penaltyTeam: 'haiti', penaltyOpponent: 'france', penaltyAim: null, penaltyGesture: null };
+const state = { user: null, profile: null, health: null, gameControl: { globalEnabled: true, gameSettings: {} }, category: 'Tout jwèt', query: '', activeGame: null, selected: new Set(), busy: false, installPrompt: null, rouletteStake: 100, rouletteBet: null, rouletteMenuOpen: false, rouletteSoundOn: true, rouletteBusy: false, rouletteResult: null, gameStake: 100, gameMenuOpen: false, gameSoundOn: true, gameResult: null, penaltyTeam: 'haiti', penaltyOpponent: 'france', penaltyAim: null, penaltyGesture: null };
 
 const PENALTY_TEAMS = [
   { id: 'haiti', name: 'Ayiti', flag: '🇭🇹', primary: '#123b89', secondary: '#d92e43' },
@@ -245,12 +245,16 @@ function gameCardIcon(game) {
   return `<svg class="game-symbol-svg" viewBox="0 0 100 100" role="img" aria-label="${esc(game.name)}" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><circle class="game-icon-halo" cx="50" cy="50" r="45" stroke-width="1.5"/><g>${art}</g></svg>`;
 }
 
+function isGameAvailable(gameId) {
+  return state.gameControl?.globalEnabled !== false && state.gameControl?.gameSettings?.[gameId] !== false;
+}
 function gameCard(game) {
   const art = game.id === 'roulette' ? rouletteCardIcon() : gameCardIcon(game);
-  return `<article class="game-card game-${game.tone}" data-open-game="${game.id}" tabindex="0" aria-label="Louvri ${esc(game.name)}">
-    <div class="game-card-art"><span class="game-card-artwork">${art}</span><span class="game-category">${esc(game.category)}</span></div>
+  const available = isGameAvailable(game.id);
+  return `<article class="game-card game-${game.tone} ${available ? '' : 'game-card-disabled'}" ${available ? `data-open-game="${game.id}" tabindex="0"` : 'aria-disabled="true"'} aria-label="${available ? 'Louvri' : 'Sispann'} ${esc(game.name)}">
+    <div class="game-card-art"><span class="game-card-artwork">${art}</span><span class="game-category">${esc(game.category)}</span>${available ? '' : '<span class="game-paused-badge">SISPANN</span>'}</div>
     <div class="game-card-body"><h3>${esc(game.name)}</h3><p>${esc(game.summary)}</p>
-      <button class="button button-small button-primary" type="button" data-open-game="${game.id}">Louvri jwèt la</button></div>
+      <button class="button button-small ${available ? 'button-primary' : 'button-ghost'}" type="button" ${available ? `data-open-game="${game.id}"` : 'disabled'}>${available ? 'Louvri jwèt la' : 'Tanporèman sispann'}</button></div>
   </article>`;
 }
 
@@ -277,6 +281,7 @@ function render() {
       ${!firebaseReady ? `<div class="config-alert"><strong>Kont jwè yo poko aktive.</strong><span>Konfigirasyon frontend Firebase ki manke: ${firebaseMissing.map(esc).join(', ')}. Mete valè piblik Firebase Web App yo nan Cloudflare Worker Variables; jwèt DEMO yo ap kontinye mache pandan sa.</span></div>` : ''}
       ${state.health && state.health.frontendFirebaseConfigured === false ? `<div class="config-alert"><strong>Konfigirasyon Firebase Web la manke.</strong><span>Mete paramèt piblik yo nan Cloudflare Worker Variables: ${(state.health.frontendFirebaseMissing || []).map(esc).join(', ')}.</span></div>` : ''}
       ${state.health && !state.health.firebaseConfigured ? `<div class="config-alert"><strong>Backend Firebase poko konekte.</strong><span>Kont, balans pwen ki sove, istwa ak Admin ap rete bloke jiskaske service account Firebase la konfigire. Paramèt ki manke: ${(state.health.firebaseMissing || []).map(esc).join(', ') || 'verifye kle prive a'}.</span></div>` : ''}
+      ${state.gameControl?.globalEnabled === false ? `<div class="config-alert"><strong>Jwèt yo sou poz.</strong><span>${esc(state.gameControl.maintenanceMessage || 'Administrasyon an mete tout jwèt yo sou poz pou kounye a.')}</span></div>` : ''}
       <section class="hero"><div class="hero-copy"><span class="eyebrow">GAME CENTER • KAZINO LAKAY</span><h1>Jwe ak lespri.<br><em>Konprann chak mouvman.</em></h1><p>Eksplore jwèt yo, aprann règ yo, epi swiv rezilta ou. Chak jwèt gen eksplikasyon klè anvan ou kòmanse.</p><div class="hero-actions"><a class="button button-primary" href="#games">Eksplore 22 jwèt yo <span>↘</span></a><span class="hero-note">Pwen jwèt san valè lajan</span></div></div>
         <div class="hero-art" aria-hidden="true"><div class="hero-orbit orbit-a"></div><div class="hero-orbit orbit-b"></div><div class="hero-chip">KL</div><div class="hero-card hero-card-a">A<span>♠</span></div><div class="hero-card hero-card-b">7<span>♦</span></div></div></section>
       ${state.user && !state.user.emailVerified ? `<div class="config-alert verify-alert"><strong>Verifye imel ou.</strong><span>Nou voye yon lyen verifikasyon nan ${esc(state.user.email || 'adrès imel ou')}.</span><button class="button button-ghost" data-action="resend-verification">Voye imel verifikasyon ankò</button></div>` : ''}
@@ -417,6 +422,7 @@ async function closeRouletteGame() {
 }
 
 async function playRouletteRound(demoMode = false) {
+  if (!isGameAvailable('roulette')) return toast(state.gameControl?.maintenanceMessage || 'Roulèt la tanporèman sispann.', 'warning');
   if (!state.rouletteBet) return toast('Chwazi kote ou vle mete jeton an.', 'warning');
   if (!demoMode && !state.user) return toast('Konekte anvan ou jwe ak pwen kont ou.', 'warning');
   if (!demoMode && !state.user.emailVerified) return toast('Verifye imel ou anvan ou jwe ak pwen kont ou.', 'warning');
@@ -703,6 +709,7 @@ function parseChoices(form, game) {
 async function playGame(form, demoMode = false) {
   const game = state.activeGame;
   if (!game) return;
+  if (!isGameAvailable(game.id)) return toast(state.gameControl?.maintenanceMessage || 'Jwèt sa a tanporèman sispann.', 'warning');
   if (!demoMode && !state.user) return toast('Konekte anvan ou jwe ak pwen kont ou.', 'warning');
   if (!demoMode && !state.user.emailVerified) return toast('Verifye imel ou anvan ou jwe ak pwen kont ou.', 'warning');
   if (!demoMode && (!firebaseReady || state.health?.firebaseConfigured !== true)) return toast('Firebase poko konfigire. Sèvi ak mòd demonstrasyon pou kounye a.', 'warning');
@@ -885,6 +892,7 @@ root.addEventListener('click', async (event) => {
     const form = demo.closest('#play-form');
     if (form) await playGame(form, true);
   } else if (open) {
+    if (!isGameAvailable(open.dataset.openGame)) return toast('Jwèt sa a tanporèman sispann pa administrasyon an.', 'warning');
     state.activeGame = GAMES.find((g) => g.id === open.dataset.openGame);
     state.selected = new Set();
     if (state.activeGame?.id === 'roulette') {
@@ -1065,8 +1073,22 @@ if (firebaseReady) {
 }
 
 async function loadBackendHealth() {
-  try { state.health = await api('/api/health'); }
-  catch { state.health = { status: 'unreachable', firebaseConfigured: false, firebaseMissing: ['Worker API pa reponn'] }; }
+  try {
+    state.health = await api('/api/health');
+  } catch {
+    state.health = { status: 'unreachable', firebaseConfigured: false, firebaseMissing: ['Worker API pa reponn'] };
+  }
+  try {
+    const catalog = await api('/api/games');
+    state.gameControl = {
+      globalEnabled: catalog.enabled !== false,
+      gameSettings: catalog.gameSettings || {},
+      maintenanceMessage: catalog.maintenanceMessage || ''
+    };
+  } catch {
+    // Fail closed in the UI if a configured Worker cannot read the admin game switches.
+    state.gameControl = { globalEnabled: false, gameSettings: {}, maintenanceMessage: 'Sistèm nan pa kapab verifye estati jwèt yo kounye a.' };
+  }
   render();
 }
 loadBackendHealth();
