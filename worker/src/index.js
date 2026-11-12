@@ -834,8 +834,20 @@ function firebaseRuntimeDiagnostics(env) {
   return { missing, invalid };
 }
 
+function firebaseWebDiagnostics(env) {
+  const projectId = String(env.FIREBASE_PROJECT_ID || env.VITE_FIREBASE_PROJECT_ID || '').trim();
+  const values = [
+    ['FIREBASE_WEB_API_KEY', env.FIREBASE_WEB_API_KEY || env.VITE_FIREBASE_API_KEY],
+    ['FIREBASE_AUTH_DOMAIN', env.FIREBASE_AUTH_DOMAIN || env.VITE_FIREBASE_AUTH_DOMAIN || (projectId ? `${projectId}.firebaseapp.com` : '')],
+    ['FIREBASE_PROJECT_ID', projectId],
+    ['FIREBASE_APP_ID', env.FIREBASE_APP_ID || env.VITE_FIREBASE_APP_ID]
+  ];
+  return { missing: values.filter(([, value]) => !String(value || '').trim()).map(([name]) => name) };
+}
+
 function apiStatus(env) {
   const firebase = firebaseRuntimeDiagnostics(env);
+  const webFirebase = firebaseWebDiagnostics(env);
   return {
     service: 'kazino-lakay',
     status: 'ok',
@@ -843,18 +855,33 @@ function apiStatus(env) {
     cashValue: false,
     firebaseConfigured: firebase.missing.length === 0 && firebase.invalid.length === 0,
     firebaseMissing: firebase.missing,
+    frontendFirebaseConfigured: webFirebase.missing.length === 0,
+    frontendFirebaseMissing: webFirebase.missing,
     firebaseInvalid: firebase.invalid,
     adminConfigured: adminEmails(env).length > 0,
     demoPlayEnabled: true,
     gamesEnabled: true,
     gameCount: GAME_IDS.length,
     gameIds: GAME_IDS,
-    endpoints: ['/api/health', '/api/games', '/api/games/demo', '/api/profile/bootstrap', '/api/me', '/api/history', '/api/games/play', '/api/admin/summary', '/api/admin/users', '/api/admin/rounds', '/api/admin/actions', '/api/admin/users/update']
+    endpoints: ['/firebase-config.js', '/api/health', '/api/games', '/api/games/demo', '/api/profile/bootstrap', '/api/me', '/api/history', '/api/games/play', '/api/admin/summary', '/api/admin/users', '/api/admin/rounds', '/api/admin/actions', '/api/admin/users/update']
   };
 }
 
 async function route(request, env) {
   const url = new URL(request.url);
+  if (url.pathname === '/firebase-config.js' && request.method === 'GET') {
+    const projectId = String(env.FIREBASE_PROJECT_ID || env.VITE_FIREBASE_PROJECT_ID || '').trim();
+    const config = {
+      apiKey: String(env.FIREBASE_WEB_API_KEY || env.VITE_FIREBASE_API_KEY || '').trim(),
+      authDomain: String(env.FIREBASE_AUTH_DOMAIN || env.VITE_FIREBASE_AUTH_DOMAIN || (projectId ? `${projectId}.firebaseapp.com` : '')).trim(),
+      projectId,
+      appId: String(env.FIREBASE_APP_ID || env.VITE_FIREBASE_APP_ID || '').trim()
+    };
+    return new Response(`window.__KL_FIREBASE_CONFIG__ = ${JSON.stringify(config)};`, {
+      status: 200,
+      headers: { 'Content-Type': 'application/javascript; charset=utf-8', 'Cache-Control': 'no-store, max-age=0' }
+    });
+  }
   // These are API-only fallbacks. In production, / is normally served as dist/index.html
   // by Workers Static Assets before this Worker is invoked.
   if ((url.pathname === '/' || url.pathname === '/api' || url.pathname === '/health' || url.pathname === '/api/health') && request.method === 'GET') {
