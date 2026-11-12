@@ -1,5 +1,5 @@
-const CACHE_NAME = 'kazino-lakay-shell-v161-penalty-scene';
-const APP_SHELL = ['/', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png', '/penalty-stadium.webp'];
+const CACHE_NAME = 'kazino-lakay-shell-v161-penalty-swipe-v2';
+const APP_SHELL = ['/', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png'];
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)).then(() => self.skipWaiting()));
 });
