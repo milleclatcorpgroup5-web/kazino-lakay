@@ -1085,9 +1085,11 @@ async function loadBackendHealth() {
       gameSettings: catalog.gameSettings || {},
       maintenanceMessage: catalog.maintenanceMessage || ''
     };
-  } catch {
+  } catch (error) {
     // Fail closed in the UI if a configured Worker cannot read the admin game switches.
-    state.gameControl = { globalEnabled: false, gameSettings: {}, maintenanceMessage: 'Sistèm nan pa kapab verifye estati jwèt yo kounye a.' };
+    const diagnostic = state.health?.gameControlReadError || error?.message || 'Sistèm nan pa kapab verifye estati jwèt yo kounye a.';
+    state.gameControl = { globalEnabled: false, gameSettings: {}, maintenanceMessage: diagnostic };
+    console.error('[Kazino Lakay] Game-control check failed:', diagnostic);
   }
   render();
 }
