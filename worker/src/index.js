@@ -214,6 +214,102 @@ async function adminOverview(env) {
   };
 }
 
+function defaultGameControl() {
+  return {
+    globalEnabled: true,
+    maintenanceMessage: '',
+    games: Object.fromEntries(GAME_IDS.map((id) => [id, true])),
+    updatedAt: null,
+    updatedBy: null
+  };
+}
+
+function normalizeGameControl(value = {}) {
+  const defaults = defaultGameControl();
+  const suppliedGames = value.games && typeof value.games === 'object' && !Array.isArray(value.games) ? value.games : {};
+  const games = Object.fromEntries(GAME_IDS.map((id) => [id, typeof suppliedGames[id] === 'boolean' ? suppliedGames[id] : true]));
+  return {
+    globalEnabled: value.globalEnabled !== false,
+    maintenanceMessage: String(value.maintenanceMessage || '').trim().slice(0, 200),
+    games,
+    updatedAt: value.updatedAt || null,
+    updatedBy: value.updatedBy || null
+  };
+}
+
+async function getGameControlRecord(env) {
+  const document = await firestoreRequest('/systemSettings/gameControl', env);
+  return { document, settings: normalizeGameControl(document ? fsDocumentFields(document) : {}) };
+}
+
+async function getPublicGameControl(env) {
+  const diagnostics = firebaseRuntimeDiagnostics(env);
+  // Preserve standalone DEMO mode when Firebase account persistence is not configured yet.
+  // Once backend credentials are configured, Firestore must answer so stored admin switches cannot be bypassed.
+  if (diagnostics.missing.length || diagnostics.invalid.length) {
+    return { settings: defaultGameControl(), readOk: false };
+  }
+  const record = await getGameControlRecord(env);
+  return { settings: record.settings, readOk: true };
+}
+
+function assertGameCanRun(settings, gameId, stakePoints) {
+  if (!GAME_IDS.includes(gameId)) throw new HttpError(404, 'Jwèt sa a pa disponib.');
+  if (!settings.globalEnabled) {
+    throw new HttpError(423, settings.maintenanceMessage || 'Tout jwèt yo sou poz pou kounye a. Tanpri retounen pita.');
+  }
+  if (settings.games[gameId] === false) {
+    throw new HttpError(423, 'Administrasyon an mete jwèt sa a sou poz pou kounye a.');
+  }
+  if (!Number.isInteger(stakePoints) || stakePoints < 10 || stakePoints > 1000) {
+    throw new HttpError(400, 'Mete ant 10 ak 1 000 pwen demonstrasyon.');
+  }
+}
+
+async function updateGameControl(request, env, actor) {
+  const body = await readBody(request);
+  const reason = String(body.reason || '').trim().slice(0, 250);
+  if (reason.length < 3) throw new HttpError(400, 'Ekri yon rezon ki gen omwen 3 karaktè.');
+  if (typeof body.globalEnabled !== 'boolean') throw new HttpError(400, 'Estati global la pa valab.');
+  if (body.games == null || typeof body.games !== 'object' || Array.isArray(body.games)) {
+    throw new HttpError(400, 'Lis estati jwèt yo pa valab.');
+  }
+  const invalidGame = Object.keys(body.games).find((id) => !GAME_IDS.includes(id) || typeof body.games[id] !== 'boolean');
+  if (invalidGame) throw new HttpError(400, 'Gen yon estati jwèt ki pa valab.');
+
+  const { document, settings: current } = await getGameControlRecord(env);
+  const next = normalizeGameControl({
+    ...current,
+    globalEnabled: body.globalEnabled,
+    maintenanceMessage: String(body.maintenanceMessage || '').trim().slice(0, 200),
+    games: { ...current.games, ...body.games },
+    updatedAt: new Date().toISOString(),
+    updatedBy: actor.email
+  });
+  const changedGames = GAME_IDS.filter((id) => current.games[id] !== next.games[id]);
+  const actionId = crypto.randomUUID();
+  const now = new Date().toISOString();
+  const action = {
+    id: actionId,
+    type: 'admin_game_control_update',
+    actorUid: actor.uid,
+    actorEmail: actor.email,
+    globalEnabled: next.globalEnabled,
+    gamesChanged: changedGames,
+    enabledGames: GAME_IDS.filter((id) => next.games[id]),
+    disabledGames: GAME_IDS.filter((id) => !next.games[id]),
+    reason,
+    createdAt: now
+  };
+  const settingsName = `${firestoreBase(env)}/systemSettings/gameControl`;
+  const actionName = `${firestoreBase(env)}/adminActions/${actionId}`;
+  await commitWrites([
+    { update: { name: settingsName, fields: fsFields(next) }, currentDocument: document ? { updateTime: document.updateTime } : { exists: false } },
+    { update: { name: actionName, fields: fsFields(action) }, currentDocument: { exists: false } }
+  ], env);
+  return { ok: true, settings: next, actionId };
+}
+
 async function updateManagedUser(request, env, actor) {
   const body = await readBody(request);
   const uid = String(body.uid || '').trim();
@@ -845,9 +941,17 @@ function firebaseWebDiagnostics(env) {
   return { missing: values.filter(([, value]) => !String(value || '').trim()).map(([name]) => name) };
 }
 
-function apiStatus(env) {
+async function apiStatus(env) {
   const firebase = firebaseRuntimeDiagnostics(env);
   const webFirebase = firebaseWebDiagnostics(env);
+  let control = defaultGameControl();
+  let gameControlReadOk = false;
+  if (firebase.missing.length === 0 && firebase.invalid.length === 0) {
+    try {
+      control = (await getGameControlRecord(env)).settings;
+      gameControlReadOk = true;
+    } catch { /* Health diagnostics must still work when Firestore is temporarily unavailable. */ }
+  }
   return {
     service: 'kazino-lakay',
     status: 'ok',
@@ -859,11 +963,13 @@ function apiStatus(env) {
     frontendFirebaseMissing: webFirebase.missing,
     firebaseInvalid: firebase.invalid,
     adminConfigured: adminEmails(env).length > 0,
-    demoPlayEnabled: true,
-    gamesEnabled: true,
+    demoPlayEnabled: control.globalEnabled,
+    gamesEnabled: control.globalEnabled,
+    enabledGameCount: GAME_IDS.filter((id) => control.games[id]).length,
+    gameControlReadOk,
     gameCount: GAME_IDS.length,
     gameIds: GAME_IDS,
-    endpoints: ['/firebase-config.js', '/api/health', '/api/games', '/api/games/demo', '/api/profile/bootstrap', '/api/me', '/api/history', '/api/games/play', '/api/admin/summary', '/api/admin/users', '/api/admin/rounds', '/api/admin/actions', '/api/admin/users/update']
+    endpoints: ['/firebase-config.js', '/api/health', '/api/games', '/api/games/demo', '/api/profile/bootstrap', '/api/me', '/api/history', '/api/games/play', '/api/admin/summary', '/api/admin/users', '/api/admin/rounds', '/api/admin/actions', '/api/admin/users/update', '/api/admin/games/control']
   };
 }
 
@@ -885,16 +991,26 @@ async function route(request, env) {
   // These are API-only fallbacks. In production, / is normally served as dist/index.html
   // by Workers Static Assets before this Worker is invoked.
   if ((url.pathname === '/' || url.pathname === '/api' || url.pathname === '/health' || url.pathname === '/api/health') && request.method === 'GET') {
-    return json(apiStatus(env));
+    return json(await apiStatus(env));
   }
   if (url.pathname === '/api/games' && request.method === 'GET') {
-    return json({ games: GAME_IDS, count: GAME_IDS.length, enabled: true, mode: 'points-only' });
+    const { settings } = await getPublicGameControl(env);
+    return json({
+      games: GAME_IDS,
+      count: GAME_IDS.length,
+      enabled: settings.globalEnabled,
+      gameSettings: settings.games,
+      enabledGameCount: GAME_IDS.filter((id) => settings.games[id]).length,
+      maintenanceMessage: settings.maintenanceMessage,
+      mode: 'points-only'
+    });
   }
   if (url.pathname === '/api/games/demo' && request.method === 'POST') {
     const body = await readBody(request);
     const gameId = String(body.gameId || '');
     const stakePoints = Number(body.stakePoints);
-    if (!Number.isInteger(stakePoints) || stakePoints < 10 || stakePoints > 1000) throw new HttpError(400, 'Mete ant 10 ak 1 000 pwen demonstrasyon.');
+    const { settings } = await getPublicGameControl(env);
+    assertGameCanRun(settings, gameId, stakePoints);
     const game = resolveGame(gameId, stakePoints, body.choice || {});
     return json({ demo: true, mode: 'points-only', result: game.result });
   }
@@ -920,7 +1036,8 @@ async function route(request, env) {
     const body = await readBody(request);
     const gameId = String(body.gameId || '');
     const stakePoints = Number(body.stakePoints);
-    if (!Number.isInteger(stakePoints) || stakePoints < 10 || stakePoints > 1000) throw new HttpError(400, 'Mete ant 10 ak 1 000 pwen.');
+    const { settings } = await getGameControlRecord(env);
+    assertGameCanRun(settings, gameId, stakePoints);
     const userDoc = await getUserDocument(identity.uid, env);
     if (!userDoc) throw new HttpError(404, 'Pwofil jwè a pa egziste.');
     const profile = fsDocumentFields(userDoc);
@@ -980,6 +1097,14 @@ async function route(request, env) {
   if (url.pathname === '/api/admin/users/update' && request.method === 'POST') {
     const actor = await requireAdmin(request, env);
     return json(await updateManagedUser(request, env, actor));
+  }
+  if (url.pathname === '/api/admin/games/control' && request.method === 'GET') {
+    await requireAdmin(request, env);
+    return json({ settings: (await getGameControlRecord(env)).settings });
+  }
+  if (url.pathname === '/api/admin/games/control' && request.method === 'POST') {
+    const actor = await requireAdmin(request, env);
+    return json(await updateGameControl(request, env, actor));
   }
   throw new HttpError(404, 'Wout API sa a pa egziste. Verifye GET /api/health oswa konsilte lis routes API yo.');
 }
