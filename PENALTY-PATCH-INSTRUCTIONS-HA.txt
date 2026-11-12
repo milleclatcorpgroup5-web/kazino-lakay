@@ -1,0 +1,45 @@
+KAZINO LAKAY V1.6.1 — PENALTY LAKAY PATCH SELEMAN
+
+PATCH SA A GEN SÈLMAN 6 FICHYE KI MODIFYE.
+Li pa gen rès pwojè a ladan l.
+
+FICHYE POU RANPLASE:
+1. kazino-lakay-v1/src/main.js
+2. kazino-lakay-v1/src/style.css
+3. kazino-lakay-v1/src/games/catalog.js
+4. kazino-lakay-v1/worker/src/index.js
+5. kazino-lakay-v1/worker/test-engine.mjs
+6. kazino-lakay-v1/public/sw.js
+
+ENSTALASYON:
+1. Fè yon kopi sekirite pwojè ou genyen an anvan ou chanje anyen.
+2. Louvri ZIP patch sa a.
+3. Antre nan dosye kazino-lakay-v1/ ki anndan ZIP la.
+4. Ranplase chak fichye ki gen menm chemen an nan pwojè ou a.
+5. Pa efase okenn lòt fichye.
+6. Apre ranplasman an, teste aplikasyon an lokalman oswa nan anviwònman tès la.
+7. Deplwaye Worker la tou, paske lojik rezilta penal la chanje nan worker/src/index.js.
+   Sèvi ak konfigirasyon Worker ki deja nan pwojè ou a. Pa ranplase wrangler.toml.
+8. Apre aplikasyon an ak Worker la fin pibliye, rafrechi aplikasyon an nèt sou telefòn/tablèt la.
+
+PA RANPLASE:
+- admin.html oswa src/admin.js
+- Firebase oswa Firestore Rules
+- lòt jwèt yo
+- roulette.js
+- package.json
+- wrangler.toml
+- index.html oswa lòt fichye ki pa nan lis 6 fichye anlè a
+
+FONKSYON PENALTY:
+- Jwè a chwazi sèlman pwòp ekip li.
+- Advèsè a chwazi otomatikman; pa gen meni pou chwazi advèsè a.
+- Kenbe bouton boul la epi glise dwèt ou soti sou boul la nan zòn gòl ou vle vize a.
+- Gòl la divize an 9 zòn: anwo, mitan ak anba; agoch, mitan ak adwat.
+- Jwè a pran elan, balanse janm li epi choute boul la.
+- Gadyen an plonje nan direksyon rezilta sèvè a detèmine.
+- Gen bouton VIZE O AZA kòm lòt opsyon.
+- Mòd DEMO ak pwen san valè lajan rete aktif.
+
+NÒT:
+Patch sa a pa fè deplwaman Cloudflare pou ou. Li pa chanje ni repare espas Admin lan.
