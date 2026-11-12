@@ -1,0 +1,16 @@
+KAZINO LAKAY V1.6.5 — LIS FICHYE PATCH SELEKTIF
+
+RANPLASE:
+- package.json
+- public/sw.js
+- src/main.js
+- worker/src/index.js
+- worker/test-engine.mjs
+
+AJOUTE:
+- vite.config.js
+- public/icons/icon-192.png
+- public/icons/icon-512.png
+
+Pa gen okenn fichye pou efase nan patch sa a.
+Gade PATCH-INSTRUCTIONS-V1.6.5-HA.txt pou etap aplikasyon yo.
