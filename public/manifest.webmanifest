@@ -26,5 +26,17 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
+  ],
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "prefer_related_applications": false,
+  "shortcuts": [
+    {
+      "name": "Louvri jwèt yo",
+      "short_name": "Jwèt yo",
+      "url": "/#games"
+    }
   ]
 }
