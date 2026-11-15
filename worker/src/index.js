@@ -208,7 +208,7 @@ async function requireAdmin(request, env) {
 }
 
 async function listCollection(collectionId, env, pageSize = 100) {
-  const safeCollections = new Set(['users', 'gameRounds', 'adminActions']);
+  const safeCollections = new Set(['users', 'gameRounds', 'adminActions', 'walletAccounts', 'walletTransactions']);
   if (!safeCollections.has(collectionId)) throw new HttpError(400, 'Koleksyon sa a pa disponib.');
   const payload = await firestoreRequest(`/${collectionId}?pageSize=${Math.min(100, Math.max(1, pageSize))}`, env);
   const documents = payload?.documents || [];
@@ -217,6 +217,186 @@ async function listCollection(collectionId, env, pageSize = 100) {
     const id = String(document.name || '').split('/').pop();
     return { ...fields, id };
   });
+}
+
+async function listAllCollection(collectionId, env, maxDocuments = 10000) {
+  const safeCollections = new Set(['users', 'gameRounds', 'adminActions', 'walletAccounts', 'walletTransactions']);
+  if (!safeCollections.has(collectionId)) throw new HttpError(400, 'Koleksyon sa a pa disponib.');
+  const rows = [];
+  let pageToken = '';
+  for (let page = 0; page < 20 && rows.length < maxDocuments; page += 1) {
+    const params = new URLSearchParams({ pageSize: '1000' });
+    if (pageToken) params.set('pageToken', pageToken);
+    const payload = await firestoreRequest(`/${collectionId}?${params.toString()}`, env);
+    for (const document of payload?.documents || []) {
+      rows.push({ ...fsDocumentFields(document), id: String(document.name || '').split('/').pop() });
+      if (rows.length >= maxDocuments) break;
+    }
+    pageToken = payload?.nextPageToken || '';
+    if (!pageToken) break;
+  }
+  return rows;
+}
+
+async function getPlatformWallet(env) {
+  const document = await firestoreRequest('/platformWallet/main', env);
+  return { document, wallet: document ? fsDocumentFields(document) : null };
+}
+
+async function ensurePlatformWallet(env) {
+  const current = await getPlatformWallet(env);
+  if (current.wallet) return current;
+  const [users, rounds] = await Promise.all([
+    listAllCollection('users', env),
+    listAllCollection('gameRounds', env)
+  ]);
+  const totalPlayerPoints = users.reduce((sum, user) => sum + Math.max(0, Number(user.pointsBalance) || 0), 0);
+  const totalStakedPoints = rounds.reduce((sum, round) => sum + Math.max(0, Number(round.stakePoints) || 0), 0);
+  const totalPayoutPoints = rounds.reduce((sum, round) => sum + Math.max(0, Number(round.payoutPoints) || 0), 0);
+  const now = new Date().toISOString();
+  const wallet = {
+    id: 'main',
+    label: 'Kont platfòm Kazino Lakay',
+    balancePoints: -totalPlayerPoints,
+    openingPlayerPoints: totalPlayerPoints,
+    totalStakedPoints,
+    totalPayoutPoints,
+    netGamePoints: totalStakedPoints - totalPayoutPoints,
+    schemaVersion: 2,
+    createdAt: now,
+    updatedAt: now
+  };
+  const migrationId = 'platform-opening-v2';
+  const migration = {
+    id: migrationId,
+    type: 'platform_opening_migration',
+    uid: 'system',
+    playerDeltaPoints: 0,
+    platformDeltaPoints: 0,
+    openingPlayerPoints: totalPlayerPoints,
+    historicalStakedPoints: totalStakedPoints,
+    historicalPayoutPoints: totalPayoutPoints,
+    note: 'Snapshot inisyal pou ansyen balans yo; tranzaksyon istorik yo rete jan yo te ye.',
+    createdAt: now
+  };
+  try {
+    await commitWrites([
+      { update: { name: `${firestoreBase(env)}/platformWallet/main`, fields: fsFields(wallet) }, currentDocument: { exists: false } },
+      { update: { name: `${firestoreBase(env)}/walletTransactions/${migrationId}`, fields: fsFields(migration) }, currentDocument: { exists: false } }
+    ], env);
+    const created = await getPlatformWallet(env);
+    return created;
+  } catch (error) {
+    if (error instanceof HttpError && error.status === 409) {
+      const raced = await getPlatformWallet(env);
+      if (raced.wallet) return raced;
+    }
+    throw error;
+  }
+}
+
+async function ensurePlayerWallet(uid, userDocument, env) {
+  const path = `/walletAccounts/${encodeURIComponent(uid)}`;
+  const current = await firestoreRequest(path, env);
+  if (current) return { document: current, wallet: fsDocumentFields(current), created: false };
+  const profile = fsDocumentFields(userDocument);
+  const now = new Date().toISOString();
+  const wallet = {
+    uid,
+    balancePoints: Math.max(0, Number(profile.pointsBalance) || 0),
+    currency: 'POINTS',
+    accountStatus: profile.accountStatus || 'active',
+    createdAt: profile.createdAt || now,
+    updatedAt: now,
+    schemaVersion: 2
+  };
+  try {
+    await commitWrites([{ update: { name: `${firestoreBase(env)}${path}`, fields: fsFields(wallet) }, currentDocument: { exists: false } }], env);
+    const created = await firestoreRequest(path, env);
+    return { document: created, wallet: fsDocumentFields(created), created: true };
+  } catch (error) {
+    if (error instanceof HttpError && error.status === 409) {
+      const raced = await firestoreRequest(path, env);
+      if (raced) return { document: raced, wallet: fsDocumentFields(raced), created: false };
+    }
+    throw error;
+  }
+}
+
+async function ensureGameControlRecord(env) {
+  const current = await getGameControlRecord(env);
+  if (current.document) return current;
+  const now = new Date().toISOString();
+  const settings = { ...defaultGameControl(), updatedAt: now, updatedBy: 'system-setup' };
+  try {
+    await commitWrites([{ update: { name: `${firestoreBase(env)}/systemSettings/gameControl`, fields: fsFields(settings) }, currentDocument: { exists: false } }], env);
+    return await getGameControlRecord(env);
+  } catch (error) {
+    if (error instanceof HttpError && error.status === 409) return await getGameControlRecord(env);
+    throw error;
+  }
+}
+
+async function ensureAdminCollections(env) {
+  const [platform, control, users, wallets] = await Promise.all([
+    ensurePlatformWallet(env),
+    ensureGameControlRecord(env),
+    listAllCollection('users', env),
+    listAllCollection('walletAccounts', env)
+  ]);
+  const existingWalletIds = new Set(wallets.map((wallet) => wallet.uid || wallet.id));
+  const missingWallets = users.filter((user) => !existingWalletIds.has(user.uid || user.id));
+  let walletAccountsCreated = 0;
+  for (let offset = 0; offset < missingWallets.length; offset += 400) {
+    const batch = missingWallets.slice(offset, offset + 400);
+    const writes = batch.map((user) => {
+      const uid = String(user.uid || user.id);
+      const createdAt = user.createdAt || new Date().toISOString();
+      const account = { uid, balancePoints: Math.max(0, Number(user.pointsBalance) || 0), currency: 'POINTS', accountStatus: user.accountStatus || 'active', createdAt, updatedAt: new Date().toISOString(), schemaVersion: 2 };
+      return { update: { name: `${firestoreBase(env)}/walletAccounts/${encodeURIComponent(uid)}`, fields: fsFields(account) }, currentDocument: { exists: false } };
+    });
+    try {
+      if (writes.length) await commitWrites(writes, env);
+      walletAccountsCreated += writes.length;
+    } catch (error) {
+      if (!(error instanceof HttpError && error.status === 409)) throw error;
+      // Another bootstrap may have created some of these wallet docs concurrently.
+      const refreshed = new Set((await listAllCollection('walletAccounts', env)).map((wallet) => wallet.uid || wallet.id));
+      const retry = batch.filter((user) => !refreshed.has(user.uid || user.id));
+      for (const user of retry) await ensurePlayerWallet(String(user.uid || user.id), { fields: fsFields(user) }, env);
+      walletAccountsCreated += retry.length;
+    }
+  }
+  const schemaPath = `${firestoreBase(env)}/systemSettings/schema`;
+  const schemaDocument = await firestoreRequest('/systemSettings/schema', env);
+  if (!schemaDocument) {
+    const schema = { version: 2, collections: ['users', 'walletAccounts', 'walletTransactions', 'platformWallet', 'gameRounds', 'adminActions', 'systemSettings'], rulesMode: 'server-only', updatedAt: new Date().toISOString() };
+    try {
+      await commitWrites([{ update: { name: schemaPath, fields: fsFields(schema) }, currentDocument: { exists: false } }], env);
+    } catch (error) {
+      if (!(error instanceof HttpError && error.status === 409)) throw error;
+    }
+  }
+  return {
+    platformWalletReady: Boolean(platform.wallet),
+    gameControlReady: Boolean(control.document),
+    usersScanned: users.length,
+    walletAccountsCreated,
+    walletAccountsReady: wallets.length + walletAccountsCreated
+  };
+}
+
+async function getWalletTransactions(uid, env, limit = 30) {
+  const query = {
+    structuredQuery: {
+      from: [{ collectionId: 'walletTransactions' }],
+      where: { fieldFilter: { field: { fieldPath: 'uid' }, op: 'EQUAL', value: { stringValue: uid } } },
+      orderBy: [{ field: { fieldPath: 'createdAt' }, direction: 'DESCENDING' }],
+      limit
+    }
+  };
+  const rows = await firestoreRequest(':runQuery', env, { method: 'POST', body: query });
+  return (rows || []).filter((row) => row.document).map((row) => fsDocumentFields(row.document));
 }
 
 function sortNewest(items) {
@@ -361,7 +541,11 @@ async function updateManagedUser(request, env, actor) {
   const currentBalance = Number(current.pointsBalance || 0);
   const nextBalance = currentBalance + pointsDelta;
   if (nextBalance < 0 || nextBalance > 1000000000) throw new HttpError(400, 'Nouvo balans lan pa valab.');
-
+  const platform = await ensurePlatformWallet(env);
+  const playerWallet = await ensurePlayerWallet(uid, document, env);
+  const platformBefore = Number(platform.wallet.balancePoints || 0);
+  const platformDelta = -pointsDelta;
+  const platformAfter = platformBefore + platformDelta;
   const now = new Date().toISOString();
   const updated = {
     ...current,
@@ -384,12 +568,23 @@ async function updateManagedUser(request, env, actor) {
     reason,
     createdAt: now
   };
-  const userName = `${firestoreBase(env)}/users/${encodeURIComponent(uid)}`;
-  const actionName = `${firestoreBase(env)}/adminActions/${actionId}`;
-  await commitWrites([
-    { update: { name: userName, fields: fsFields(updated) }, currentDocument: { updateTime: document.updateTime } },
-    { update: { name: actionName, fields: fsFields(action) }, currentDocument: { exists: false } }
-  ], env);
+  const writes = [
+    { update: { name: `${firestoreBase(env)}/users/${encodeURIComponent(uid)}`, fields: fsFields(updated) }, currentDocument: { updateTime: document.updateTime } },
+    { update: { name: `${firestoreBase(env)}/adminActions/${actionId}`, fields: fsFields(action) }, currentDocument: { exists: false } }
+  ];
+  if (pointsDelta !== 0 || accountStatus) {
+    const walletUpdated = { ...playerWallet.wallet, balancePoints: nextBalance, updatedAt: now, accountStatus: updated.accountStatus || 'active' };
+    writes.push({ update: { name: `${firestoreBase(env)}/walletAccounts/${encodeURIComponent(uid)}`, fields: fsFields(walletUpdated) }, currentDocument: { updateTime: playerWallet.document.updateTime } });
+  }
+  if (pointsDelta !== 0) {
+    const platformUpdated = { ...platform.wallet, balancePoints: platformAfter, updatedAt: now };
+    const ledger = { id: actionId, uid, type: 'admin_adjustment', playerDeltaPoints: pointsDelta, platformDeltaPoints: platformDelta, playerBalanceAfter: nextBalance, platformBalanceAfter: platformAfter, actorUid: actor.uid, actorEmail: actor.email, reason, createdAt: now };
+    writes.push(
+      { update: { name: `${firestoreBase(env)}/platformWallet/main`, fields: fsFields(platformUpdated) }, currentDocument: { updateTime: platform.document.updateTime } },
+      { update: { name: `${firestoreBase(env)}/walletTransactions/${actionId}`, fields: fsFields(ledger) }, currentDocument: { exists: false } }
+    );
+  }
+  await commitWrites(writes, env);
   return {
     ok: true,
     user: { uid, email: String(updated.email || ''), displayName: String(updated.displayName || ''), accountStatus: updated.accountStatus || 'active', pointsBalance: Number(updated.pointsBalance || 0) },
@@ -421,17 +616,33 @@ async function bootstrapProfile(request, env, identity) {
       const updated = { ...existing, displayName, updatedAt: new Date().toISOString() };
       const name = `${firestoreBase(env)}/users/${encodeURIComponent(identity.uid)}`;
       await commitWrites([{ update: { name, fields: fsFields(updated) }, currentDocument: { updateTime: doc.updateTime } }], env);
-      return { ...profileFromDocument({ fields: fsFields(updated), updateTime: doc.updateTime }, identity, env), displayName };
+      const refreshed = { fields: fsFields(updated), updateTime: doc.updateTime };
+      await ensurePlayerWallet(identity.uid, refreshed, env);
+      await ensurePlatformWallet(env);
+      return profileFromDocument(refreshed, identity, env);
     }
+    await ensurePlayerWallet(identity.uid, doc, env);
+    await ensurePlatformWallet(env);
     return profileFromDocument(doc, identity, env);
   }
+
+  // Initialize the platform account before issuing the first wallet credit.
+  const platform = await ensurePlatformWallet(env);
   const now = new Date().toISOString();
+  const initialPoints = 10000;
   const role = identity.emailVerified && adminEmails(env).includes(identity.email) ? 'admin' : 'player';
-  const fields = fsFields({ uid: identity.uid, email: identity.email, displayName, role, accountStatus: 'active', pointsBalance: 10000, createdAt: now, updatedAt: now });
-  const name = `${firestoreBase(env)}/users/${encodeURIComponent(identity.uid)}`;
-  await commitWrites([{ update: { name, fields }, currentDocument: { exists: false } }], env);
-  const created = await getUserDocument(identity.uid, env);
-  return profileFromDocument(created, identity, env);
+  const profile = { uid: identity.uid, email: identity.email, displayName, role, accountStatus: 'active', pointsBalance: initialPoints, createdAt: now, updatedAt: now };
+  const playerWallet = { uid: identity.uid, balancePoints: initialPoints, currency: 'POINTS', accountStatus: 'active', createdAt: now, updatedAt: now, schemaVersion: 2 };
+  const platformUpdated = { ...platform.wallet, balancePoints: Number(platform.wallet.balancePoints || 0) - initialPoints, updatedAt: now };
+  const issueId = crypto.randomUUID();
+  const issuance = { id: issueId, uid: identity.uid, type: 'initial_player_credit', playerDeltaPoints: initialPoints, platformDeltaPoints: -initialPoints, playerBalanceAfter: initialPoints, platformBalanceAfter: platformUpdated.balancePoints, reason: 'Kredi pwen demonstrasyon pou nouvo kont.', createdAt: now };
+  await commitWrites([
+    { update: { name: `${firestoreBase(env)}/users/${encodeURIComponent(identity.uid)}`, fields: fsFields(profile) }, currentDocument: { exists: false } },
+    { update: { name: `${firestoreBase(env)}/walletAccounts/${encodeURIComponent(identity.uid)}`, fields: fsFields(playerWallet) }, currentDocument: { exists: false } },
+    { update: { name: `${firestoreBase(env)}/platformWallet/main`, fields: fsFields(platformUpdated) }, currentDocument: { updateTime: platform.document.updateTime } },
+    { update: { name: `${firestoreBase(env)}/walletTransactions/${issueId}`, fields: fsFields(issuance) }, currentDocument: { exists: false } }
+  ], env);
+  return profileFromDocument({ fields: fsFields(profile) }, identity, env);
 }
 
 function randomInt(max) {
@@ -1071,7 +1282,7 @@ async function apiStatus(env) {
     gameControlReadError,
     gameCount: GAME_IDS.length,
     gameIds: GAME_IDS,
-    endpoints: ['/firebase-config.js', '/api/health', '/api/games', '/api/games/demo', '/api/profile/bootstrap', '/api/me', '/api/history', '/api/games/play', '/api/admin/summary', '/api/admin/users', '/api/admin/rounds', '/api/admin/actions', '/api/admin/users/update', '/api/admin/games/control']
+    endpoints: ['/firebase-config.js', '/api/health', '/api/games', '/api/games/demo', '/api/profile/bootstrap', '/api/me', '/api/history', '/api/wallet', '/api/games/play', '/api/admin/setup', '/api/admin/wallet', '/api/admin/summary', '/api/admin/users', '/api/admin/rounds', '/api/admin/actions', '/api/admin/users/update', '/api/admin/games/control']
   };
 }
 
@@ -1138,29 +1349,86 @@ async function route(request, env) {
     const body = await readBody(request);
     const gameId = String(body.gameId || '');
     const stakePoints = Number(body.stakePoints);
+    const requestId = String(body.requestId || '');
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId)) {
+      throw new HttpError(400, 'Demann jwèt la bezwen yon kle inik. Rafrechi aplikasyon an epi rekòmanse.');
+    }
+    const existingTransaction = await firestoreRequest(`/walletTransactions/${encodeURIComponent(requestId)}`, env);
+    if (existingTransaction) {
+      const previous = fsDocumentFields(existingTransaction);
+      if (previous.uid !== identity.uid || previous.type !== 'game_round') throw new HttpError(409, 'Kle demann sa a deja itilize.');
+      return json({ roundId: previous.roundId, balancePoints: Number(previous.playerBalanceAfter || 0), result: previous.result, idempotentReplay: true });
+    }
     const { settings } = await getGameControlRecord(env);
     assertGameCanRun(settings, gameId, stakePoints);
     const userDoc = await getUserDocument(identity.uid, env);
     if (!userDoc) throw new HttpError(404, 'Pwofil jwè a pa egziste.');
     const profile = fsDocumentFields(userDoc);
     if (profile.accountStatus !== 'active') throw new HttpError(403, 'Kont sa a pa aktif.');
+    const playerWallet = await ensurePlayerWallet(identity.uid, userDoc, env);
+    const platform = await ensurePlatformWallet(env);
     const balance = Number(profile.pointsBalance || 0);
     if (balance < stakePoints) throw new HttpError(400, 'Ou pa gen ase pwen pou jwe wonn sa a.');
     const game = resolveGame(gameId, stakePoints, body.choice || {});
-    const newBalance = balance - stakePoints + game.payoutPoints;
+    const playerDelta = game.payoutPoints - stakePoints;
+    const platformDelta = -playerDelta;
+    const newBalance = balance + playerDelta;
+    const newPlatformBalance = Number(platform.wallet.balancePoints || 0) + platformDelta;
     const roundId = crypto.randomUUID();
-    const transactionId = crypto.randomUUID();
     const now = new Date().toISOString();
     const userName = `${firestoreBase(env)}/users/${encodeURIComponent(identity.uid)}`;
     const userFields = { ...profile, pointsBalance: newBalance, updatedAt: now };
-    const roundFields = { id: roundId, uid: identity.uid, gameId, stakePoints, payoutPoints: game.payoutPoints, netPoints: game.payoutPoints - stakePoints, multiplier: game.result.multiplier, title: game.result.title, message: game.result.message, details: game.result.details, createdAt: now };
-    const ledgerFields = { id: transactionId, uid: identity.uid, type: 'game_round', gameId, roundId, deltaPoints: game.payoutPoints - stakePoints, balanceAfter: newBalance, createdAt: now };
+    const walletFields = { ...playerWallet.wallet, balancePoints: newBalance, updatedAt: now };
+    const platformFields = {
+      ...platform.wallet,
+      balancePoints: newPlatformBalance,
+      totalStakedPoints: Number(platform.wallet.totalStakedPoints || 0) + stakePoints,
+      totalPayoutPoints: Number(platform.wallet.totalPayoutPoints || 0) + game.payoutPoints,
+      netGamePoints: Number(platform.wallet.netGamePoints || 0) + platformDelta,
+      updatedAt: now
+    };
+    const roundFields = { id: roundId, uid: identity.uid, gameId, stakePoints, payoutPoints: game.payoutPoints, netPoints: playerDelta, multiplier: game.result.multiplier, title: game.result.title, message: game.result.message, details: game.result.details, createdAt: now };
+    const ledgerFields = { id: requestId, uid: identity.uid, type: 'game_round', gameId, roundId, stakePoints, payoutPoints: game.payoutPoints, playerDeltaPoints: playerDelta, platformDeltaPoints: platformDelta, playerBalanceAfter: newBalance, platformBalanceAfter: newPlatformBalance, result: game.result, createdAt: now };
     await commitWrites([
       { update: { name: userName, fields: fsFields(userFields) }, currentDocument: { updateTime: userDoc.updateTime } },
+      { update: { name: `${firestoreBase(env)}/walletAccounts/${encodeURIComponent(identity.uid)}`, fields: fsFields(walletFields) }, currentDocument: { updateTime: playerWallet.document.updateTime } },
+      { update: { name: `${firestoreBase(env)}/platformWallet/main`, fields: fsFields(platformFields) }, currentDocument: { updateTime: platform.document.updateTime } },
       { update: { name: `${firestoreBase(env)}/gameRounds/${roundId}`, fields: fsFields(roundFields) }, currentDocument: { exists: false } },
-      { update: { name: `${firestoreBase(env)}/walletTransactions/${transactionId}`, fields: fsFields(ledgerFields) }, currentDocument: { exists: false } }
+      { update: { name: `${firestoreBase(env)}/walletTransactions/${requestId}`, fields: fsFields(ledgerFields) }, currentDocument: { exists: false } }
     ], env);
-    return json({ roundId, balancePoints: newBalance, result: game.result });
+    return json({ roundId, balancePoints: newBalance, result: game.result, idempotencyKey: requestId });
+  }
+  if (url.pathname === '/api/wallet' && request.method === 'GET') {
+    const identity = await verifyFirebaseIdToken(request, env, true);
+    const [userDoc, transactions] = await Promise.all([
+      getUserDocument(identity.uid, env),
+      getWalletTransactions(identity.uid, env, 30)
+    ]);
+    if (!userDoc) throw new HttpError(404, 'Pwofil jwè a poko egziste. Rekonekte.');
+    const profile = fsDocumentFields(userDoc);
+    const wallet = await ensurePlayerWallet(identity.uid, userDoc, env);
+    return json({ wallet: { uid: identity.uid, balancePoints: Number(profile.pointsBalance || wallet.wallet.balancePoints || 0), currency: 'POINTS', accountStatus: profile.accountStatus || 'active' }, transactions: transactions.map((item) => ({ id: item.id, type: item.type || 'transaction', deltaPoints: Number(item.playerDeltaPoints ?? item.deltaPoints ?? 0), gameId: item.gameId || null, reason: item.reason || '', createdAt: item.createdAt || null })) });
+  }
+  if (url.pathname === '/api/admin/setup' && request.method === 'POST') {
+    await requireAdmin(request, env);
+    return json({ ok: true, setup: await ensureAdminCollections(env) });
+  }
+  if (url.pathname === '/api/admin/wallet' && request.method === 'GET') {
+    await requireAdmin(request, env);
+    const platform = await ensurePlatformWallet(env);
+    const transactions = sortNewest(await listAllCollection('walletTransactions', env, 10000)).slice(0, 50);
+    return json({
+      platform: {
+        balancePoints: Number(platform.wallet.balancePoints || 0),
+        openingPlayerPoints: Number(platform.wallet.openingPlayerPoints || 0),
+        totalStakedPoints: Number(platform.wallet.totalStakedPoints || 0),
+        totalPayoutPoints: Number(platform.wallet.totalPayoutPoints || 0),
+        netGamePoints: Number(platform.wallet.netGamePoints || 0),
+        updatedAt: platform.wallet.updatedAt || null,
+        schemaVersion: Number(platform.wallet.schemaVersion || 1)
+      },
+      transactions: transactions.map((item) => ({ id: item.id, uid: item.uid || '', type: item.type || 'transaction', gameId: item.gameId || '', stakePoints: Number(item.stakePoints || 0), payoutPoints: Number(item.payoutPoints || 0), playerDeltaPoints: Number(item.playerDeltaPoints ?? item.deltaPoints ?? 0), platformDeltaPoints: Number(item.platformDeltaPoints ?? (item.type === 'game_round' ? -Number(item.deltaPoints || 0) : 0)), reason: item.reason || item.note || '', actorEmail: item.actorEmail || '', createdAt: item.createdAt || null }))
+    });
   }
   if (url.pathname === '/api/admin/summary' && request.method === 'GET') {
     await requireAdmin(request, env);
