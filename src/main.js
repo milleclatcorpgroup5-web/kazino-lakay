@@ -72,7 +72,7 @@ function dieFace(value = 1) {
 function stageFrame(gameId, heading, subheading, content, phase = 'idle') {
   return `<section class="casino-stage stage-${gameId} phase-${phase}" data-game-stage="${gameId}" data-phase="${phase}" aria-label="Tab jwèt ${esc(heading)}">
     <div class="stage-topline"><span class="stage-live"><i></i>${phase === 'rolling' ? 'ANIMASYON AN KOU' : phase === 'settled' ? 'REZILTA KONFIME' : 'TAB JWÈT'}</span><span class="stage-game-name">${esc(heading)}</span></div>
-    <div class="stage-visual">${content}</div>
+    <div class="stage-visual stage-visual-3d" data-render-mode="3d">${content}</div>
     <div class="stage-caption"><strong>${esc(heading)}</strong><span>${esc(subheading)}</span></div>
   </section>`;
 }
@@ -364,12 +364,12 @@ function renderGameModal() {
       <div class="kl-game-stats"><span><small>BALANS</small><b data-game-balance>${balanceLabel}</b></span><span><small>JETON</small><b data-game-stake>${state.gameStake} P</b></span></div>
     </header>
     <main class="kl-game-main">
-      <div class="kl-game-overline"><span class="kl-live-indicator"><i></i>${state.busy ? 'WONN AN KOU' : 'TAB JWÈT'} </span><span>${esc(game.category.toUpperCase())} • ${GAMES.length} JWE</span></div>
+      <div class="kl-game-overline"><span class="kl-live-indicator"><i></i>${state.busy ? 'WONN AN KOU' : 'TAB JWÈT'} </span><span>${esc(game.category.toUpperCase())} • ${GAMES.length} JWE • <b class="difficulty-badge">NIVO DIFISIL</b></span></div>
       <div class="kl-stage-wrap">${renderGameStage(game.id, null, 'idle')}</div>
       <form id="play-form" class="kl-play-panel"><input type="hidden" name="stakePoints" value="${state.gameStake}" data-stake-input>${gameChoiceMarkup(game)}${game.id === 'penalty' ? '<input type="hidden" name="shot" value="" data-penalty-shot><input type="hidden" name="power" value="0.65" data-penalty-power><input type="hidden" name="opponent" value="" data-penalty-opponent>' : ''}</form>
     </main>
     <footer class="kl-game-footer"><div class="kl-chip-select"><span class="kl-chip-label">JETON</span>${[10,50,100,500].map((value)=>`<button type="button" class="kl-chip kl-chip-${value} ${value===state.gameStake?'is-active':''}" data-game-action="stake" data-stake-value="${value}" aria-pressed="${value===state.gameStake}"><b>${value}</b><small>P</small></button>`).join('')}</div>
-      <div class="kl-game-actions"><span class="kl-demo-disclaimer">DEMO • PWEN SAN VALÈ LAJAN</span><button type="button" class="kl-play-account" data-game-action="account" ${canAccountPlay?'':'disabled'}>Jwe ak balans</button><button type="button" class="kl-play-demo" data-game-action="demo" ${state.busy?'disabled':''}>${state.busy?'WONN NAN AP KALKILE…':'JWE DEMO'}</button></div>
+      <div class="kl-game-actions"><span class="kl-demo-disclaimer">DEMO • NIVO DIFISIL • PWEN SAN VALÈ LAJAN</span><button type="button" class="kl-play-account" data-game-action="account" ${canAccountPlay?'':'disabled'}>Jwe ak balans</button><button type="button" class="kl-play-demo" data-game-action="demo" ${state.busy?'disabled':''}>${state.busy?'WONN NAN AP KALKILE…':'JWE DEMO'}</button></div>
     </footer>
     <aside class="kl-menu-layer" data-game-menu-layer ${state.gameMenuOpen?'':'hidden'}><button class="kl-menu-backdrop" type="button" data-game-action="menu-close" aria-label="Fèmen meni"></button><section class="kl-menu-panel" role="dialog" aria-modal="true" aria-labelledby="kl-menu-title"><div class="kl-menu-head"><div><small>KAZINO LAKAY</small><h2 id="kl-menu-title">Gid jwèt la</h2></div><button type="button" data-game-action="menu-close" class="kl-menu-close" aria-label="Fèmen">×</button></div>${rules}<div class="kl-menu-actions"><button type="button" data-game-action="sound" class="kl-menu-action">${state.gameSoundOn?'🔊 Son aktive':'🔇 Son dezaktive'}</button><button type="button" data-game-action="back" class="kl-menu-action">← Retounen nan lis jwèt yo</button></div><p class="kl-menu-disclaimer">Mòd demonstrasyon sèlman. Pwen yo pa gen valè lajan; yo pa kapab achte, vann, transfere oswa retire.</p></section></aside>
     <div class="kl-result-layer" data-game-result-layer hidden></div>
