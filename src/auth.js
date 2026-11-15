@@ -4,7 +4,8 @@ import {
   signOut,
   sendEmailVerification,
   onAuthStateChanged,
-  updateProfile
+  updateProfile,
+  sendPasswordResetEmail
 } from 'firebase/auth';
 import { auth, firebaseReady } from './firebase.js';
 
@@ -36,4 +37,11 @@ export async function resendVerification() {
 
 export async function logoutAccount() {
   if (auth) await signOut(auth);
+}
+
+export async function requestPasswordReset(email) {
+  if (!firebaseReady || !auth) throw new Error('Firebase poko konfigire.');
+  const normalized = String(email || '').trim();
+  if (!normalized) throw new Error('Mete imel kont ou anvan.');
+  await sendPasswordResetEmail(auth, normalized);
 }
