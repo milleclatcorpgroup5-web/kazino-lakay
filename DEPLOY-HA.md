@@ -1,4 +1,4 @@
-# Kazino Lakay V1.6.3 — enstalasyon PWA ak Firebase runtime
+# Kazino Lakay V1.9.0 — enstalasyon Cloudflare, Firebase ak Admin
 
 ## 1. Enstalasyon app la
 - Louvri sit la sou HTTPS nan Chrome/Edge (Android: meni ⋮ > Install app / Add to Home screen).
@@ -40,7 +40,7 @@ Apre deplwaman, verifye:
 - `/sw.js` — service worker JavaScript.
 - `/firebase-config.js` — script la dwe montre sèlman konfigirasyon piblik Web App la, pa okenn sekrè.
 - `/api/health` — `frontendFirebaseConfigured: true`, `firebaseConfigured: true`.
-- `/admin.html` — admin; aksè mande yon imel verifye ki nan `INITIAL_ADMIN_EMAILS`.
+- `/admin` — sant Admin separe; aksè mande yon imel verifye ki nan `INITIAL_ADMIN_EMAILS`.
 
 ## 5. Aktivasyon kont jwè
 1. Apre Firebase + Worker konfigire, kreye kont ak imel/modpas.
@@ -50,3 +50,12 @@ Apre deplwaman, verifye:
 
 ## Limit mòd la
 Vèsyon sa a sipòte kont reyèl Firebase ak balans **pwen jwèt** ki sove sou Firestore. Pwen yo pa lajan, pa ka depoze/retire/chanje, epi pa gen MonCash/NatCash, kat bank, peman oswa retrè. Pa aktive parye lajan reyèl sou baz pake DEMO sa a.
+
+## V1.9.0 — Admin apa + bous/ledger
+
+- URL administrasyon: `https://kazino-lakay.milleclatcorpgroup5.workers.dev/admin`.
+- `public/_redirects` sèvi ak Cloudflare Static Assets pou prezante `/admin` kòm `admin.html`.
+- Apre login Admin lan, aplikasyon an rele `/api/admin/setup` pou asire dokiman Firestore ak bous ki manke yo.
+- Mete `firestore.rules` nan Firebase Console → Firestore Database → Rules epi peze Publish.
+- `firebase.json` konekte `firestore-indexes.json` ki deja nan rasin pwojè a.
+- Pa modifye `FIREBASE_PRIVATE_KEY` si `/api/health` deja bay `gameControlReadOk: true`.
