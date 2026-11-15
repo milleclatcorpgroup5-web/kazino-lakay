@@ -273,9 +273,9 @@ function render() {
   });
   root.innerHTML = `<header class="topbar"><a class="brand" href="#top"><span class="brand-mark">KL</span><span>KAZINO <b>LAKAY</b></span></a>
     <div class="topbar-actions"><span class="points"><small>${state.profile ? 'Pwen kont' : 'Mòd demonstrasyon'}</small><strong>${state.profile ? `${fmt(state.profile.pointsBalance)} P` : 'DEMO'}</strong></span>
-      ${state.profile?.role === 'admin' ? `<a class="button button-ghost" href="/admin.html">Admin</a>` : ''}
+      ${state.profile?.role === 'admin' ? `<a class="button button-ghost" href="/admin">Admin</a>` : ''}
       <button class="button button-ghost" data-action="install-app">${state.installPrompt ? 'Enstale app' : 'Kijan pou enstale?'}</button>
-      ${state.user ? `<button class="button button-ghost" data-action="history">Istwa</button><span class="user-label">${esc(state.user.displayName || state.user.email || 'Jwè')}</span><button class="button button-ghost" data-action="logout">Dekonekte</button>` : `<button class="button button-ghost" data-action="login">Konekte</button><button class="button button-primary" data-action="register">Kreye kont</button>`}
+      ${state.user ? `${state.user.emailVerified ? `<button class="button button-ghost" data-action="wallet">Bous</button>` : ''}<button class="button button-ghost" data-action="history">Istwa</button><span class="user-label">${esc(state.user.displayName || state.user.email || 'Jwè')}</span><button class="button button-ghost" data-action="logout">Dekonekte</button>` : `<button class="button button-ghost" data-action="login">Konekte</button><button class="button button-primary" data-action="register">Kreye kont</button>`}
     </div></header>
     <main id="top" class="shell">
       ${!firebaseReady ? `<div class="config-alert"><strong>Kont jwè yo poko aktive.</strong><span>Konfigirasyon frontend Firebase ki manke: ${firebaseMissing.map(esc).join(', ')}. Mete valè piblik Firebase Web App yo nan Cloudflare Worker Variables; jwèt DEMO yo ap kontinye mache pandan sa.</span></div>` : ''}
@@ -447,7 +447,7 @@ async function playRouletteRound(demoMode = false) {
     const choice = { bets };
     const response = await api(demoMode ? '/api/games/demo' : '/api/games/play', {
       method: 'POST',
-      body: { gameId: 'roulette', stakePoints: totalStake, choice }
+      body: { gameId: 'roulette', stakePoints: totalStake, choice, requestId: crypto.randomUUID() }
     });
     const gameResult = response.result;
     await animateRouletteSpin(screen, gameResult.details.number);
@@ -747,7 +747,7 @@ async function playGame(form, demoMode = false) {
     const demoButton = screen?.querySelector('[data-game-action="demo"]');
     if (accountButton) { accountButton.disabled = true; accountButton.textContent = 'SÈVÈ A AP KONFIME…'; }
     if (demoButton) { demoButton.disabled = true; demoButton.textContent = 'WONN NAN AP KALKILE…'; }
-    const result = await api(demoMode ? '/api/games/demo' : '/api/games/play', { method: 'POST', body: { gameId: game.id, stakePoints, choice } });
+    const result = await api(demoMode ? '/api/games/demo' : '/api/games/play', { method: 'POST', body: { gameId: game.id, stakePoints, choice, requestId: crypto.randomUUID() } });
     const panel = document.querySelector('#game-room-screen');
     const stage = panel?.querySelector('.casino-stage');
     if (stage) stage.outerHTML = renderGameStage(game.id, result.result.details, 'rolling');
@@ -888,6 +888,23 @@ async function showHistory() {
   } catch (error) { toast(error.message || 'Istwa a pa disponib.', 'error'); }
 }
 
+async function showWallet() {
+  if (!state.user) return renderAuthModal('login');
+  if (!state.user.emailVerified) return toast('Verifye imel ou anvan ou itilize bous la.', 'warning');
+  try {
+    const data = await api('/api/wallet');
+    const wallet = data.wallet || {};
+    const transactions = data.transactions || [];
+    const labels = {
+      game_round: 'Wonn jwèt',
+      initial_player_credit: 'Kredi premye kont',
+      admin_adjustment: 'Ajisteman administratè',
+      platform_opening_migration: 'Migrasyon inisyal'
+    };
+    document.querySelector('#modal-root').innerHTML = `<div class="modal" role="dialog" aria-modal="true"><button class="modal-backdrop" data-close-modal aria-label="Fèmen"></button><section class="modal-panel history-panel wallet-panel"><header class="modal-head"><div><span class="eyebrow">BÒS JWÈ A</span><h2>Bous mwen</h2></div><button class="close-btn" data-close-modal>×</button></header><div class="wallet-balance-card"><small>BALANS DISPONIB</small><strong>${fmt(wallet.balancePoints)} P</strong><span>Pwen demonstrasyon sèlman</span></div><div class="wallet-transaction-head"><strong>Dènye mouvman yo</strong><small>${transactions.length} tranzaksyon</small></div>${transactions.length ? `<div class="history-list">${transactions.map((item) => { const delta = Number(item.deltaPoints || 0); const title = labels[item.type] || (item.gameId ? `Jwèt · ${item.gameId}` : 'Mouvman bous'); return `<article class="history-item"><div><strong>${esc(title)}</strong><small>${esc(item.reason || '')} ${item.createdAt ? `· ${esc(new Date(item.createdAt).toLocaleString('fr-FR'))}` : ''}</small></div><div class="history-amount"><b class="${delta >= 0 ? 'wallet-credit' : 'wallet-debit'}">${delta > 0 ? '+' : ''}${fmt(delta)} P</b></div></article>`; }).join('')}</div>` : '<p class="empty-state">Poko gen mouvman nan bous ou.</p>'}<p class="small-print">Bous sa a sèvi ak pwen jwèt ki pa gen valè lajan; pa gen depo oswa retrè lajan reyèl.</p></section></div>`;
+  } catch (error) { toast(error.message || 'Bous la pa disponib kounye a.', 'error'); }
+}
+
 function renderTopbarOnly() {
   const gameBalance = document.querySelector('[data-game-balance]');
   if (gameBalance && state.profile) gameBalance.textContent = `${fmt(state.profile.pointsBalance)} P`;
@@ -956,6 +973,7 @@ root.addEventListener('click', async (event) => {
   else if (action?.dataset.action === 'register') renderAuthModal('register');
   else if (action?.dataset.action === 'logout') { await logoutAccount(); state.profile = null; }
   else if (action?.dataset.action === 'history') await showHistory();
+  else if (action?.dataset.action === 'wallet') await showWallet();
   else if (action?.dataset.action === 'install-app') {
     if (state.installPrompt) {
       const promptEvent = state.installPrompt;
