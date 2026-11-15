@@ -435,3 +435,94 @@
 
 /* Global admin availability state */
 .game-card-disabled{opacity:.58;filter:saturate(.35);cursor:not-allowed}.game-card-disabled .game-card-artwork{filter:grayscale(.8)}.game-paused-badge{position:absolute;top:12px;right:12px;padding:6px 9px;border-radius:99px;background:#8a3040e8;border:1px solid #ff9aa966;color:#fff;font-size:9px;font-weight:900;letter-spacing:.8px}.game-card-art{position:relative}
+
+
+/* KAZINO LAKAY — 3D GAME ROOM PRESENTATION */
+.kl-game-screen { perspective: 1400px; }
+.kl-game-screen .kl-stage-wrap { perspective: 1300px; perspective-origin: 50% 35%; }
+.casino-stage {
+  position: relative;
+  isolation: isolate;
+  transform-style: preserve-3d;
+  transform: translateZ(0) rotateX(1.2deg);
+  border: 1px solid rgba(169, 211, 255, .24);
+  box-shadow: 0 28px 55px rgba(0, 0, 0, .42), inset 0 1px rgba(255,255,255,.12), 0 0 34px rgba(65, 145, 255, .09);
+  background:
+    radial-gradient(ellipse at 50% -10%, rgba(84, 157, 255, .2), transparent 55%),
+    linear-gradient(145deg, rgba(18, 31, 55, .98), rgba(5, 12, 25, .99));
+  transition: transform .35s ease, box-shadow .35s ease;
+}
+.casino-stage::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  z-index: -1;
+  border: 1px solid rgba(255,255,255,.055);
+  border-radius: inherit;
+  pointer-events: none;
+  transform: translateZ(5px);
+}
+.casino-stage:hover { transform: translateY(-3px) rotateX(0deg) scale(1.003); }
+.stage-visual-3d {
+  transform-style: preserve-3d;
+  perspective: 1100px;
+  perspective-origin: 50% 42%;
+}
+.stage-visual-3d > * {
+  transform-style: preserve-3d;
+  filter: drop-shadow(0 18px 16px rgba(0,0,0,.22));
+}
+.stage-visual-3d .playing-card {
+  transform: translateZ(22px) rotateY(-3deg);
+  box-shadow: 0 12px 20px rgba(0,0,0,.42), inset 0 1px rgba(255,255,255,.9);
+  transition: transform .25s ease;
+}
+.stage-visual-3d .playing-card:nth-child(even) { transform: translateZ(30px) rotateY(3deg) rotateZ(1deg); }
+.stage-visual-3d .playing-card:hover { transform: translateZ(48px) rotateY(0deg) translateY(-5px); }
+.stage-visual-3d .die-face {
+  transform: translateZ(26px) rotateX(9deg) rotateY(-10deg);
+  box-shadow: 0 16px 24px rgba(0,0,0,.42), inset 0 2px 4px rgba(255,255,255,.65);
+}
+.stage-visual-3d .number-cell,
+.stage-visual-3d .bingo-cell,
+.stage-visual-3d .plinko-slot,
+.stage-visual-3d .slot-reel,
+.stage-visual-3d .penalty-ball {
+  box-shadow: 0 8px 15px rgba(0,0,0,.32), inset 0 1px rgba(255,255,255,.22);
+}
+.stage-visual-3d .slot-reel,
+.stage-visual-3d .roulette-wheel,
+.stage-visual-3d .plinko-board,
+.stage-visual-3d .holdem-table,
+.stage-visual-3d .bingo-table,
+.stage-visual-3d .penalty-pitch {
+  transform: translateZ(16px) rotateX(2deg);
+  transform-origin: center center;
+}
+.difficulty-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: .35rem;
+  padding: .2rem .48rem;
+  border: 1px solid rgba(255, 105, 105, .42);
+  border-radius: 999px;
+  color: #ffb0a8;
+  background: rgba(144, 25, 39, .2);
+  font-size: .66rem;
+  letter-spacing: .08em;
+  vertical-align: middle;
+  box-shadow: 0 0 14px rgba(255, 70, 70, .12);
+}
+.kl-game-screen .kl-play-panel,
+.kl-game-screen .kl-game-footer {
+  transform: translateZ(8px);
+}
+@media (max-width: 700px) {
+  .kl-game-screen .kl-stage-wrap { perspective: 900px; }
+  .casino-stage { transform: none; }
+  .stage-visual-3d { perspective: 700px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .casino-stage, .stage-visual-3d .playing-card { transition: none !important; }
+  .casino-stage:hover { transform: none; }
+}
