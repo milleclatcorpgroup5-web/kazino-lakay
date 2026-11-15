@@ -2,7 +2,7 @@ import './style.css';
 import './admin.css';
 import { GAMES } from './games/catalog.js';
 import { auth, firebaseReady, firebaseMissing } from './firebase.js';
-import { watchAuth, loginAccount, logoutAccount, resendVerification } from './auth.js';
+import { watchAuth, loginAccount, logoutAccount, resendVerification, requestPasswordReset } from './auth.js';
 import { api } from './api.js';
 
 const root = document.querySelector('#admin-root');
@@ -23,9 +23,9 @@ function renderLogin(message='') {
   root.innerHTML = `<main class="admin-shell"><header class="admin-brand"><a href="/">← Retounen sou sit la</a><span class="brand-mark">KL</span><div><small>KAZINO LAKAY</small><h1>Sant administrasyon</h1></div></header>
     ${!firebaseReady ? `<div class="config-alert"><strong>Firebase frontend poko konfigire.</strong><span>${firebaseMissing.map(esc).join(', ')}</span></div>` : ''}
     ${message?`<div class="config-alert"><strong>${esc(message)}</strong></div>`:''}
-    <section class="admin-login panel"><h2>Koneksyon administratè</h2><p>Antre ak kont Firebase ki gen imel <code>milleclatcorp@gmail.com</code> epi ki verifye. Dwa Admin yo verifye sou sèvè a.</p>
-      <form id="admin-login-form"><label class="field"><span>Imel administratè</span><input name="email" type="email" autocomplete="username" required></label><label class="field"><span>Modpas</span><input name="password" type="password" autocomplete="current-password" required></label><button class="button button-primary button-wide" type="submit" ${!firebaseReady||busy?'disabled':''}>Konekte an sekirite</button></form>
-      <p class="small-print">Pa gen okenn modpas default. Se kont Firebase verifye ki otorize sèlman.</p>
+    <section class="admin-login panel"><h2>Koneksyon administratè</h2><p>Antre ak imel administratè ki anrejistre nan <code>INITIAL_ADMIN_EMAILS</code> sou Cloudflare. Kont Firebase la dwe deja egziste epi imel la dwe verifye.</p>
+      <form id="admin-login-form"><label class="field"><span>Imel administratè</span><input name="email" type="email" autocomplete="username" required></label><label class="field"><span>Modpas</span><input name="password" type="password" autocomplete="current-password" required></label><button class="button button-primary button-wide" type="submit" ${!firebaseReady||busy?'disabled':''}>Konekte an sekirite</button><button class="button button-ghost button-wide" type="button" data-admin-action="reset-password">Mwen bliye modpas mwen</button></form>
+      <p class="small-print">Pa gen modpas default. Firebase Authentication verifye idantite a; Worker la verifye dwa administratè a apa.</p>
     </section></main>`;
 }
 function renderVerify() {
@@ -37,7 +37,7 @@ function renderDenied(message='Kont sa a pa gen dwa administratè.') {
 function renderGameControl(settings) {
   const control = { ...DEFAULT_CONTROL, ...(settings || {}), games: { ...DEFAULT_CONTROL.games, ...(settings?.games || {}) } };
   const enabledCount = GAMES.filter((g) => control.games[g.id] !== false).length;
-  return `<section class="panel admin-section game-control-section"><div class="admin-section-head"><div><small>KONTWÒL GLOBAL</small><h2>Kontwòl 22 jwèt yo</h2><p>Sispann tout jwèt yo yon sèl kou oswa aktive/dezaktive chak jwèt apa. Chanjman yo aplike sou sèvè a tou.</p></div><span class="admin-count">${enabledCount}/${GAMES.length} aktif</span></div>
+  return `<section id="game-controls" class="panel admin-section game-control-section"><div class="admin-section-head"><div><small>KONTWÒL GLOBAL</small><h2>Kontwòl 22 jwèt yo</h2><p>Sispann tout jwèt yo yon sèl kou oswa aktive/dezaktive chak jwèt apa. Chanjman yo aplike sou sèvè a tou.</p></div><span class="admin-count">${enabledCount}/${GAMES.length} aktif</span></div>
     <form id="game-control-form">
       <div class="global-control-row"><label class="global-switch"><input type="checkbox" name="globalEnabled" ${control.globalEnabled?'checked':''}><span class="switch-track"></span><span><strong>${control.globalEnabled?'Tout jwèt yo ouvè':'Tout jwèt yo sou poz'}</strong><small>Kontwòl prensipal pou tout sit la</small></span></label><label class="maintenance-field"><span>Mesaj lè jwèt yo sou poz</span><input name="maintenanceMessage" type="text" maxlength="200" value="${esc(control.maintenanceMessage||'')}" placeholder="Egzanp: Nou ap fè antretyen. Tounen pita."></label></div>
       <div class="game-control-toolbar"><strong>Estati chak jwèt</strong><div><button type="button" class="button button-small button-ghost" data-game-control-bulk="on">Aktive tout</button><button type="button" class="button button-small button-ghost" data-game-control-bulk="off">Sispann tout</button></div></div>
@@ -47,33 +47,39 @@ function renderGameControl(settings) {
 }
 function renderDashboard(data) {
   dashboardData = data;
-  const { summary, users, rounds, actions, control } = data;
+  const { summary, users, rounds, actions, control, walletData, setup } = data;
   const activity = [
     ...rounds.map((item) => ({ kind: 'Wonn jwèt', label: item.gameId || 'Jwèt', detail: item.uid || 'Jwè', date: item.createdAt || '', points: `${fmt(item.netPoints)} P` })),
     ...actions.map((item) => ({ kind: item.type || 'Aksyon admin', label: item.targetEmail || item.targetUid || 'Kontwòl sistèm', detail: `${item.actorEmail || item.actorUid || 'Admin'} · ${item.reason || ''}`, date: item.createdAt || '', points: '—' }))
   ].sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 100);
   const returnedPoints = rounds.reduce((sum, item) => sum + Number(item.payoutPoints || 0), 0);
-  root.innerHTML = `<main class="admin-shell"><header class="admin-brand"><a href="/">← Sit piblik</a><span class="brand-mark">KL</span><div><small>KAZINO LAKAY • ADMIN</small><h1>Sant kontwòl global</h1></div><div class="admin-header-actions"><span>${esc(signedUser?.email||'')}</span><button class="button button-ghost" data-admin-action="refresh" ${busy?'disabled':''}>Rafrechi</button><button class="button button-ghost" data-admin-action="logout">Dekonekte</button></div></header>
+  root.innerHTML = `<main class="admin-shell"><header class="admin-brand"><a href="/">← Sit piblik</a><span class="brand-mark">KL</span><div><small>KAZINO LAKAY • ADMIN</small><h1>Sant kontwòl global</h1></div><nav class="admin-nav"><a href="#platform-wallet">Bous platfòm</a><a href="#players">Jwè yo</a><a href="#game-controls">Jwèt yo</a><a href="#activity">Aktivite</a></nav><div class="admin-header-actions"><span>${esc(signedUser?.email||'')}</span><button class="button button-ghost" data-admin-action="refresh" ${busy?'disabled':''}>Rafrechi</button><button class="button button-ghost" data-admin-action="logout">Dekonekte</button></div></header>
     <div id="admin-notice" class="admin-notice" role="status"></div>
     ${renderGameControl(control)}
     <section class="admin-stats"><article class="panel"><small>Kont nan echantiyon</small><strong>${fmt(summary.usersSampled)}</strong><span>Limit premye lis: ${fmt(summary.usersLimit)}</span></article><article class="panel"><small>Kont aktif</small><strong>${fmt(summary.activeUsers)}</strong><span>Nan lis ki chaje a</span></article><article class="panel"><small>Kont sispann</small><strong>${fmt(summary.suspendedUsers)}</strong><span>Nan lis ki chaje a</span></article><article class="panel"><small>Pwen nan echantiyon</small><strong>${fmt(summary.totalPointsInSample)}</strong><span>Pwen demonstrasyon sèlman</span></article><article class="panel"><small>Wonn resan</small><strong>${fmt(rounds.length)}</strong><span>Jiska 50 dènye wonn</span></article><article class="panel"><small>Pwen retounen</small><strong>${fmt(returnedPoints)} P</strong><span>Sou wonn ki chaje yo</span></article><article class="panel"><small>Aksyon admin</small><strong>${fmt(actions.length)}</strong><span>Jiska 50 dènye aksyon</span></article><article class="panel"><small>Jwèt aktif</small><strong>${fmt(GAMES.filter((g) => (control?.games || {})[g.id] !== false).length)}</strong><span>Sou ${GAMES.length} jwèt</span></article></section>
-    <section class="panel admin-section"><div class="admin-section-head"><div><small>JESTYON KONT</small><h2>Jwè yo</h2><p>Aktive/sispann yon kont oswa ajiste pwen demo. Chak chanjman antre nan jounal audit.</p></div><span class="admin-count">${users.length} kont chaje</span></div>
+    <section class="panel admin-section platform-wallet-section" id="platform-wallet"><div class="admin-section-head"><div><small>BÒS AK KONT PLATFÒM NAN</small><h2>Kont pwen platfòm nan</h2><p>Lè yon jwè pèdi pwen, mouvman an parèt kòm pwen platfòm resevwa; lè platfòm nan peye yon retou, pwen yo soti. Tout mouvman yo anrejistre.</p></div><span class="admin-count">Vèsyon ledger ${fmt(walletData?.platform?.schemaVersion || 1)}</span></div>
+      <div class="platform-wallet-grid"><article><small>Balans kont platfòm</small><strong>${fmt(walletData?.platform?.balancePoints || 0)} P</strong><span>Kontrepati pwen tout bous jwè yo</span></article><article><small>Rezilta jwèt nèt</small><strong>${fmt(walletData?.platform?.netGamePoints || 0)} P</strong><span>Pari jwè yo − retou jwè yo</span></article><article><small>Total pwen parye</small><strong>${fmt(walletData?.platform?.totalStakedPoints || 0)} P</strong><span>Sou wonn istorik yo</span></article><article><small>Total pwen retounen</small><strong>${fmt(walletData?.platform?.totalPayoutPoints || 0)} P</strong><span>Sou tout retou yo</span></article></div>
+      <div class="admin-section-head ledger-title"><div><h3>Gran liv tranzaksyon</h3><p>Ledger la ajoute nouvo antre; aplikasyon an pa gen fonksyon pou modifye oswa efase antre ki deja ekri.</p></div><span class="admin-count">${walletData?.transactions?.length || 0} dènye liy</span></div>
+      <div class="admin-table-wrap"><table class="admin-table ledger-table"><thead><tr><th>Dat</th><th>Kalite</th><th>Jwè / jwèt</th><th>Jwè</th><th>Platfòm</th></tr></thead><tbody>${(walletData?.transactions || []).map((t)=>`<tr><td>${esc(t.createdAt||'—')}</td><td>${esc(t.type||'Mouvman')}</td><td><strong>${esc(t.gameId||t.uid||'Sistèm')}</strong><small>${esc(t.reason||'')}</small></td><td>${Number(t.playerDeltaPoints)>0?'+':''}${fmt(t.playerDeltaPoints)} P</td><td>${Number(t.platformDeltaPoints)>0?'+':''}${fmt(t.platformDeltaPoints)} P</td></tr>`).join('') || '<tr><td colspan="5">Pa gen tranzaksyon nan ledger la ankò.</td></tr>'}</tbody></table></div>
+      <p class="small-print">Tout valè yo se pwen Demo, pa lajan. Balans kont platfòm nan kapab negatif paske li reprezante kontrepati pwen ki nan bous jwè yo; rezilta jwèt nèt la se mezi pari mwens retou.</p>
+    </section>
+    <section class="panel admin-section" id="players"><div class="admin-section-head"><div><small>JESTYON KONT</small><h2>Jwè yo</h2><p>Aktive/sispann yon kont oswa ajiste pwen demo. Chak chanjman antre nan jounal audit.</p></div><span class="admin-count">${users.length} kont chaje</span></div>
       <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Jwè</th><th>Balans</th><th>Estati</th><th>Aksyon</th></tr></thead><tbody>${users.map((u)=>`<tr><td><strong>${esc(u.displayName||'San non')}</strong><small>${esc(u.email||'')}</small><code>${esc(u.uid||'')}</code></td><td>${fmt(u.pointsBalance)} P</td><td><span class="status-pill ${u.accountStatus==='suspended'?'is-suspended':'is-active'}">${u.accountStatus==='suspended'?'Sispann':'Aktif'}</span></td><td><form class="user-edit-form" data-user-update><input type="hidden" name="uid" value="${esc(u.uid)}"><select name="accountStatus"><option value="active" ${u.accountStatus!=='suspended'?'selected':''}>Aktive</option><option value="suspended" ${u.accountStatus==='suspended'?'selected':''}>Sispann</option></select><input name="pointsDelta" type="number" min="-100000" max="100000" step="10" value="0" aria-label="Ajisteman pwen" placeholder="± pwen"><input name="reason" type="text" minlength="3" maxlength="250" required placeholder="Rezon obligatwa"><button class="button button-small button-primary" type="submit">Sove</button></form></td></tr>`).join('') || '<tr><td colspan="4">Pa gen kont pou montre.</td></tr>'}</tbody></table></div>
     </section>
     <section class="admin-two-col"><section class="panel admin-section"><div class="admin-section-head"><div><small>SIVEYANS</small><h2>Dènye wonn yo</h2></div><span class="admin-count">${rounds.length}</span></div><div class="admin-list">${rounds.map((r)=>`<article><div><strong>${esc(r.gameId||'Jwèt')}</strong><small>${esc(r.uid||'')} · ${esc(r.createdAt||'')}</small></div><b>${fmt(r.netPoints)} P</b></article>`).join('') || '<p class="small-print">Pa gen wonn anrejistre.</p>'}</div></section>
       <section class="panel admin-section"><div class="admin-section-head"><div><small>SEKIRITE</small><h2>Jounal administrasyon</h2></div><span class="admin-count">${actions.length}</span></div><div class="admin-list">${actions.map((a)=>`<article><div><strong>${esc(a.type||'Aksyon admin')}</strong><small>${esc(a.actorEmail||a.actorUid||'')} → ${esc(a.targetEmail||a.targetUid||'')}<br>${esc(a.reason||'')}</small></div><span>${esc(a.createdAt||'')}</span></article>`).join('') || '<p class="small-print">Pa gen aksyon admin anrejistre.</p>'}</div></section></section>
-    <section class="panel admin-section admin-activity-feed"><div class="admin-section-head"><div><small>SANT SIVEYANS</small><h2>Flux aktivite resan</h2><p>Wonn jwèt ak aksyon administratè yo mete ansanm selon lè yo fèt.</p></div><span class="admin-count">${activity.length} evènman</span></div><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Lè</th><th>Kalite</th><th>Aktivite / Sib</th><th>Detay</th><th>Pwen</th></tr></thead><tbody>${activity.map((item) => `<tr><td>${esc(item.date || '—')}</td><td><span class="status-pill">${esc(item.kind)}</span></td><td><strong>${esc(item.label)}</strong></td><td>${esc(item.detail)}</td><td>${esc(item.points)}</td></tr>`).join('') || '<tr><td colspan="5">Pa gen aktivite resan pou montre.</td></tr>'}</tbody></table></div></section>
-    <p class="admin-footnote">Tout montan yo se pwen demonstrasyon san valè lajan. Panèl sa a montre jiska 100 dènye evènman (50 wonn + 50 aksyon admin), epi jiska 100 kont nan lis itilizatè a. Li pa reprezante yon achiv san limit.</p></main>`;
+    <section class="panel admin-section admin-activity-feed" id="activity"><div class="admin-section-head"><div><small>SANT SIVEYANS</small><h2>Flux aktivite resan</h2><p>Wonn jwèt ak aksyon administratè yo mete ansanm selon lè yo fèt.</p></div><span class="admin-count">${activity.length} evènman</span></div><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Lè</th><th>Kalite</th><th>Aktivite / Sib</th><th>Detay</th><th>Pwen</th></tr></thead><tbody>${activity.map((item) => `<tr><td>${esc(item.date || '—')}</td><td><span class="status-pill">${esc(item.kind)}</span></td><td><strong>${esc(item.label)}</strong></td><td>${esc(item.detail)}</td><td>${esc(item.points)}</td></tr>`).join('') || '<tr><td colspan="5">Pa gen aktivite resan pou montre.</td></tr>'}</tbody></table></div></section>
+    <p class="admin-footnote">Firestore setup: ${setup?.platformWalletReady ? 'kont platfòm pare' : 'kont platfòm pa konfime'} · ${fmt(setup?.walletAccountsReady || 0)} bous jwè inisyalize · ${fmt(setup?.usersScanned || 0)} kont verifye. Tout montan yo se pwen demonstrasyon san valè lajan. Panèl sa a montre jiska 100 dènye evènman (50 wonn + 50 aksyon admin), epi jiska 100 kont nan lis itilizatè a. Li pa reprezante yon achiv san limit.</p></main>`;
 }
 async function refreshDashboard() {
   if (busy) return;
   busy = true;
   try {
-    const [summary, userData, roundData, actionData, controlData] = await Promise.all([
-      api('/api/admin/summary'), api('/api/admin/users?limit=100'), api('/api/admin/rounds'), api('/api/admin/actions'), api('/api/admin/games/control')
+    const [summary, userData, roundData, actionData, controlData, walletData] = await Promise.all([
+      api('/api/admin/summary'), api('/api/admin/users?limit=100'), api('/api/admin/rounds'), api('/api/admin/actions'), api('/api/admin/games/control'), api('/api/admin/wallet')
     ]);
     busy = false;
-    renderDashboard({ summary, users: userData.users||[], rounds: roundData.rounds||[], actions: actionData.actions||[], control: controlData.settings||DEFAULT_CONTROL });
+    renderDashboard({ summary, users: userData.users||[], rounds: roundData.rounds||[], actions: actionData.actions||[], control: controlData.settings||DEFAULT_CONTROL, walletData, setup: dashboardData?.setup || null });
   } catch (error) {
     busy = false;
     renderDenied(error.message || 'Nou pa kapab chaje done administrasyon yo.');
@@ -89,6 +95,8 @@ async function onUser(user) {
     await api('/api/profile/bootstrap', { method: 'POST', body: { displayName: user.displayName || '' } });
     const profile = await api('/api/me');
     if (profile.role !== 'admin') { renderDenied(`Kont ${user.email} konekte, men imel sa a pa gen wòl administratè sou Worker la.`); return; }
+    const setupResponse = await api('/api/admin/setup', { method: 'POST', body: {} });
+    dashboardData = { setup: setupResponse.setup };
     await refreshDashboard();
   } catch (error) {
     renderDenied(error.message || 'Aksè administratè pa valide.');
@@ -101,7 +109,7 @@ root.addEventListener('submit', async (event) => {
     const button = event.target.querySelector('button[type="submit"]');
     if (button) { button.disabled = true; button.textContent = 'Koneksyon an ap fèt…'; }
     try { await loginAccount({ email: data.email, password: data.password }); }
-    catch (error) { renderLogin(error.message || 'Koneksyon an echwe.'); }
+    catch (error) { const code = error?.code || ''; const message = code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found' ? 'Imel oswa modpas la pa kòrèk, oubyen kont lan poko egziste nan Firebase Authentication. Verifye lis Users la.' : (error.message || 'Koneksyon an echwe.'); renderLogin(message); }
     finally { if (button?.isConnected) { button.disabled = false; button.textContent = 'Konekte an sekirite'; } }
   }
   if (event.target.id === 'game-control-form') {
@@ -159,6 +167,11 @@ root.addEventListener('click', async (event) => {
   const action = event.target.closest('[data-admin-action]')?.dataset.adminAction;
   if (action === 'logout') await logoutAccount();
   if (action === 'refresh') await refreshDashboard();
+  if (action === 'reset-password') {
+    const email = root.querySelector('#admin-login-form input[name="email"]')?.value || '';
+    try { await requestPasswordReset(email); renderLogin('Nou voye yon lyen pou reset modpas la nan imel sa a, si kont lan egziste.'); }
+    catch (error) { renderLogin(error.message || 'Nou pa kapab voye lyen reset la.'); }
+  }
   if (action === 'resend') {
     try { await resendVerification(); notify('Nou voye yon nouvo lyen verifikasyon.'); }
     catch (error) { notify(error.message, true); }
