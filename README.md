@@ -44,3 +44,20 @@ Tès motè Worker yo kouvri 17 jwèt yo (100 rezilta pa jwèt), endpoint DEMO yo
 ## Pa gen lajan reyèl
 
 Pa gen depo, retrè, peman, MonCash/NatCash, lajan reyèl oswa konvèsyon pwen. Sa a se yon demo; pa itilize pou parye lajan.
+
+
+## Version 1.8.0 — 3D + mode défi difficile + centre de contrôle
+
+- Correction du fichier `worker/test-engine.mjs` qui était tronqué et empêchait la compilation.
+- Correction et validation des chemins d'icônes `public/icones/`.
+- Ajout d'une présentation 3D CSS commune aux scènes de jeu (perspective, profondeur, cartes, dés, plateaux et éléments interactifs).
+- Préréglages plus difficiles pour les jeux qui proposent des paramètres de risque/difficulté.
+- Le tableau de bord administrateur regroupe les derniers tours et les dernières actions d'administration dans un flux d'activité.
+- Les indicateurs de l'administration distinguent les données échantillonnées des archives complètes.
+- Mode points de démonstration uniquement : aucune valeur monétaire, aucun dépôt/retrait réel.
+
+### Vérifications réalisées
+- Vérification syntaxique Node.js des fichiers JavaScript.
+- 22 jeux × 100 simulations côté moteur.
+- Vérification des routes API de démonstration, de santé, de catalogue et de protection de l'administration.
+- Vérification du manifeste PWA et des deux icônes.
