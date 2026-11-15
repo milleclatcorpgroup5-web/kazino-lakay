@@ -526,3 +526,6 @@
   .casino-stage, .stage-visual-3d .playing-card { transition: none !important; }
   .casino-stage:hover { transform: none; }
 }
+
+/* Bous jwè */
+.wallet-balance-card{display:grid;gap:6px;padding:18px;margin:8px 0 18px;border:1px solid #4ed8be55;border-radius:15px;background:linear-gradient(130deg,#133a43,#24284d)}.wallet-balance-card small,.wallet-transaction-head small{color:#91b8c6;font-size:10px;font-weight:800;letter-spacing:1px}.wallet-balance-card strong{font-size:34px;color:#f2d18b}.wallet-balance-card span{font-size:10px;color:#a8bdd2}.wallet-transaction-head{display:flex;justify-content:space-between;gap:10px;margin-bottom:8px}.wallet-credit{color:#59d9a5}.wallet-debit{color:#ff9aa7}
