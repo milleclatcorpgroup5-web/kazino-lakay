@@ -49,8 +49,28 @@ const mainHtml = await readFile(new URL('../index.html', import.meta.url), 'utf8
 const viteConfig = await readFile(new URL('../vite.config.js', import.meta.url), 'utf8');
 const serviceWorker = await readFile(new URL('../public/sw.js', import.meta.url), 'utf8');
 const adminHtml = await readFile(new URL('../admin.html', import.meta.url), 'utf8');
+const redirects = await readFile(new URL('../public/_redirects', import.meta.url), 'utf8');
+const firestoreRules = await readFile(new URL('../firestore.rules', import.meta.url), 'utf8');
+const firebaseJson = JSON.parse(await readFile(new URL('../firebase.json', import.meta.url), 'utf8'));
+const workerSource = await readFile(new URL('./src/index.js', import.meta.url), 'utf8');
+const adminSource = await readFile(new URL('../src/admin.js', import.meta.url), 'utf8');
+const playerSource = await readFile(new URL('../src/main.js', import.meta.url), 'utf8');
 assert.match(mainHtml, /manifest\.webmanifest/);
 assert.match(adminHtml, /src\/admin\.js/);
+assert.match(redirects, /^\/admin \/admin\.html 200/m, 'URL /admin dwe louvri paj administrasyon apa a.');
+assert.match(adminHtml, /noindex,nofollow/);
+assert.match(firestoreRules, /match \/walletAccounts\/{uid}/);
+assert.match(firestoreRules, /match \/walletTransactions\/{transactionId}/);
+assert.match(firestoreRules, /allow read, write: if false/);
+assert.equal(firebaseJson.firestore.indexes, 'firestore-indexes.json', 'Firebase CLI dwe jwenn bon non fichye index la.');
+assert.match(workerSource, /platformWallet\/main/);
+assert.match(workerSource, /walletAccounts/);
+assert.match(workerSource, /walletTransactions/);
+assert.match(workerSource, /api\/admin\/setup/);
+assert.match(workerSource, /api\/admin\/wallet/);
+assert.match(workerSource, /api\/wallet/);
+assert.match(adminSource, /Kont pwen platfòm nan/);
+assert.match(playerSource, /data-action="wallet"/);
 assert.ok(viteConfig.includes("main: resolve(here, 'index.html')"), 'Build la dwe enkli paj prensipal la.');
 assert.ok(viteConfig.includes("admin: resolve(here, 'admin.html')"), 'Build la dwe enkli paj admin lan.');
 assert.ok(await readFile(new URL('../public/icones/icon-192.png', import.meta.url)));
@@ -137,6 +157,12 @@ assert.match(await firebaseConfigResponse.text(), /window\.__KL_FIREBASE_CONFIG_
 
 const protectedAdmin = await worker.fetch(new Request(`${base}/api/admin/summary`), env);
 assert.equal(protectedAdmin.status, 401, 'Admin dwe mande idantifikasyon.');
+const protectedWallet = await worker.fetch(new Request(`${base}/api/admin/wallet`), env);
+assert.equal(protectedWallet.status, 401, 'Bous platfòm nan dwe mande aksè admin.');
+const protectedSetup = await worker.fetch(new Request(`${base}/api/admin/setup`, { method: 'POST' }), env);
+assert.equal(protectedSetup.status, 401, 'Firestore bootstrap dwe mande aksè admin.');
+const protectedPlayerWallet = await worker.fetch(new Request(`${base}/api/wallet`), env);
+assert.equal(protectedPlayerWallet.status, 401, 'Bous jwè a dwe mande koneksyon.');
 
 const oversizedDemo = await worker.fetch(new Request(`${base}/api/games/demo`, {
   method: 'POST',
@@ -145,4 +171,4 @@ const oversizedDemo = await worker.fetch(new Request(`${base}/api/games/demo`, {
 }), env);
 assert.equal(oversizedDemo.status, 400, 'Limit 1 000 pwen demo a dwe aplike sou sèvè a.');
 
-console.log(`Kazino Lakay: ${Object.keys(cases).length} jwèt × 100 tès + API, sekirite debaz, ikon ak manifest OK.`);
+console.log(`Kazino Lakay 1.9.0: ${Object.keys(cases).length} jwèt × 100 tès + API, admin separe, bous/ledger, Firestore rules, ikon ak manifest OK.`);
