@@ -1,5 +1,5 @@
-const CACHE_NAME = 'kazino-lakay-shell-v165-icones-path-fix';
-const APP_SHELL = ['/', '/admin.html', '/manifest.webmanifest', '/icones/icon-192.png', '/icones/icon-512.png'];
+const CACHE_NAME = 'kazino-lakay-shell-v190-admin-wallet';
+const APP_SHELL = ['/', '/admin', '/admin.html', '/manifest.webmanifest', '/icones/icon-192.png', '/icones/icon-512.png'];
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE_NAME)
     .then((cache) => cache.addAll(APP_SHELL))
