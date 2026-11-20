@@ -89,3 +89,14 @@ Stabiliser l'expérience mobile/tablette, les intégrations et l'exploitation. C
 - La base PostgreSQL, les migrations en environnement staging et le binding Hyperdrive ne sont pas encore configurés.
 - Les écrans actuels de production sont une base d'interface ; les opérations complètes de gestion des joueurs et les intégrations KYC/OTP ne sont pas achevées.
 - Ce document planifie les phases 4–6 ; il ne signifie pas que ces critères sont déjà satisfaits.
+
+
+## Suivi du travail sur la branche Production
+
+Les changements ci-dessous sont une première tranche de réalisation et non une validation complète des phases :
+
+- **Phase 4 — démarrage réalisé :** l'API Production expose les 22 jeux du catalogue avec `enabled=false` et `releasePhase=phase_4_pending`. Les tests vérifient les 22 identifiants uniques et l'impossibilité de lancer les endpoints de jeu. Les fiches mathématiques, calculs RTP, simulations statistiques, protocole d'équité et moteur de règlement restent à réaliser.
+- **Phase 5 — première fonction livrée sur la branche :** migration `0003_admin_account_controls.sql`, endpoint réservé au rôle `admin` et à une session MFA valide pour suspendre/réactiver un compte joueur, motif obligatoire, blocage des comptes privilégiés, idempotence et journal d'audit. L'interface Admin affiche les contrôles correspondants. La liste reste limitée aux 100 comptes les plus récents.
+- **Phase 6 — démarrage QA :** le workflow CI couvre la branche Production, les contrôles de syntaxe, les tests applicatifs, les trois migrations PostgreSQL et le build frontend. La QA mobile/tablette, les tests Cloudflare Worker/Hyperdrive/Firebase en staging, les fournisseurs KYC/OTP, la supervision et la restauration restent à faire.
+
+La migration 0003 doit être appliquée après 0001 et 0002 dans une base PostgreSQL de test/staging. Les droits supplémentaires du rôle runtime sont documentés dans `database/README-SETUP-HA.md`. Ne pas appliquer cette migration à une base réelle avant validation du pipeline et sauvegarde.
