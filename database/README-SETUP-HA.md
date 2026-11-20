@@ -36,6 +36,10 @@ SELECT provider_code, enabled, environment FROM payment_provider_configs ORDER B
 
 De founisè peman yo dwe parèt ak `enabled = false`. Pa chanje sa.
 
+Migrasyon 0001 la kreye 12 kont ledger sistèm vid pou HTG, USD ak EUR: kont lajan platfòm, kont clearing founisè, kont revni platfòm ak kont suspense. Kont yo pa gen okenn balans inisyal. Bous kliyan yo se kont credit-normal; kont lajan platfòm/clearing yo se debit-normal, konsa balans sòti nan antre ledger yo dapre nati kont lan.
+
+Migrasyon 0002 la anrejistre 22 jwèt yo, men tout rete `is_enabled=false` ak `release_phase='phase_4_pending'`. Pa chanje paramèt sa yo pandan Faz 1–3.
+
 ## 3. Kreye yon wòl aplikasyon ki gen dwa limite
 
 Pa sèvi ak kont `postgres`, `owner` oswa kont administratè bazdone a kòm `HYPERDRIVE` runtime. Kreye yon wòl aplikasyon separe ak yon modpas solid. Egzanp (ranplase modpas la ak yon sekrè inik):
