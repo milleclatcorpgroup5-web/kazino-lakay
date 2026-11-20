@@ -35,8 +35,10 @@ export async function productionHealth(env) {
         AND to_regclass('public.ledger_entries') IS NOT NULL
         AND to_regclass('public.game_catalog') IS NOT NULL
         AND to_regclass('public.game_rounds') IS NOT NULL
+        AND to_regclass('public.admin_account_actions') IS NOT NULL
         AND EXISTS (SELECT 1 FROM schema_migrations WHERE version='0001_production_foundation')
-        AND EXISTS (SELECT 1 FROM schema_migrations WHERE version='0002_locked_game_registry') AS schema_ready,
+        AND EXISTS (SELECT 1 FROM schema_migrations WHERE version='0002_locked_game_registry')
+        AND EXISTS (SELECT 1 FROM schema_migrations WHERE version='0003_admin_account_controls') AS schema_ready,
         current_timestamp AS checked_at
     `);
     const ready = result.rows[0]?.schema_ready === true;
@@ -50,7 +52,7 @@ export async function productionHealth(env) {
       realMoneyGamesEnabled: false,
       securityMonitoringConfigured: securityReady,
       kycProviderConfigured: false,
-      schema: ready ? '0001+0002' : 'migrations_missing',
+      schema: ready ? '0001+0002+0003' : 'migrations_missing',
       checkedAt: result.rows[0]?.checked_at || null
     };
   } catch (error) {
