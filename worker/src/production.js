@@ -620,7 +620,7 @@ export async function handleProductionRoute(request, env, verifyIdentity) {
       return await withDb(env, async (client) => {
         const { user } = await requireAdminMember(client, identity, false);
         const [credential, session] = await Promise.all([
-          client.query('SELECT 1 FROM admin_mfa_credentials WHERE user_id = $1 AND disabled_at IS NULL AND verified_at IS NOT NULL LIMIT 1', [user.id]),
+          client.query('SELECT 1 FROM admin_mfa_credentials WHERE user_id = $1 AND disabled_at IS NULL LIMIT 1', [user.id]),
           client.query('SELECT 1 FROM admin_mfa_sessions WHERE user_id = $1 AND token_hash = $2 AND expires_at > now() LIMIT 1', [user.id, identity.tokenHash])
         ]);
         return json({ enrolled: credential.rowCount > 0, verified: session.rowCount > 0, expiresInSeconds: session.rowCount ? 600 : 0 });
