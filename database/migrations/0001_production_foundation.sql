@@ -142,6 +142,7 @@ SELECT
   a.owner_id,
   a.account_kind,
   a.currency,
+  a.normal_balance,
   a.account_status,
   COALESCE(b.balance_minor, 0)::BIGINT AS balance_minor
 FROM wallet_accounts a
