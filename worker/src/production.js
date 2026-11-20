@@ -507,7 +507,7 @@ async function handleAdminUsers(client, searchTerm = '') {
   return { users: result.rows };
 }
 
-async function managePlayerAccount(client, actor, body) {
+async function managePlayerAccount(client, actor, identity, body) {
   const targetId = String(body.targetUserId || '').trim();
   const action = String(body.action || '').trim();
   const reason = String(body.reason || '').trim();
@@ -518,73 +518,34 @@ async function managePlayerAccount(client, actor, body) {
   if (!['suspend','reactivate'].includes(action)) fail(400, 'Aksyon an dwe suspend oswa reactivate.');
   if (reason.length < 10 || reason.length > 500) fail(400, 'Bay yon rezon ant 10 ak 500 karaktè.');
   if (idempotencyKey.length < 16 || idempotencyKey.length > 128) fail(400, 'Kle idempotans lan pa valab.');
+  if (!identity.tokenHash) fail(401, 'Sesyon MFA a pa kapab verifye. Rekonekte epi verifye MFA.');
 
-  const actionCode = action === 'suspend' ? 'suspend_player' : 'reactivate_player';
-  const expectedFrom = action === 'suspend' ? 'active' : 'suspended';
-  const nextStatus = action === 'suspend' ? 'suspended' : 'active';
-
-  await client.query('BEGIN');
   try {
-    await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [idempotencyKey]);
-    const replay = await client.query(
-      `SELECT actor_user_id, target_user_id, action, previous_status, new_status, reason
-         FROM admin_account_actions WHERE idempotency_key = $1`,
-      [idempotencyKey]
+    const result = await client.query(
+      `SELECT user_id, account_status, replayed
+         FROM manage_player_account_status($1,$2,$3,$4,$5,$6)`,
+      [actor.id, targetId, action, reason, idempotencyKey, identity.tokenHash]
     );
-    if (replay.rowCount) {
-      const prior = replay.rows[0];
-      if (prior.actor_user_id !== actor.id || prior.target_user_id !== targetId ||
-          prior.action !== actionCode || prior.reason !== reason) {
-        fail(409, 'Kle idempotans sa a te sèvi pou yon lòt aksyon.');
-      }
-      await client.query('COMMIT');
-      return { ok: true, replayed: true, userId: targetId, accountStatus: prior.new_status };
-    }
-
-    const targetResult = await client.query(
-      `SELECT u.id, u.account_status, u.email_verified,
-              COALESCE(
-                (SELECT array_agg(r.role) FROM user_roles r WHERE r.user_id = u.id AND r.revoked_at IS NULL),
-                ARRAY['player']
-              ) AS roles
-         FROM app_users u
-        WHERE u.id = $1
-        FOR UPDATE`,
-      [targetId]
-    );
-    if (!targetResult.rowCount) fail(404, 'Kont jwè sa a pa jwenn.');
-    const target = targetResult.rows[0];
-    if (target.id === actor.id) fail(400, 'Ou pa kapab sispann oswa reyaktive pwòp kont ou.');
-    if (target.roles.some((role) => ['admin','compliance','finance','support','auditor'].includes(role))) {
-      fail(409, 'Kont ki gen wòl administrasyon mande yon pwosedi separe ak verifikasyon an doub.');
-    }
-    if (target.account_status !== expectedFrom) {
-      fail(409, action === 'suspend'
-        ? 'Se sèlman kont aktif ki kapab sispann.'
-        : 'Se sèlman kont sispann ki kapab reyaktive.');
-    }
-    if (action === 'reactivate' && !target.email_verified) {
-      fail(409, 'Kont lan pa kapab reyaktive anvan imel li verifye.');
-    }
-
-    await client.query(
-      `UPDATE app_users SET account_status = $1, updated_at = now() WHERE id = $2`,
-      [nextStatus, targetId]
-    );
-    await client.query(
-      `INSERT INTO admin_account_actions
-         (idempotency_key, actor_user_id, target_user_id, action, previous_status, new_status, reason)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-      [idempotencyKey, actor.id, targetId, actionCode, expectedFrom, nextStatus, reason]
-    );
-    await addAudit(
-      client, actor.id, 'admin', action === 'suspend' ? 'player_account_suspended' : 'player_account_reactivated',
-      'app_users', targetId, 'success', reason, { previousStatus: expectedFrom, newStatus: nextStatus, idempotencyKey }
-    );
-    await client.query('COMMIT');
-    return { ok: true, replayed: false, userId: targetId, accountStatus: nextStatus };
+    const row = result.rows[0];
+    return { ok: true, replayed: row.replayed, userId: row.user_id, accountStatus: row.account_status };
   } catch (error) {
-    await client.query('ROLLBACK').catch(() => {});
+    if (error?.code === '42501') {
+      if (error.message === 'admin_mfa_required') fail(403, 'MFA pa verifye oswa sesyon administratè a ekspire. Verifye kòd MFA a ankò.');
+      if (error.message === 'privileged_account_requires_separate_review') fail(409, 'Kont ki gen wòl administrasyon mande yon pwosedi separe ak verifikasyon an doub.');
+      fail(403, 'Se sèlman yon administratè aktif ki gen dwa fè aksyon sa a.');
+    }
+    if (error?.code === 'P0002') fail(404, 'Kont jwè sa a pa jwenn.');
+    if (error?.code === '22023') {
+      if (error.message === 'admin_cannot_manage_own_account') fail(400, 'Ou pa kapab sispann oswa reyaktive pwòp kont ou.');
+      fail(400, 'Paramèt aksyon administratè a pa valab.');
+    }
+    if (error?.code === '23514') {
+      if (error.message === 'only_active_player_can_be_suspended') fail(409, 'Se sèlman kont aktif ki kapab sispann.');
+      if (error.message === 'only_suspended_player_can_be_reactivated') fail(409, 'Se sèlman kont sispann ki kapab reyaktive.');
+      if (error.message === 'email_verification_required_before_reactivation') fail(409, 'Kont lan pa kapab reyaktive anvan imel li verifye.');
+      fail(409, 'Tranzisyon estati kont sa a pa otorize.');
+    }
+    if (error?.code === '23505') fail(409, 'Kle idempotans sa a deja sèvi pou yon lòt aksyon.');
     throw error;
   }
 }
@@ -763,7 +724,7 @@ export async function handleProductionRoute(request, env, verifyIdentity) {
       const body = await readBody(request);
       return await withDb(env, async (client) => {
         const { user } = await requireAdminMember(client, identity, true, ['admin']);
-        return json(await managePlayerAccount(client, user, body));
+        return json(await managePlayerAccount(client, user, identity, body));
       });
     }
 
