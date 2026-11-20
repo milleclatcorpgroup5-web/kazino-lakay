@@ -14,7 +14,21 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-only-not-for-production
+          POSTGRES_DB: kazino_lakay_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d kazino_lakay_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,9 +38,13 @@ jobs:
           node-version: "24.12.0"
       - name: Install dependencies
         run: npm install --no-audit --no-fund
-      - name: Check source syntax and tests
+      - name: Check source syntax and application tests
         run: |
           npm run check
           npm test
+      - name: Execute PostgreSQL migrations and ledger integration tests
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:ci-only-not-for-production@localhost:5432/kazino_lakay_test
+        run: npm run test:postgres
       - name: Build frontend
         run: npm run build
