@@ -181,3 +181,11 @@ if (firebaseReady) watchAuth(async (user) => {
 });
 render();
 loadHealth();
+
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' })
+      .then((registration) => registration.update().catch(() => {}))
+      .catch((error) => console.error('[Kazino Lakay] Service worker registration failed:', error));
+  }, { once: true });
+}
