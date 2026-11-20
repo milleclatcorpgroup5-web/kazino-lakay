@@ -44,7 +44,7 @@ CREATE OR REPLACE FUNCTION manage_player_account_status(
 ) RETURNS TABLE (user_id UUID, account_status TEXT, replayed BOOLEAN)
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = pg_catalog, public
+SET search_path = pg_catalog, public, pg_temp
 AS $kl_admin$
 DECLARE
   v_existing admin_account_actions%ROWTYPE;
