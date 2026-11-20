@@ -48,3 +48,12 @@ Sekrè `MFA_ENCRYPTION_KEY` ak `SECURITY_HASH_SALT` dwe sekrè diferan. Apre sa,
 ## Sekirite/legal
 
 Pa aktive jwèt, paryaj, depo oswa retrè lajan reyèl anvan lisans akò ak patnè yo valide, KYC/laj, AML, kontwòl finansye, ak tès sekirite yo fin pase.
+
+
+## Preparasyon vizyèl Penalty Lakay
+
+- Seleksyon 16 peyi yo sèvi ak yon vedèt reprezantan pa peyi; non jwè, wòl ak nimewo referans yo soti nan `src/games/penalty-roster.js`.
+- Ekran kliyan an montre yon aperçu pou chwazi peyi a pandan jwèt yo rete dezaktive.
+- Ansanm SVG Penalty Lakay la montre non/nimewo jwè a epi li gen mouvman elan, kò, janm frapan, bra ak plonje gadyen ki amelyore.
+- Direksyon atistik 22 jwèt yo dokimante nan `VISUAL-ART-DIRECTION-HA.md`.
+- Sa a poko vle di nou gen modèl fotoreyalis 3D oswa resous mocap. Modèl imen 3D, mouvman mocap, imaj final 22 jwèt yo ak dwa pou itilize resous jwè yo rete travay ki poko fèt.
