@@ -46,6 +46,27 @@ function compliancePanel() {
     <form id="exclude-form" class="form-grid"><h3>Oto-eksklizyon</h3><label>Dire<select name="duration" required><option value="">Chwazi dire</option><option value="1_day">1 jou</option><option value="7_days">7 jou</option><option value="30_days">30 jou</option><option value="90_days">90 jou</option><option value="365_days">365 jou</option><option value="permanent">Pèmanan</option></select></label><button class="btn danger" type="submit" ${c.selfExcluded?'disabled':''}>Bloke kont mwen</button></form>
     <p class="hint">KYC/verifikasyon laj poko konekte ak yon founisè. Pa voye dokiman idantite nan aplikasyon an.</p></section>`;
 }
+
+function accountPanel() {
+  const profile = state.profile || {};
+  const wallet = state.wallet?.wallet || {};
+  return `<div class="grid">
+    <section class="panel">
+      <div class="section-title"><div><small>BOUS KLIYAN</small><h2>Balans kont mwen</h2></div><span class="pill">LEKTI SÈLMAN</span></div>
+      <div class="balance">${money(wallet.balanceMinor || 0, wallet.currency || 'HTG')}</div>
+      <p>Kont lan kòmanse a zewo. Depo ak retrè pa aktive.</p>
+      <div class="bar-actions">${button('Rafrechi bous','refresh',state.busy,'ghost')}${button('Sistèm sekirite','compliance',state.busy,'ghost')}</div>
+    </section>
+    <section class="panel">
+      <small>ESTATI KONFÒMITE</small>
+      <h2>${esc(profile.accountStatus || 'pending_review')}</h2>
+      <p>Imèl: ${state.user?.emailVerified ? 'verifye' : 'pa verifye'} · KYC: ${esc(profile.kycStatus || 'not_started')} · Laj: ${esc(profile.ageVerificationStatus || 'unverified')}</p>
+      <p class="hint">Ou dwe tann verifikasyon idantite ak laj atravè sèvis otorize. Sa poko disponib.</p>
+      ${!state.user?.emailVerified ? button('Voye imèl verifikasyon','verify-email',state.busy,'ghost') : ''}
+    </section>
+  </div>`;
+}
+
 function render() {
   const ready = state.health?.status === 'ok' && state.health?.databaseReady === true;
   const wallet = state.wallet?.wallet || {};
@@ -57,7 +78,7 @@ function render() {
     <header class="bar"><div class="brand"><div class="logo">KL</div><div><h1>Kazino Lakay</h1><small>Milléclat Corp Groupe · Platfòm jwèt</small></div></div><div class="bar-actions">${state.user?'<span class="muted">'+esc(state.user.email)+'</span>':''}${state.user?button('Dekonekte','logout',state.busy,'ghost'):button('Konekte','login',state.busy,'ghost')}</div></header>
     <section class="hero"><div><span class="badge">V2.0 · BAZ PWODIKSYON</span><h2>Yon platfòm serye.<br><em>Yon kont ki pwoteje.</em></h2><p>Kazino Lakay ap prepare sistèm kliyan, kontwòl, kontablite ak sekirite. Nou pa aktive okenn paryaj, depo oswa retrè pandan preparasyon legal ak teknik la.</p></div><aside class="lock-card"><small>ETA SÈVIS</small><b>${ready?'BAZDONE PARE':'AN PREPARASYON'}</b><p>${state.health?.databaseConfigured?'PostgreSQL konekte.':'PostgreSQL poko konekte.'} Jwèt ak peman rete fèmen.</p><span class="pill">PAYMENTS OFF · GAMES OFF</span></aside></section>
     ${state.error?'<div class="notice error">'+esc(state.error)+'</div>':''}${state.success?'<div class="notice">'+esc(state.success)+'</div>':''}
-    ${state.user?'<div class="grid"><section class="panel"><div class="section-title"><div><small>BOUS KLIYAN</small><h2>Balans kont mwen</h2></div><span class="pill">LEKTI SÈLMAN</span></div><div class="balance">'+money(wallet.balanceMinor||0,wallet.currency||'HTG')+'</div><p>Kont lan kòmanse a zewo. Depo ak retrè pa aktive.</p><div class="bar-actions">'+button('Rafrechi bous','refresh',state.busy,'ghost')+button('Sistèm sekirite','compliance',state.busy,'ghost')+'</div></section><section class="panel"><small>ESTATI KONFÒMITE</small><h2>${esc(state.profile?.accountStatus||'pending_review')}</h2><p>Imèl: ${state.user.emailVerified?'verifye':'pa verifye'} · KYC: ${esc(state.profile?.kycStatus||'not_started')} · Laj: ${esc(state.profile?.ageVerificationStatus||'unverified')}</p><p class="hint">Ou dwe tann verifikasyon idantite ak laj atravè sèvis otorize. Sa poko disponib.</p>${!state.user.emailVerified?button('Voye imèl verifikasyon','verify-email',state.busy,'ghost'):''}</section></div>'+compliancePanel():authPanel()}
+    ${state.user ? accountPanel() + compliancePanel() : authPanel()}
     <section class="panel"><div class="section-title"><div><small>GAME CENTER</small><h2>22 jwèt yo</h2><p class="muted">Katalòg la disponib pou konsiltasyon sèlman. Okenn jwèt pa ka lanse nan Faz 1–3.</p></div><span class="pill">0 AKTIF</span></div><div class="games">${GAMES.map(game=>'<div class="game"><b>'+esc(game.name)+'</b><span>Dezaktive · Faz 4</span></div>').join('')}</div></section>
     <section class="grid"><div class="panel"><small>DEPO</small><h2>Ajoute lajan</h2><p>Espas entegrasyon founisè a prepare. MonCash/NatCash poko konekte.</p><button class="btn" disabled>Depoze — pa aktive</button></div><div class="panel"><small>RETRÈ</small><h2>Retire lajan</h2><p>Workflow apwobasyon ak kontwòl finansye a poko aktive.</p><button class="btn" disabled>Retire — pa aktive</button></div></section>
     <footer>© ${new Date().getFullYear()} Milléclat Corp Groupe · Kazino Lakay V2.0.0-alpha.2 · Tout fonksyon jwèt ak peman rete dezaktive.</footer>
