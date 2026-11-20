@@ -56,7 +56,7 @@ const workerSource = await readFile(new URL('./src/index.js', import.meta.url), 
 const adminSource = await readFile(new URL('../src/admin.js', import.meta.url), 'utf8');
 const playerSource = await readFile(new URL('../src/main.js', import.meta.url), 'utf8');
 assert.match(mainHtml, /manifest\.webmanifest/);
-assert.match(adminHtml, /src\/admin\.js/);
+assert.match(adminHtml, /src\/production-admin\.js/, 'Admin HTML dwe sèvi ak nouvo entèfas admin pwodiksyon an.');
 assert.match(redirects, /^\/admin \/admin\.html 200/m, 'URL /admin dwe louvri paj administrasyon apa a.');
 assert.match(adminHtml, /noindex,nofollow/);
 assert.match(firestoreRules, /match \/walletAccounts\/{uid}/);
