@@ -1,4 +1,5 @@
-import { handleProductionRoute, productionHealth } from './production.js';
+import { handleProductionRoute } from './production.js';
+import { productionHealth } from './production-health.js';
 
 const encoder = new TextEncoder();
 const JWKS_URL = 'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com';
