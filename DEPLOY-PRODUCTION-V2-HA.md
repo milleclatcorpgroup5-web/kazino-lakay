@@ -112,7 +112,7 @@ Variables non secrètes :
 1. Créer le compte dans Firebase Authentication et vérifier son e-mail.
 2. Se connecter une fois à l'environnement staging pour que `POST /api/profile/bootstrap` crée le profil PostgreSQL en `pending_review`.
 3. Avec une connexion owner/migrator contrôlée, vérifier que l'UID Firebase correspond au champ `app_users.auth_subject`.
-4. Activer le compte et insérer le rôle `admin) selon l'exemple de la section 6 de `database/README-SETUP-HA.md`.
+4. Activer le compte et insérer le rôle `admin` selon l'exemple de la section 6 de `database/README-SETUP-HA.md`.
 5. Se connecter à `/admin`, enrôler MFA TOTP, puis vérifier le code à 6 chiffres.
 
 Ne pas accorder le rôle admin à travers un endpoint client. Ne pas partager le secret TOTP ou les codes de secours.
