@@ -31,7 +31,7 @@ Tout pousantaj ki anba yo soti nan règ ak valè ansyen motè V1.9 la. Kalkil yo
 | Mines — 1 min, 1 kare chwazi | 98.20% | Menm fòmil la bese RTP lè kantite kare/min monte |
 | Plinko — 6 liy, low / normal / high | 100.63% / 88.13% / 85.94% | Low depase 100%; lòt yo pi ba |
 | Plinko — 8 liy, low / normal / high | 99.06% / 83.20% / 69.38% | Diferans twò laj ant risk yo |
-| Penalty — gadyen easy / normal / hard | 88.89% / 77.78% / 66.67% | Chans ak retou pa balanse |
+| Penalty — gadyen easy / normal / hard | 177.78% / 155.56% / 133.33% | RTP a depase 100% nan tout nivo; retou brit la se 2× lè gòl antre |
 | Coin Flip — 1, 3 oswa 5 lansman, majorite genyen | 95.00% | 5% avantaj teyorik si règ yo rete menm |
 | Limbo — objektif 1.1× / 1.5× / 2× / 5× / 10× / 20× | anviwon 100.46% / 100.33% / 100.25% / 100.10% / 100.05% / 100.03% | Redondans ak limit rezilta yo bay twòp retou |
 | Scratch — low / normal / high | 113.33% / 61.11% / 18.75% | Tablo retou pa ekilibre |
