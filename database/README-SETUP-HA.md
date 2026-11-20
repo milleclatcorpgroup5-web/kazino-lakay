@@ -18,6 +18,7 @@ Sèvi ak yon koneksyon administratè bazdone a nan zouti founisè PostgreSQL la 
 
 1. `database/migrations/0001_production_foundation.sql` — kont kliyan, bous, ledger, kontwòl sekirite ak konfòmite.
 2. `database/migrations/0002_locked_game_registry.sql` — katalòg 22 jwèt yo ak depo wonn yo; tout jwèt rete dezaktive.
+3. `database/migrations/0003_admin_account_controls.sql` — rejis imitab aksyon administratè sou kont jwè yo (sispann/reyaktive), avèk kle idempotans.
 
 Pa egzekite migrasyon 0002 anvan 0001 paske li itilize fonksyon sekirite migrasyon 0001 kreye a.
 
@@ -29,7 +30,7 @@ SELECT to_regclass('public.app_users'), to_regclass('public.wallet_accounts'),
        to_regclass('public.ledger_transactions'), to_regclass('public.ledger_entries'),
        to_regclass('public.game_catalog'), to_regclass('public.game_rounds');
 SELECT version FROM schema_migrations
-WHERE version IN ('0001_production_foundation','0002_locked_game_registry')
+WHERE version IN ('0001_production_foundation','0002_locked_game_registry','0003_admin_account_controls')
 ORDER BY version;
 SELECT provider_code, enabled, environment FROM payment_provider_configs ORDER BY provider_code;
 ```
@@ -56,6 +57,8 @@ GRANT INSERT (auth_provider, auth_subject, email, display_name, email_verified)
   ON app_users TO kazino_lakay_app;
 GRANT UPDATE (email, display_name, email_verified, updated_at)
   ON app_users TO kazino_lakay_app;
+GRANT UPDATE (account_status, updated_at) ON app_users TO kazino_lakay_app;
+GRANT SELECT, INSERT ON admin_account_actions TO kazino_lakay_app;
 GRANT INSERT ON self_exclusions, security_events, audit_logs, fraud_alerts
   TO kazino_lakay_app;
 GRANT INSERT (user_id, currency, daily_deposit_limit_minor, weekly_deposit_limit_minor, daily_wager_limit_minor, daily_loss_limit_minor)
@@ -141,9 +144,9 @@ Apre deplwaman sou yon anviwònman staging izole (pa sou production aktyèl la),
 
 - `GET /api/health` retounen `mode=production`.
 - San Hyperdrive, li dwe retounen `status=maintenance` ak `databaseConfigured=false`.
-- Apre toude migrasyon yo, `databaseReady=true` epi schema a rapòte `0001+0002`.
+- Apre twa migrasyon yo, `databaseReady=true` epi schema a rapòte `0001+0002+0003`.
 - `paymentsEnabled=false` ak `realMoneyGamesEnabled=false` toujou.
-- `GET /api/games` retounen zewo jwèt aktif.
+- `GET /api/games` retounen 22 jwèt nan katalòg la, tout ak `enabled=false` ak `releasePhase=phase_4_pending`.
 - `POST /api/games/demo` ak `POST /api/games/play` retounen HTTP 423.
 - Ansyen API administrasyon ki te manipile pwen yo retounen HTTP 410.
 
