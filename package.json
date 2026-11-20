@@ -1,18 +1,19 @@
 {
   "name": "kazino-lakay",
   "private": true,
-  "version": "1.9.0",
+  "version": "2.0.0-alpha.2",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "npm run check && npm test && vite build --config vite.config.js",
     "preview": "vite preview --host 0.0.0.0",
-    "check": "node --check src/main.js && node --check src/admin.js && node --check src/firebase.js && node --check src/api.js && node --check src/games/catalog.js && node --check src/games/roulette.js && node --check worker/src/index.js && node --check worker/test-engine.mjs && node --check public/sw.js && node --check vite.config.js",
+    "check": "node --check src/main.js && node --check src/admin.js && node --check src/firebase.js && node --check src/api.js && node --check src/games/catalog.js && node --check src/games/roulette.js && node --check worker/src/index.js && node --check worker/src/production.js && node --check worker/test-engine.mjs && node --check public/sw.js && node --check vite.config.js",
     "test": "node worker/test-engine.mjs",
     "deploy:worker": "wrangler deploy --config worker/wrangler.toml"
   },
   "dependencies": {
-    "firebase": "^13.2.0"
+    "firebase": "^13.2.0",
+    "pg": "^8.16.3"
   },
   "devDependencies": {
     "vite": "^7.1.12",
