@@ -237,7 +237,7 @@ try {
   const adminIdentity = { uid: adminUid, email: `${adminUid}@example.invalid`, emailVerified: true, tokenHash: adminTokenHash };
   const playerIdentity = { uid: playerUid, email: `${playerUid}@example.invalid`, emailVerified: true, tokenHash: 'b'.repeat(64) };
   const verifyIdentity = async (request) => {
-    const token = request.headers.get('Authorization')?.replace(/^Bearer\\s+/i, '');
+    const token = request.headers.get('Authorization')?.replace(/^Bearer\s+/i, '');
     if (token === 'ci-admin-token') return adminIdentity;
     if (token === 'ci-player-token') return playerIdentity;
     const error = new Error('unauthorized');
