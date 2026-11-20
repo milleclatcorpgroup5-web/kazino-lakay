@@ -1,53 +1,68 @@
-# Kazino Lakay V1.9.0
+# Kazino Lakay V2.0.0 — Production en préparation
 
-Kazino Lakay se yon aplikasyon jwèt mobile-first an kreyòl, ak 22 jwèt, kont itilizatè Firebase, yon Worker Cloudflare ak Firestore. Li rete nan mòd pwen demonstrasyon sèlman.
+Cette branche contient le code **Production V2** de Kazino Lakay. Elle n'est pas encore déployée sur le Worker public. Elle utilise Firebase Authentication pour l'identité, PostgreSQL pour les données Production et Cloudflare Worker + Static Assets + Hyperdrive pour l'exécution.
 
-## Fonksyon prensipal
+> **Important :** l'ancien moteur V1.9 points-only/Firestore existe encore dans le dépôt comme code historique et tests de régression. Il ne doit pas être utilisé comme moteur de jeu ou système de portefeuille pour Production V2.
 
-- 22 jwèt ak rezilta yo kalkile sou Worker la.
-- Firebase Authentication pou enskripsyon/koneksyon jwè.
-- Bous pèsonèl pou chak jwè ak istwa mouvman pwen.
-- Sant Admin apa sou `/admin` (fichye paj la se `admin.html`).
-- Kontwòl jwèt global ak endividyèl, jesyon jwè, koreksyon pwen, estati kont ak jounal admin.
-- Kont platfòm, rezilta pwen nèt, total pwen parye/retounen ak ledger tranzaksyon.
-- Firestore ekri an tranzaksyon atomik; `requestId` anpeche menm demann jwèt la kredite/debite de fwa.
-- Rules Firestore bloke aksè dirèk navigatè a. Se Worker la ki sèvi ak Service Account + IAM.
-- PWA ak layout adapte ak telefòn/tablet.
+## Architecture Production
 
-## Firestore
+- **Cloudflare Worker + Static Assets :** interface web, routes API et contrôles d'accès.
+- **Firebase Authentication :** inscription, connexion et vérification de l'adresse e-mail.
+- **PostgreSQL dédié à Kazino Lakay :** comptes, rôles, ledger, audit, MFA et registre des 22 jeux.
+- **Cloudflare Hyperdrive :** liaison privée entre le Worker et PostgreSQL.
 
-Koleksyon yo kreye otomatikman: `users`, `walletAccounts`, `walletTransactions`, `platformWallet`, `gameRounds`, `adminActions`, `systemSettings`. Apre premye koneksyon Admin lan, `POST /api/admin/setup` inisyalize dokiman sistèm ak kont platfòm, epi li ajoute dokiman bous ki manke pou jwè ki deja egziste yo.
+La base PostgreSQL n'est pas encore provisionnée. Les migrations, le rôle runtime, Hyperdrive et les secrets doivent être testés sur un environnement staging dédié avant tout déploiement.
 
-Gade `FIRESTORE-SETUP-HA.md` pou etap Firebase Console ak Rules yo. Pa mete Firestore Rules `allow read, write: if true`.
+## Accès de l'application
 
-## Adrès
+- Joueurs : `/`
+- Administration : `/admin`
+- État du service : `/api/health`
+- Catalogue : `/api/games`
 
-- Jwè: `/`
-- Administrasyon: `/admin`
-- API sante: `/api/health`
+En Production V2, les 22 jeux apparaissent uniquement comme catalogue : ils restent tous désactivés (`phase_4_pending`). Les demandes de jeu sont refusées avec HTTP 423.
 
-## Kòmand build ak tès
+## Build et tests
+
+Node.js `>=24.12.0` est requis.
 
 ```bash
 npm install
 npm run check
 npm test
+npm run test:postgres
 npm run build
 ```
 
-`worker/wrangler.toml` sèvi ak `dist` kòm dosye assets. Build command la se `npm run build`; deploy Worker la ak `npm run deploy:worker` oswa workflow GitHub/Cloudflare ki deja konekte a.
+`npm run test:postgres` exige une base PostgreSQL jetable de CI ou de test via `TEST_DATABASE_URL`. Ne pas utiliser une base Production pour les tests.
 
-## Pa gen lajan reyèl
+## Déploiement
 
-Tout balans, parye, retou ak kont platfòm lan se pwen Demo san valè lajan. Pa gen depo, retrè, peman, MonCash/NatCash, kat bank, konvèsyon pwen oswa lajan reyèl. Pa sèvi ak app sa a pou aksepte parye lajan.
+Le projet Production n'est pas un déploiement Pages statique autonome. Il utilise le Worker configuré dans `worker/wrangler.toml`, avec les assets Vite dans `dist`.
 
+Consulter [DEPLOY-PRODUCTION-V2-HA.md](./DEPLOY-PRODUCTION-V2-HA.md) et [database/README-SETUP-HA.md](./database/README-SETUP-HA.md). Ne pas suivre l'ancien guide `DEPLOY-HA.md` pour installer V2 : ce guide décrit la branche V1.9 Firestore.
+
+## Sécurité — les verrouillages doivent rester actifs
+
+- `APP_MODE=production`
+- `DEMO_ENABLED=false`
+- `PAYMENTS_ENABLED=false`
+- `REAL_MONEY_GAMES_ENABLED=false`
+- Aucun crédit de points de démonstration dans les comptes PostgreSQL.
+- Aucune conversion des anciens points Firestore.
+- Aucun dépôt, retrait ou paiement MonCash/NatCash.
+- Aucun jeu ou pari activé avant validation mathématique, sécurité, conformité et autorisation distincte.
 
 ## Faz 4–6
 
-Plan travay ak kritè sòti: [PHASE-4-6-ROADMAP-HA.md](./PHASE-4-6-ROADMAP-HA.md). Faz sa yo poko valide ni aktive; tout jwèt ak tout peman rete dezaktive.
+- Plan de travail : [PHASE-4-6-ROADMAP-HA.md](./PHASE-4-6-ROADMAP-HA.md).
+- Odit matematik : [PRODUCTION-PHASE-4-MATH-AUDIT-HA.md](./PRODUCTION-PHASE-4-MATH-AUDIT-HA.md).
 
+Le rapport mathématique analyse l'ancien moteur V1.9 à titre de diagnostic uniquement. Il ne définit pas et n'approuve aucun paytable Production. Les RTP Production restent à calculer et à approuver.
 
-## Odit matematik Production — Faz 4
+## État actuel
 
-Rapò dyagnostik ak tès kalkil yo: [PRODUCTION-PHASE-4-MATH-AUDIT-HA.md](./PRODUCTION-PHASE-4-MATH-AUDIT-HA.md). Rapò a pa aktive okenn jwèt epi li pa apwouve paytable Production.
-
+- Production V2 est en préparation sur la branche `codex/kazino-v2.0.0-production-phase-4-6`.
+- Le workflow CI couvre les tests JavaScript, les trois migrations PostgreSQL et le build Vite.
+- PostgreSQL, Hyperdrive, les secrets Cloudflare et les tests staging Firebase/Worker ne sont pas encore configurés.
+- Aucun changement de cette branche n'a été déployé sur le Worker public.
