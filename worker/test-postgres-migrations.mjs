@@ -120,6 +120,7 @@ try {
       { account_id: platform.rows[0].id, entry_side: 'debit', amount_minor: 5001, currency: 'HTG' },
       { account_id: wallet.rows[0].id, entry_side: 'credit', amount_minor: 5001, currency: 'HTG' }
     ];
+    await client.query('SAVEPOINT idempotency_reuse_test');
     await assert.rejects(
       client.query(
         `SELECT post_ledger_transaction($1, $2, $3, $4::jsonb)`,
@@ -127,11 +128,13 @@ try {
       ),
       (error) => error.code === '23505'
     );
+    await client.query('ROLLBACK TO SAVEPOINT idempotency_reuse_test');
 
     const overspend = [
       { account_id: wallet.rows[0].id, entry_side: 'debit', amount_minor: 5001, currency: 'HTG' },
       { account_id: platform.rows[0].id, entry_side: 'credit', amount_minor: 5001, currency: 'HTG' }
     ];
+    await client.query('SAVEPOINT overspend_test');
     await assert.rejects(
       client.query(
         `SELECT post_ledger_transaction($1, $2, $3, $4::jsonb)`,
@@ -139,11 +142,28 @@ try {
       ),
       (error) => error.code === '23514'
     );
+    await client.query('ROLLBACK TO SAVEPOINT overspend_test');
 
+    await client.query('SAVEPOINT immutable_ledger_test');
     await assert.rejects(
       client.query(`UPDATE ledger_entries SET amount_minor = 1 WHERE transaction_id = $1`, [posted.rows[0].id]),
       (error) => error.code === '55000'
     );
+    await client.query('ROLLBACK TO SAVEPOINT immutable_ledger_test');
+
+    await client.query('SAVEPOINT unbalanced_ledger_test');
+    const unbalanced = [
+      { account_id: platform.rows[0].id, entry_side: 'debit', amount_minor: 100, currency: 'HTG' },
+      { account_id: wallet.rows[0].id, entry_side: 'credit', amount_minor: 99, currency: 'HTG' }
+    ];
+    await assert.rejects(
+      client.query(
+        `SELECT post_ledger_transaction($1, $2, $3, $4::jsonb)`,
+        ['ci-idempotency-unbalanced', 'ci_test_unbalanced', userId, JSON.stringify(unbalanced)]
+      ),
+      (error) => error.code === '23514'
+    );
+    await client.query('ROLLBACK TO SAVEPOINT unbalanced_ledger_test');
   } finally {
     await client.query('ROLLBACK');
   }
