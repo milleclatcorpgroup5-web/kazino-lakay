@@ -543,12 +543,13 @@ async function managePlayerAccount(client, actor, body) {
 
     const targetResult = await client.query(
       `SELECT u.id, u.account_status, u.email_verified,
-              COALESCE(array_agg(DISTINCT r.role) FILTER (WHERE r.role IS NOT NULL), ARRAY['player']) AS roles
+              COALESCE(
+                (SELECT array_agg(r.role) FROM user_roles r WHERE r.user_id = u.id AND r.revoked_at IS NULL),
+                ARRAY['player']
+              ) AS roles
          FROM app_users u
-         LEFT JOIN user_roles r ON r.user_id = u.id AND r.revoked_at IS NULL
         WHERE u.id = $1
-        GROUP BY u.id
-        FOR UPDATE OF u`,
+        FOR UPDATE`,
       [targetId]
     );
     if (!targetResult.rowCount) fail(404, 'Kont jwè sa a pa jwenn.');
