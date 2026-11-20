@@ -45,7 +45,7 @@ CREATE OR REPLACE FUNCTION manage_player_account_status(
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = pg_catalog, public
-AS $
+AS $kl_admin$
 DECLARE
   v_existing admin_account_actions%ROWTYPE;
   v_previous_status TEXT;
@@ -57,9 +57,7 @@ BEGIN
      OR p_action NOT IN ('suspend','reactivate')
      OR p_reason IS NULL OR length(trim(p_reason)) NOT BETWEEN 10 AND 500
      OR p_idempotency_key IS NULL OR length(p_idempotency_key) NOT BETWEEN 16 AND 128
-     OR p_token_hash IS NULL OR p_token_hash !~ '^[a-f0-9]{64}
-COMMIT;
- THEN
+     OR p_token_hash IS NULL OR p_token_hash !~ '^[a-f0-9]{64}$' THEN
     RAISE EXCEPTION 'invalid_admin_account_action' USING ERRCODE = '22023';
   END IF;
 
@@ -154,7 +152,7 @@ COMMIT;
 
   RETURN QUERY SELECT p_target_user_id, v_next_status, FALSE;
 END;
-$;
+$kl_admin$;
 REVOKE ALL ON FUNCTION manage_player_account_status(UUID, UUID, TEXT, TEXT, TEXT, TEXT) FROM PUBLIC;
 
 INSERT INTO schema_migrations (version)
