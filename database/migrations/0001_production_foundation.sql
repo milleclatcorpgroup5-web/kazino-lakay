@@ -55,7 +55,10 @@ CREATE TABLE IF NOT EXISTS wallet_accounts (
   owner_type TEXT NOT NULL CHECK (owner_type IN ('user','platform','provider','clearing','house')),
   owner_id UUID,
   account_kind TEXT NOT NULL CHECK (account_kind IN ('player_wallet','platform_cash','provider_clearing','house_revenue','suspense')),
-  currency CHAR(3) NOT NULL CHECK (currency ~ '^[A-Z]{3}
+  currency CHAR(3) NOT NULL CHECK (currency ~ '^[A-Z]{3}$'),
+  normal_balance TEXT NOT NULL DEFAULT 'credit' CHECK (normal_balance IN ('debit','credit')),
+  account_status TEXT NOT NULL DEFAULT 'active' CHECK (account_status IN ('active','frozen','closed')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   CHECK ((owner_type = 'user' AND owner_id IS NOT NULL) OR (owner_type <> 'user'))
 );
 CREATE UNIQUE INDEX IF NOT EXISTS wallet_accounts_owner_currency_uq ON wallet_accounts (owner_type, owner_id, account_kind, currency) WHERE owner_id IS NOT NULL;
