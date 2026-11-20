@@ -1,24 +1,26 @@
 {
   "name": "kazino-lakay",
   "private": true,
-  "version": "1.9.0",
+  "version": "2.0.0-alpha.2",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "npm run check && npm test && vite build --config vite.config.js",
     "preview": "vite preview --host 0.0.0.0",
-    "check": "node --check src/main.js && node --check src/admin.js && node --check src/firebase.js && node --check src/api.js && node --check src/games/catalog.js && node --check src/games/roulette.js && node --check worker/src/index.js && node --check worker/test-engine.mjs && node --check public/sw.js && node --check vite.config.js",
-    "test": "node worker/test-engine.mjs",
+    "check": "node --check src/main.js && node --check src/admin.js && node --check src/production-main.js && node --check src/production-admin.js && node --check src/firebase.js && node --check src/api.js && node --check src/games/catalog.js && node --check src/games/penalty-roster.js && node --check src/games/roulette.js && node --check worker/src/production.js && node --check worker/src/production-entry.js && node --check worker/src/production-health.js && node --check worker/test-engine.mjs && node --check worker/test-production-entry.mjs && node --check worker/test-postgres-migrations.mjs && node --check public/sw.js && node --check vite.config.js && node --check worker/test-penalty-roster.mjs",
+    "test": "node worker/test-engine.mjs && node worker/test-production-entry.mjs && node worker/test-penalty-roster.mjs",
+    "test:postgres": "node worker/test-postgres-migrations.mjs",
     "deploy:worker": "wrangler deploy --config worker/wrangler.toml"
   },
   "dependencies": {
-    "firebase": "^13.2.0"
+    "firebase": "^13.2.0",
+    "pg": "^8.16.3"
   },
   "devDependencies": {
     "vite": "^7.1.12",
     "wrangler": "^4.42.0"
   },
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=24.12.0"
   }
 }
