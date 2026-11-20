@@ -122,6 +122,7 @@ root.addEventListener('click', async event=>{
       dashboardView();
     } finally {
       state.busy=false;
+      if (state.profile && state.mfa?.verified) dashboardView();
     }
     return;
   }
@@ -131,7 +132,10 @@ root.addEventListener('click', async event=>{
   if (action==='refresh') {
     try { state.busy=true; await refresh(); }
     catch(error) { state.error=error.message||'Rafrechisman echwe.'; dashboardView(); }
-    finally { state.busy=false; }
+    finally {
+      state.busy=false;
+      if (state.profile && state.mfa?.verified) dashboardView();
+    }
   }
 });
 root.addEventListener('submit', async event=>{
