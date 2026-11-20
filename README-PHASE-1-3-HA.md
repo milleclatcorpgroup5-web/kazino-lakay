@@ -9,7 +9,7 @@ Sa a se yon fondasyon pwodiksyon ki poko pare pou lansman. Pa merge oswa deplway
 - Pwen istorik Firestore pa enpòte nan PostgreSQL epi yo pa konvèti an lajan.
 - Mòd production pa sèvi ak API Firestore pwen yo; ansyen endpoints admin pwen yo fèmen.
 - Jwèt, paryaj, depo, retrè ak peman rete fèmen. `/api/games` pa anonse okenn jwèt aktif; esè jwe retounen HTTP 423.
-- PostgreSQL migration lan kreye kont itilizatè, wòl, wallets, ledger doub-antre, idempotency, compliance records, MFA, payment placeholders, audit ak fraud events.
+- De migrasyon PostgreSQL yo kreye kont itilizatè, wòl, wallets, ledger doub-antre, idempotency, compliance records, MFA, payment placeholders, audit/fraud events, ak rejis 22 jwèt yo ki rete dezaktive.
 - Ledger posting la se yon fonksyon DB revize pou fondasyon an; pa gen endpoint aplikasyon ki poste tranzaksyon nan alpha sa a.
 - Admin pwodiksyon an sèvi ak wòl ki nan PostgreSQL ak MFA TOTP ki mare ak hash token Firebase.
 - Kliyan ka wè status KYC/laj, mete limit pèsonèl HTG epi aktive oto-eksklizyon.
@@ -25,7 +25,7 @@ Sa a se yon fondasyon pwodiksyon ki poko pare pou lansman. Pa merge oswa deplway
 - Pa gen workflow revizyon/rezolisyon alèt anti-fwod.
 - Pa gen ledger posting API, kontablite depo/retrè, oswa entegrasyon MonCash/NatCash.
 - Pa gen nouvo tès estatistik/paytable pou 22 jwèt yo; sa se Faz 4.
-- Pa gen build Vite final nan sesyon sa a paske `vite` pa t enstale nan anviwònman travay la. Tès Node ak sentaks pase.
+- Build Vite final la ak tès CI GitHub Actions dwe pase anvan merge. Migrasyon SQL yo toujou bezwen teste sou PostgreSQL staging reyèl.
 
 ## Tès ki pase
 
