@@ -57,8 +57,8 @@ GRANT INSERT (auth_provider, auth_subject, email, display_name, email_verified)
   ON app_users TO kazino_lakay_app;
 GRANT UPDATE (email, display_name, email_verified, updated_at)
   ON app_users TO kazino_lakay_app;
-GRANT UPDATE (account_status, updated_at) ON app_users TO kazino_lakay_app;
-GRANT SELECT, INSERT ON admin_account_actions TO kazino_lakay_app;
+GRANT EXECUTE ON FUNCTION manage_player_account_status(UUID, UUID, TEXT, TEXT, TEXT, TEXT)
+  TO kazino_lakay_app;
 GRANT INSERT ON self_exclusions, security_events, audit_logs, fraud_alerts
   TO kazino_lakay_app;
 GRANT INSERT (user_id, currency, daily_deposit_limit_minor, weekly_deposit_limit_minor, daily_wager_limit_minor, daily_loss_limit_minor)
@@ -73,7 +73,7 @@ GRANT INSERT (user_id, token_hash, expires_at) ON admin_mfa_sessions TO kazino_l
 GRANT UPDATE (verified_at, expires_at) ON admin_mfa_sessions TO kazino_lakay_app;
 ```
 
-Wòl runtime la pa gen dwa ekri nan `user_roles` oswa `wallet_accounts`: trigger PostgreSQL la bay nouvo kliyan wòl `player` ak yon bous HTG a zewo. Se administratè bazdone a sèlman ki kapab bay wòl privilèj. Wòl runtime la pa dwe gen `INSERT`, `UPDATE` oswa `DELETE` sou `ledger_transactions`/`ledger_entries`; li pa dwe gen dwa pou modifye oswa efase audit/security logs. Ledger posting la pa ekspoze nan API Faz 1–3. Anvan Faz 4, revize epi teste kontwòl privilèj ledger la apa.
+Wòl runtime la pa gen dwa ekri nan `user_roles` oswa `wallet_accounts`: trigger PostgreSQL la bay nouvo kliyan wòl `player` ak yon bous HTG a zewo. Se administratè bazdone a sèlman ki kapab bay wòl privilèj. Li pa gen dwa modifye `app_users.account_status` dirèkteman ni ekri nan `admin_account_actions`; li resevwa sèlman dwa `EXECUTE` sou fonksyon SQL `manage_player_account_status`, ki reverifye wòl admin, sesyon MFA, rezon, tranzisyon estati ak idempotency anndan PostgreSQL. Wòl runtime la pa dwe gen `INSERT`, `UPDATE` oswa `DELETE` sou `ledger_transactions`/`ledger_entries`; li pa dwe gen dwa pou modifye oswa efase audit/security logs. Ledger posting la pa ekspoze nan API Faz 1–3. Anvan Faz 4, revize epi teste kontwòl privilèj ledger la apa.
 
 Si founisè a pa pèmèt egzekite `CREATE ROLE` oswa `GRANT`, mande sipò founisè a pou kreye wòl minimòm sa a. Pa bay app la dwa administratè kòm solisyon rapid.
 
