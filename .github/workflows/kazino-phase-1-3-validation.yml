@@ -1,9 +1,10 @@
-name: Kazino Lakay Phase 1-3 validation
+name: Kazino Lakay production validation
 
 on:
   push:
     branches:
       - codex/kazino-v2.0.0-alpha.2-phase-1-3
+      - codex/kazino-v2.0.0-production-phase-4-6
   pull_request:
     branches:
       - main
@@ -42,7 +43,7 @@ jobs:
         run: |
           npm run check
           npm test
-      - name: Execute PostgreSQL migrations and ledger integration tests
+      - name: Execute PostgreSQL migrations, ledger and admin-action integration tests
         env:
           TEST_DATABASE_URL: postgresql://postgres:ci-only-not-for-production@localhost:5432/kazino_lakay_test
         run: npm run test:postgres
