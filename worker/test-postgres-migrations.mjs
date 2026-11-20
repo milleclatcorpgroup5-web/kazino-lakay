@@ -308,6 +308,22 @@ try {
   });
   assert.equal(playerAttempt.status, 403);
 
+  // Database function independently enforces the admin role and rejects NULL actions.
+  await assert.rejects(
+    client.query(
+      `SELECT * FROM manage_player_account_status($1,$2,NULL,$3,$4,$5)`,
+      [admin.id, player.id, 'CI validates null action rejection', `ci-null-action-${randomUUID()}`, adminTokenHash]
+    ),
+    (error) => error.code === '22023'
+  );
+  await assert.rejects(
+    client.query(
+      `SELECT * FROM manage_player_account_status($1,$2,$3,$4,$5,$6)`,
+      [player.id, admin.id, 'suspend', 'CI validates database role enforcement', `ci-role-denied-${randomUUID()}`, 'b'.repeat(64)]
+    ),
+    (error) => error.code === '42501' && error.message === 'admin_role_required'
+  );
+
   console.log('Kazino Lakay production PostgreSQL: 3 migrations idempotentes, 22 jeux verrouillés, ledger, idempotence, immutabilité et workflows admin (MFA/role/reason/audit/replay) OK.');
 } finally {
   await client.end().catch(() => {});
