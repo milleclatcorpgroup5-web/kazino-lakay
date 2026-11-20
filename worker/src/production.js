@@ -34,7 +34,7 @@ async function withDb(env, callback) {
     if (error instanceof ProductionError) throw error;
     console.error('[Kazino Lakay production DB]', error?.code || error?.name || 'DatabaseError');
     if (['42P01', '3F000'].includes(error?.code)) {
-      fail(503, 'Estrikti PostgreSQL la poko enstale. Aplike migrasyon 0001_production_foundation.sql.');
+      fail(503, 'Estrikti PostgreSQL la poko konplè. Aplike migrasyon 0001_production_foundation.sql epi 0002_locked_game_registry.sql.');
     }
     if (['ECONNREFUSED', 'ETIMEDOUT', 'ENOTFOUND', '08001', '08006'].includes(error?.code)) {
       fail(503, 'Bazdone PostgreSQL la pa disponib kounye a. Verifye Hyperdrive ak founisè PostgreSQL la.');
