@@ -45,3 +45,9 @@ Tout balans, parye, retou ak kont platfòm lan se pwen Demo san valè lajan. Pa 
 ## Faz 4–6
 
 Plan travay ak kritè sòti: [PHASE-4-6-ROADMAP-HA.md](./PHASE-4-6-ROADMAP-HA.md). Faz sa yo poko valide ni aktive; tout jwèt ak tout peman rete dezaktive.
+
+
+## Odit matematik Production — Faz 4
+
+Rapò dyagnostik ak tès kalkil yo: [PRODUCTION-PHASE-4-MATH-AUDIT-HA.md](./PRODUCTION-PHASE-4-MATH-AUDIT-HA.md). Rapò a pa aktive okenn jwèt epi li pa apwouve paytable Production.
+
