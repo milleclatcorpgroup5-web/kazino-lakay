@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { Client } from 'pg';
+import { randomUUID } from 'node:crypto';
+import { handleProductionRoute } from './src/production.js';
 
 const connectionString = process.env.TEST_DATABASE_URL;
 if (!connectionString) {
@@ -203,7 +205,110 @@ try {
     await client.query('ROLLBACK');
   }
 
-  console.log('Kazino Lakay PostgreSQL: 3 migrations idempotentes, 22 jeux verrouillés, fournisseurs OFF, wallets à zéro, ledger double-entry/idempotency/immutabilité et actions admin imitab OK.');
+  // Exercise production admin account controls against the disposable CI database.
+  const adminUid = `ci-admin-${randomUUID()}`;
+  const playerUid = `ci-player-${randomUUID()}`;
+  const privilegedUid = `ci-privileged-${randomUUID()}`;
+  const admin = (await client.query(
+    `INSERT INTO app_users (auth_provider, auth_subject, email, display_name, email_verified, account_status)
+     VALUES ('firebase',$1,$2,'CI Admin',TRUE,'active') RETURNING id`,
+    [adminUid, `${adminUid}@example.invalid`]
+  )).rows[0];
+  const player = (await client.query(
+    `INSERT INTO app_users (auth_provider, auth_subject, email, display_name, email_verified, account_status)
+     VALUES ('firebase',$1,$2,'CI Player',TRUE,'active') RETURNING id`,
+    [playerUid, `${playerUid}@example.invalid`]
+  )).rows[0];
+  const privileged = (await client.query(
+    `INSERT INTO app_users (auth_provider, auth_subject, email, display_name, email_verified, account_status)
+     VALUES ('firebase',$1,$2,'CI Privileged',TRUE,'active') RETURNING id`,
+    [privilegedUid, `${privilegedUid}@example.invalid`]
+  )).rows[0];
+  await client.query(`INSERT INTO user_roles (user_id, role) VALUES ($1,'admin'),($2,'admin')`, [admin.id, privileged.id]);
+
+  const adminTokenHash = 'a'.repeat(64);
+  await client.query(
+    `INSERT INTO admin_mfa_sessions (user_id, token_hash, expires_at)
+     VALUES ($1,$2,now() + interval '10 minutes')`,
+    [admin.id, adminTokenHash]
+  );
+  const base = 'https://kazino-lakay-ci.test';
+  const dbEnv = { HYPERDRIVE: { connectionString } };
+  const adminIdentity = { uid: adminUid, email: `${adminUid}@example.invalid`, emailVerified: true, tokenHash: adminTokenHash };
+  const playerIdentity = { uid: playerUid, email: `${playerUid}@example.invalid`, emailVerified: true, tokenHash: 'b'.repeat(64) };
+  const verifyIdentity = async (request) => {
+    const token = request.headers.get('Authorization')?.replace(/^Bearer\\s+/i, '');
+    if (token === 'ci-admin-token') return adminIdentity;
+    if (token === 'ci-player-token') return playerIdentity;
+    const error = new Error('unauthorized');
+    error.status = 401;
+    throw error;
+  };
+  const adminRequest = async (identityToken, body) => handleProductionRoute(
+    new Request(`${base}/api/admin/production/users/status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${identityToken}` },
+      body: JSON.stringify(body)
+    }),
+    dbEnv,
+    verifyIdentity
+  );
+
+  const suspendPayload = {
+    targetUserId: player.id,
+    action: 'suspend',
+    reason: 'CI verifies audited production player suspension',
+    idempotencyKey: `ci-admin-suspend-${randomUUID()}`
+  };
+  const suspendedResponse = await adminRequest('ci-admin-token', suspendPayload);
+  assert.equal(suspendedResponse.status, 200);
+  const suspendedBody = await suspendedResponse.json();
+  assert.equal(suspendedBody.accountStatus, 'suspended');
+  assert.equal((await client.query('SELECT account_status FROM app_users WHERE id=$1', [player.id])).rows[0].account_status, 'suspended');
+
+  const replayResponse = await adminRequest('ci-admin-token', suspendPayload);
+  assert.equal(replayResponse.status, 200);
+  assert.equal((await replayResponse.json()).replayed, true);
+  const actionCount = await client.query('SELECT COUNT(*)::int AS count FROM admin_account_actions WHERE idempotency_key=$1', [suspendPayload.idempotencyKey]);
+  assert.equal(actionCount.rows[0].count, 1);
+
+  const changedReplay = await adminRequest('ci-admin-token', { ...suspendPayload, reason: 'Different reason with same request key' });
+  assert.equal(changedReplay.status, 409);
+
+  const reactivateResponse = await adminRequest('ci-admin-token', {
+    targetUserId: player.id,
+    action: 'reactivate',
+    reason: 'CI verifies audited production player reactivation',
+    idempotencyKey: `ci-admin-reactivate-${randomUUID()}`
+  });
+  assert.equal(reactivateResponse.status, 200);
+  assert.equal((await reactivateResponse.json()).accountStatus, 'active');
+
+  const selfAction = await adminRequest('ci-admin-token', {
+    targetUserId: admin.id,
+    action: 'suspend',
+    reason: 'CI verifies administrators cannot suspend themselves',
+    idempotencyKey: `ci-admin-self-${randomUUID()}`
+  });
+  assert.equal(selfAction.status, 400);
+
+  const privilegedAction = await adminRequest('ci-admin-token', {
+    targetUserId: privileged.id,
+    action: 'suspend',
+    reason: 'CI verifies privileged accounts need separate review',
+    idempotencyKey: `ci-admin-privileged-${randomUUID()}`
+  });
+  assert.equal(privilegedAction.status, 409);
+
+  const playerAttempt = await adminRequest('ci-player-token', {
+    targetUserId: player.id,
+    action: 'suspend',
+    reason: 'CI verifies player cannot access admin action',
+    idempotencyKey: `ci-player-denied-${randomUUID()}`
+  });
+  assert.equal(playerAttempt.status, 403);
+
+  console.log('Kazino Lakay production PostgreSQL: 3 migrations idempotentes, 22 jeux verrouillés, ledger, idempotence, immutabilité et workflows admin (MFA/role/reason/audit/replay) OK.');
 } finally {
   await client.end().catch(() => {});
 }
