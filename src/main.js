@@ -1,5 +1,6 @@
 import './style.css';
 import { GAMES, CATEGORIES } from './games/catalog.js';
+import { PENALTY_TEAMS, getPenaltyTeam } from './games/penalty-roster.js';
 import { firebaseReady, firebaseMissing, auth } from './firebase.js';
 import { watchAuth, registerAccount, loginAccount, logoutAccount, resendVerification } from './auth.js';
 import { api } from './api.js';
@@ -8,31 +9,12 @@ import { renderRouletteScreen, rouletteCardIcon, rouletteResultMarkup, animateRo
 const root = document.querySelector('#app');
 const state = { user: null, profile: null, health: null, gameControl: { globalEnabled: true, gameSettings: {} }, category: 'Tout jwèt', query: '', activeGame: null, selected: new Set(), busy: false, installPrompt: null, rouletteStake: 100, rouletteBets: [], rouletteBetHistory: [], rouletteMenuOpen: false, rouletteSoundOn: true, rouletteBusy: false, rouletteResult: null, gameStake: 100, gameMenuOpen: false, gameSoundOn: true, gameResult: null, penaltyTeam: 'haiti', penaltyOpponent: 'france', penaltyAim: null, penaltyGesture: null };
 
-const PENALTY_TEAMS = [
-  { id: 'haiti', name: 'Ayiti', flag: '🇭🇹', primary: '#123b89', secondary: '#d92e43' },
-  { id: 'france', name: 'Lafrans', flag: '🇫🇷', primary: '#174b9b', secondary: '#f5f7fb' },
-  { id: 'argentina', name: 'Ajantin', flag: '🇦🇷', primary: '#75bde8', secondary: '#f7f7f3' },
-  { id: 'brazil', name: 'Brezil', flag: '🇧🇷', primary: '#e6c51e', secondary: '#168344' },
-  { id: 'cameroon', name: 'Kamewoun', flag: '🇨🇲', primary: '#16864a', secondary: '#d82d37' },
-  { id: 'england', name: 'Angletè', flag: '🏴', primary: '#f1f2f5', secondary: '#c92f45' },
-  { id: 'germany', name: 'Almay', flag: '🇩🇪', primary: '#292b31', secondary: '#d1ad34' },
-  { id: 'ghana', name: 'Gana', flag: '🇬🇭', primary: '#d52e36', secondary: '#e1c132' },
-  { id: 'morocco', name: 'Mawòk', flag: '🇲🇦', primary: '#c51e36', secondary: '#16834c' },
-  { id: 'nigeria', name: 'Nijerya', flag: '🇳🇬', primary: '#16864a', secondary: '#f2f4ed' },
-  { id: 'senegal', name: 'Senegal', flag: '🇸🇳', primary: '#16834c', secondary: '#e0c13c' },
-  { id: 'spain', name: 'Espay', flag: '🇪🇸', primary: '#cf283b', secondary: '#e9c33e' },
-  { id: 'portugal', name: 'Pòtigal', flag: '🇵🇹', primary: '#bd263b', secondary: '#16864a' },
-  { id: 'tunisia', name: 'Tinizi', flag: '🇹🇳', primary: '#d32b36', secondary: '#f5f0e8' },
-  { id: 'southafrica', name: 'Afrik di Sid', flag: '🇿🇦', primary: '#16834d', secondary: '#d8bd36' },
-  { id: 'ivorycoast', name: 'Kotdivwa', flag: '🇨🇮', primary: '#ef8c26', secondary: '#16864a' }
-];
 const PENALTY_ZONE_POINTS = {
   'top-left': { x: .22, y: .08 }, 'top-center': { x: .50, y: .08 }, 'top-right': { x: .78, y: .08 },
   'middle-left': { x: .22, y: .50 }, 'middle-center': { x: .50, y: .50 }, 'middle-right': { x: .78, y: .50 },
   'bottom-left': { x: .22, y: .92 }, 'bottom-center': { x: .50, y: .92 }, 'bottom-right': { x: .78, y: .92 }
 };
 const PENALTY_ZONE_NAMES = { 'top-left':'Anwo agoch', 'top-center':'Anwo mitan', 'top-right':'Anwo adwat', 'middle-left':'Mitan agoch', 'middle-center':'Mitan', 'middle-right':'Mitan adwat', 'bottom-left':'Anba agoch', 'bottom-center':'Anba mitan', 'bottom-right':'Anba adwat' };
-const getPenaltyTeam = (id) => PENALTY_TEAMS.find((team) => team.id === id) || PENALTY_TEAMS[0];
 const randomPenaltyOpponent = (teamId) => { const options = PENALTY_TEAMS.filter((team) => team.id !== teamId); return options[Math.floor(Math.random() * options.length)]; };
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const esc = (value = '') => String(value).replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
@@ -162,6 +144,7 @@ function renderGameStage(gameId, details = null, phase = 'idle') {
     case 'penalty': {
       const team = getPenaltyTeam(d.team || state.penaltyTeam);
       const opponent = getPenaltyTeam(d.opponent || state.penaltyOpponent);
+      const player = team.player;
       const shot = d.shot || state.penaltyAim?.zone || '';
       const keeper = d.keeper || '';
       const goal = Boolean(d.goal);
@@ -174,6 +157,7 @@ function renderGameStage(gameId, details = null, phase = 'idle') {
       return stageFrame(gameId, 'Penalty Lakay', 'Kenbe boul la, glise dwèt ou nan gòl la, epi gade jwè a choute pandan gadyen an plonje.', `<div class="penalty-field" data-team="${team.id}" ${shot ? `data-shot="${esc(shot)}"` : ''} ${keeper ? `data-keeper="${esc(keeper)}"` : ''} ${details ? `data-goal="${goal}"` : ''} data-power="${Math.round(power * 100)}" style="--team-primary:${team.primary};--team-secondary:${team.secondary}">
         <div class="penalty-crowd" aria-hidden="true"></div><div class="penalty-stadium-lights" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
         <div class="penalty-matchup" data-penalty-matchup><span><b>${team.flag}</b>${esc(team.name)}</span><strong>VS</strong><span><b>${opponent.flag}</b>${esc(opponent.name)}</span><small>ADVÈSÈ OTÒMATIK</small></div>
+        <div class="penalty-player-card" data-penalty-player-card><span class="penalty-player-number">#${player.shirtNumber}</span><span><b data-penalty-player-name>${esc(player.name)}</b><small>${esc(player.role)} · Vedèt ${esc(team.name)}</small></span></div>
         <div class="penalty-goal-frame"><div class="penalty-goal-net"></div><i class="penalty-post post-left"></i><i class="penalty-post post-right"></i><i class="penalty-crossbar"></i></div>
         <div class="penalty-goal-shadow"></div>
         <svg class="penalty-aim-line" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><line x1="50" y1="82" x2="${aimLeft}" y2="${aimTop}" /></svg>
@@ -187,7 +171,7 @@ function renderGameStage(gameId, details = null, phase = 'idle') {
         <div class="penalty-striker" data-penalty-striker>
           <svg viewBox="0 0 150 250" role="img" aria-label="Jwè k ap pran elan pou choute boul la">
             <ellipse cx="76" cy="242" rx="40" ry="6" fill="#00150b" opacity=".45"/>
-            <g class="striker-body"><circle cx="74" cy="25" r="15" fill="#9a6546"/><path d="M60 21 Q62 5 77 8 Q91 9 89 24" fill="#201c1b"/><path d="M67 40 L86 40 L98 55 L106 116 L91 133 L48 130 L40 62 L54 44Z" fill="var(--team-primary)" stroke="#071b39" stroke-width="3"/><path d="M64 43 L75 58 L88 43" fill="none" stroke="var(--team-secondary)" stroke-width="5"/><path d="M58 55 L38 76 L29 111" fill="none" stroke="#9a6546" stroke-width="13" stroke-linecap="round"/><path d="M94 57 L111 76 L120 103" fill="none" stroke="#9a6546" stroke-width="13" stroke-linecap="round"/><path d="M47 126 L95 128 L105 157 L78 164 L43 155Z" fill="#f0f3f4"/><g class="striker-plant-leg"><path d="M49 154 L46 190 L34 225" fill="none" stroke="#9a6546" stroke-width="17" stroke-linecap="round"/><path d="M34 221 L21 235 L57 238 L62 228Z" fill="#101820"/></g><g class="striker-kick-leg"><path d="M89 155 L102 185 L119 210" fill="none" stroke="#9a6546" stroke-width="17" stroke-linecap="round"/><path d="M112 205 L133 211 L143 224 L105 226 L100 217Z" fill="#101820"/></g><text x="73" y="96" fill="var(--team-secondary)" font-size="23" font-weight="1000" text-anchor="middle">10</text></g>
+            <g class="striker-body"><circle cx="74" cy="25" r="15" fill="#9a6546"/><path d="M60 21 Q62 5 77 8 Q91 9 89 24" fill="#201c1b"/><path d="M67 40 L86 40 L98 55 L106 116 L91 133 L48 130 L40 62 L54 44Z" fill="var(--team-primary)" stroke="#071b39" stroke-width="3"/><path d="M64 43 L75 58 L88 43" fill="none" stroke="var(--team-secondary)" stroke-width="5"/><g class="striker-arm-left"><path d="M58 55 L38 76 L29 111" fill="none" stroke="#9a6546" stroke-width="13" stroke-linecap="round"/></g><g class="striker-arm-right"><path d="M94 57 L111 76 L120 103" fill="none" stroke="#9a6546" stroke-width="13" stroke-linecap="round"/></g><path d="M47 126 L95 128 L105 157 L78 164 L43 155Z" fill="#f0f3f4"/><g class="striker-plant-leg"><path d="M49 154 L46 190 L34 225" fill="none" stroke="#9a6546" stroke-width="17" stroke-linecap="round"/><path d="M34 221 L21 235 L57 238 L62 228Z" fill="#101820"/></g><g class="striker-kick-leg"><path d="M89 155 L102 185 L119 210" fill="none" stroke="#9a6546" stroke-width="17" stroke-linecap="round"/><path d="M112 205 L133 211 L143 224 L105 226 L100 217Z" fill="#101820"/></g><text x="73" y="96" data-penalty-shirt-number fill="var(--team-secondary)" font-size="23" font-weight="1000" text-anchor="middle">${player.shirtNumber}</text></g>
           </svg>
         </div>
         <button type="button" class="penalty-ball" data-penalty-ball aria-label="Kenbe epi glise boul foutbòl la"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="45" fill="#f7f8f4" stroke="#aeb6b6" stroke-width="3"/><path d="M50 30 63 39 58 54 42 54 37 39Z" fill="#18212b"/><path d="m50 7 12 8-4 14-8 1-8-1-4-14zM86 32l-3 15-14 4-6-12 7-10zM78 82 63 89 55 77 61 63l15 1zM22 82l3-15 14-4 6 12-7 10zM14 32l15-3 8 12-8 11-14-5z" fill="#17212a"/><path d="M42 54 25 63M58 54 61 63M37 39 29 29M63 39 70 28" fill="none" stroke="#303942" stroke-width="3"/></svg></button>
@@ -301,7 +285,7 @@ function gameChoiceMarkup(game) {
   return game.controls.map((field) => {
     if (game.id === 'penalty' && field.id === 'team') {
       const current = state.penaltyTeam || field.value || 'haiti';
-      return `<section class="kl-control-group penalty-team-control"><div class="kl-control-heading"><span>DRAPO EKIP OU</span><b>ADVÈSÈ A CHWAZI OTÒMATIKMAN</b></div><input type="hidden" name="team" value="${esc(current)}" data-choice-input="team"><div class="penalty-team-grid">${PENALTY_TEAMS.map((team) => `<button type="button" class="penalty-team-chip ${team.id === current ? 'is-active' : ''}" data-game-choice="team" data-choice-value="${team.id}" aria-pressed="${team.id === current}"><span>${team.flag}</span><b>${esc(team.name)}</b></button>`).join('')}</div></section>`;
+      return `<section class="kl-control-group penalty-team-control"><div class="kl-control-heading"><span>DRAPO EKIP OU</span><b>ADVÈSÈ A CHWAZI OTÒMATIKMAN</b></div><input type="hidden" name="team" value="${esc(current)}" data-choice-input="team"><div class="penalty-team-grid">${PENALTY_TEAMS.map((team) => `<button type="button" class="penalty-team-chip ${team.id === current ? 'is-active' : ''}" data-game-choice="team" data-choice-value="${team.id}" aria-pressed="${team.id === current}"><span>${team.flag}</span><b>${esc(team.name)}</b><small>${esc(team.player.name)}</small></button>`).join('')}</div></section>`;
     }
     if (field.type === 'select') {
       const current = field.value ?? field.options?.[0]?.[0] ?? '';
@@ -638,6 +622,10 @@ function chooseGameOption(button) {
       field.style.setProperty('--team-secondary', selected.secondary);
       const matchup = field.querySelector('[data-penalty-matchup]');
       if (matchup) matchup.innerHTML = `<span class="penalty-home-team"><b>${selected.flag}</b><em>${esc(selected.name)}</em></span><strong class="penalty-score">0<i>:</i>0</strong><span class="penalty-away-team"><b>${opponent.flag}</b><em>${esc(opponent.name)}</em></span><small>SHOOTOUT</small>`;
+      const playerCard = field.querySelector('[data-penalty-player-card]');
+      if (playerCard) playerCard.innerHTML = `<span class="penalty-player-number">#${selected.player.shirtNumber}</span><span><b data-penalty-player-name>${esc(selected.player.name)}</b><small>${esc(selected.player.role)} · Vedèt ${esc(selected.name)}</small></span>`;
+      const shirtNumber = field.querySelector('[data-penalty-shirt-number]');
+      if (shirtNumber) shirtNumber.textContent = String(selected.player.shirtNumber);
     }
     const opponentInput = document.querySelector('[data-penalty-opponent]');
     if (opponentInput) opponentInput.value = state.penaltyOpponent;
@@ -784,6 +772,9 @@ async function animatePenaltySequence(stage) {
   if (!field) return;
   const striker = field.querySelector('[data-penalty-striker]');
   const kickLeg = field.querySelector('.striker-kick-leg');
+  const strikerBody = field.querySelector('.striker-body');
+  const armLeft = field.querySelector('.striker-arm-left');
+  const armRight = field.querySelector('.striker-arm-right');
   const keeper = field.querySelector('[data-penalty-keeper]');
   const ball = field.querySelector('[data-penalty-ball]');
   const rect = field.getBoundingClientRect();
@@ -809,6 +800,18 @@ async function animatePenaltySequence(stage) {
     { transform: `translate3d(${runDistance * .72}px,-${rect.height * .026}px,0) rotate(2deg)`, offset: .68 },
     { transform: `translate3d(${runDistance}px,-${rect.height * .035}px,0) rotate(5deg)` }
   ], { duration: 820, easing: 'cubic-bezier(.2,.7,.3,1)', fill: 'forwards' }));
+  if (strikerBody?.animate) animations.push(strikerBody.animate([
+    { transform: 'rotate(0deg) translateY(0)' },
+    { transform: 'rotate(-5deg) translateY(-2px)', offset: .35 },
+    { transform: 'rotate(9deg) translateY(1px)', offset: .75 },
+    { transform: 'rotate(-2deg) translateY(0)' }
+  ], { duration: 760, delay: 90, easing: 'cubic-bezier(.2,.7,.3,1)', fill: 'forwards' }));
+  if (armLeft?.animate) animations.push(armLeft.animate([
+    { transform: 'rotate(0deg)' }, { transform: 'rotate(28deg)', offset: .35 }, { transform: 'rotate(-20deg)', offset: .72 }, { transform: 'rotate(8deg)' }
+  ], { duration: 720, delay: 100, easing: 'ease-in-out', fill: 'forwards' }));
+  if (armRight?.animate) animations.push(armRight.animate([
+    { transform: 'rotate(0deg)' }, { transform: 'rotate(-24deg)', offset: .35 }, { transform: 'rotate(30deg)', offset: .72 }, { transform: 'rotate(-7deg)' }
+  ], { duration: 720, delay: 100, easing: 'ease-in-out', fill: 'forwards' }));
   if (kickLeg?.animate) animations.push(kickLeg.animate([
     { transform: 'rotate(0deg)' },
     { transform: 'rotate(-10deg)', offset: .28 },
