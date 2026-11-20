@@ -1,7 +1,8 @@
 # Worker name must match the Cloudflare project: kazino-lakay
 name = "kazino-lakay"
 main = "src/index.js"
-compatibility_date = "2026-11-10"
+compatibility_date = "2026-11-20"
+compatibility_flags = ["nodejs_compat"]
 workers_dev = true
 # Keep dashboard variables when the Git-connected build deploys this Worker.
 keep_vars = true
@@ -13,3 +14,15 @@ directory = "../dist"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
 run_worker_first = ["/api/*", "/health", "/firebase-config.js"]
+
+# Production is fail-closed. Add the real Hyperdrive ID after the PostgreSQL
+# database has been provisioned and migration 0001 has been applied.
+[vars]
+APP_MODE = "production"
+DEMO_ENABLED = "false"
+PAYMENTS_ENABLED = "false"
+REAL_MONEY_GAMES_ENABLED = "false"
+
+# [[hyperdrive]]
+# binding = "HYPERDRIVE"
+# id = "REPLACE_WITH_REAL_HYPERDRIVE_ID"
