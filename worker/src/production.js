@@ -1,4 +1,18 @@
 import { Client } from 'pg';
+import { GAMES } from '../../src/games/catalog.js';
+
+const PRODUCTION_GAME_CATALOG = Object.freeze(GAMES.map((game) => Object.freeze({
+  id: game.id,
+  gameId: game.id,
+  name: game.name,
+  displayName: game.name,
+  category: game.category,
+  symbol: game.symbol,
+  tone: game.tone,
+  summary: game.summary,
+  enabled: false,
+  releasePhase: 'phase_4_pending'
+})));
 
 const encoder = new TextEncoder();
 const json = (data, status = 200) => new Response(JSON.stringify(data), {
@@ -480,15 +494,98 @@ async function getAdminSummary(client, user, role) {
   return { users: users.rows[0], kycPending: cases.rows[0].pending, selfExcludedUsers: exclusions.rows[0].active, openFraudAlerts: alerts.rows[0].open, securityEventsLast24h: security.rows[0].last_24h, paymentsEnabled: false, realMoneyGamesEnabled: false };
 }
 
-async function handleAdminUsers(client) {
+async function handleAdminUsers(client, searchTerm = '') {
   const result = await client.query(
     `SELECT u.id, u.email, u.display_name, u.account_status, u.kyc_status,
             u.age_verification_status, u.email_verified, u.created_at,
             COALESCE(array_agg(DISTINCT r.role) FILTER (WHERE r.role IS NOT NULL), ARRAY['player']) AS roles
        FROM app_users u LEFT JOIN user_roles r ON r.user_id=u.id AND r.revoked_at IS NULL
-      GROUP BY u.id ORDER BY u.created_at DESC LIMIT 100`
+      WHERE ($1 = '' OR u.email ILIKE '%' || $1 || '%' OR u.display_name ILIKE '%' || $1 || '%')
+      GROUP BY u.id ORDER BY u.created_at DESC LIMIT 100`,
+    [searchTerm]
   );
   return { users: result.rows };
+}
+
+async function managePlayerAccount(client, actor, body) {
+  const targetId = String(body.targetUserId || '').trim();
+  const action = String(body.action || '').trim();
+  const reason = String(body.reason || '').trim();
+  const idempotencyKey = String(body.idempotencyKey || '').trim();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(targetId)) {
+    fail(400, 'ID kont jwè a pa valab.');
+  }
+  if (!['suspend','reactivate'].includes(action)) fail(400, 'Aksyon an dwe suspend oswa reactivate.');
+  if (reason.length < 10 || reason.length > 500) fail(400, 'Bay yon rezon ant 10 ak 500 karaktè.');
+  if (idempotencyKey.length < 16 || idempotencyKey.length > 128) fail(400, 'Kle idempotans lan pa valab.');
+
+  const actionCode = action === 'suspend' ? 'suspend_player' : 'reactivate_player';
+  const expectedFrom = action === 'suspend' ? 'active' : 'suspended';
+  const nextStatus = action === 'suspend' ? 'suspended' : 'active';
+
+  await client.query('BEGIN');
+  try {
+    await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [idempotencyKey]);
+    const replay = await client.query(
+      `SELECT actor_user_id, target_user_id, action, previous_status, new_status, reason
+         FROM admin_account_actions WHERE idempotency_key = $1`,
+      [idempotencyKey]
+    );
+    if (replay.rowCount) {
+      const prior = replay.rows[0];
+      if (prior.actor_user_id !== actor.id || prior.target_user_id !== targetId ||
+          prior.action !== actionCode || prior.reason !== reason) {
+        fail(409, 'Kle idempotans sa a te sèvi pou yon lòt aksyon.');
+      }
+      await client.query('COMMIT');
+      return { ok: true, replayed: true, userId: targetId, accountStatus: prior.new_status };
+    }
+
+    const targetResult = await client.query(
+      `SELECT u.id, u.account_status, u.email_verified,
+              COALESCE(array_agg(DISTINCT r.role) FILTER (WHERE r.role IS NOT NULL), ARRAY['player']) AS roles
+         FROM app_users u
+         LEFT JOIN user_roles r ON r.user_id = u.id AND r.revoked_at IS NULL
+        WHERE u.id = $1
+        GROUP BY u.id
+        FOR UPDATE OF u`,
+      [targetId]
+    );
+    if (!targetResult.rowCount) fail(404, 'Kont jwè sa a pa jwenn.');
+    const target = targetResult.rows[0];
+    if (target.id === actor.id) fail(400, 'Ou pa kapab sispann oswa reyaktive pwòp kont ou.');
+    if (target.roles.some((role) => ['admin','compliance','finance','support','auditor'].includes(role))) {
+      fail(409, 'Kont ki gen wòl administrasyon mande yon pwosedi separe ak verifikasyon an doub.');
+    }
+    if (target.account_status !== expectedFrom) {
+      fail(409, action === 'suspend'
+        ? 'Se sèlman kont aktif ki kapab sispann.'
+        : 'Se sèlman kont sispann ki kapab reyaktive.');
+    }
+    if (action === 'reactivate' && !target.email_verified) {
+      fail(409, 'Kont lan pa kapab reyaktive anvan imel li verifye.');
+    }
+
+    await client.query(
+      `UPDATE app_users SET account_status = $1, updated_at = now() WHERE id = $2`,
+      [nextStatus, targetId]
+    );
+    await client.query(
+      `INSERT INTO admin_account_actions
+         (idempotency_key, actor_user_id, target_user_id, action, previous_status, new_status, reason)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [idempotencyKey, actor.id, targetId, actionCode, expectedFrom, nextStatus, reason]
+    );
+    await addAudit(
+      client, actor.id, 'admin', action === 'suspend' ? 'player_account_suspended' : 'player_account_reactivated',
+      'app_users', targetId, 'success', reason, { previousStatus: expectedFrom, newStatus: nextStatus, idempotencyKey }
+    );
+    await client.query('COMMIT');
+    return { ok: true, replayed: false, userId: targetId, accountStatus: nextStatus };
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw error;
+  }
 }
 
 async function health(env) {
@@ -503,11 +600,16 @@ async function health(env) {
           AND to_regclass('public.wallet_accounts') IS NOT NULL
           AND to_regclass('public.ledger_transactions') IS NOT NULL
           AND to_regclass('public.ledger_entries') IS NOT NULL
-          AND EXISTS (SELECT 1 FROM schema_migrations WHERE version='0001_production_foundation') AS schema_ready,
+          AND to_regclass('public.game_catalog') IS NOT NULL
+          AND to_regclass('public.game_rounds') IS NOT NULL
+          AND to_regclass('public.admin_account_actions') IS NOT NULL
+          AND EXISTS (SELECT 1 FROM schema_migrations WHERE version='0001_production_foundation')
+          AND EXISTS (SELECT 1 FROM schema_migrations WHERE version='0002_locked_game_registry')
+          AND EXISTS (SELECT 1 FROM schema_migrations WHERE version='0003_admin_account_controls') AS schema_ready,
           current_timestamp AS checked_at
       `);
       const ready = result.rows[0]?.schema_ready === true;
-      return { service: 'kazino-lakay', status: ready ? 'ok' : 'maintenance', mode: 'production', databaseConfigured: true, databaseReady: ready, realMoneyGamesEnabled: false, paymentsEnabled: false, securityMonitoringConfigured: String(env.SECURITY_HASH_SALT || '').length >= 32, kycProviderConfigured: false, schema: ready ? '0001_production_foundation' : 'missing', checkedAt: result.rows[0]?.checked_at || null };
+      return { service: 'kazino-lakay', status: ready ? 'ok' : 'maintenance', mode: 'production', databaseConfigured: true, databaseReady: ready, realMoneyGamesEnabled: false, paymentsEnabled: false, securityMonitoringConfigured: String(env.SECURITY_HASH_SALT || '').length >= 32, kycProviderConfigured: false, schema: ready ? '0001+0002+0003' : 'migrations_missing', checkedAt: result.rows[0]?.checked_at || null };
     });
   } catch {
     return { service: 'kazino-lakay', status: 'maintenance', mode: 'production', databaseConfigured: true, databaseReady: false, realMoneyGamesEnabled: false, paymentsEnabled: false, securityMonitoringConfigured: String(env.SECURITY_HASH_SALT || '').length >= 32, kycProviderConfigured: false, reason: 'DATABASE_CHECK_FAILED' };
@@ -518,7 +620,16 @@ export async function handleProductionRoute(request, env, verifyIdentity) {
   const { pathname, searchParams } = new URL(request.url);
   if (pathname === '/api/production/health' && request.method === 'GET') return json(await health(env));
   if (pathname === '/api/games' && request.method === 'GET') {
-    return json({ mode: 'production', games: [], count: 0, enabled: false, gameSettings: {}, enabledGameCount: 0, maintenanceMessage: 'Jwèt yo rete bloke pandan Faz 1–3, verifikasyon legal ak preparasyon motè pwodiksyon an.' });
+    return json({
+      mode: 'production',
+      games: PRODUCTION_GAME_CATALOG,
+      count: PRODUCTION_GAME_CATALOG.length,
+      enabled: false,
+      gameSettings: Object.fromEntries(PRODUCTION_GAME_CATALOG.map((game) => [game.id, { enabled: false, releasePhase: game.releasePhase }])),
+      enabledGameCount: 0,
+      releasePhase: 'phase_4_pending',
+      maintenanceMessage: '22 jwèt yo parèt nan katalòg production lan, men tout rete bloke pandan analiz règ, matematik, verifikasyon sekirite ak apwobasyon legal Faz 4 yo.'
+    });
   }
   if (pathname === '/api/games/demo' || pathname === '/api/games/play') {
     return json({ error: 'Jwèt yo dezaktive nan mòd pwodiksyon pandan verifikasyon ak Faz 4 yo poko fini.', mode: 'production', realMoneyGamesEnabled: false, paymentsEnabled: false }, 423);
@@ -646,12 +757,22 @@ export async function handleProductionRoute(request, env, verifyIdentity) {
       });
     }
 
+    if (pathname === '/api/admin/production/users/status' && request.method === 'POST') {
+      const identity = await verifyIdentity(request, env, true);
+      const body = await readBody(request);
+      return await withDb(env, async (client) => {
+        const { user } = await requireAdminMember(client, identity, true, ['admin']);
+        return json(await managePlayerAccount(client, user, body));
+      });
+    }
+
     if (pathname === '/api/admin/production/users' && request.method === 'GET') {
       const identity = await verifyIdentity(request, env, true);
       return await withDb(env, async (client) => {
         const { user, role } = await requireAdminMember(client, identity, true, ['admin', 'compliance', 'support']);
         await addAudit(client, user.id, role, 'admin_production_users_viewed', 'app_users', null);
-        return json(await handleAdminUsers(client));
+        const query = String(searchParams.get('q') || '').trim().slice(0, 100);
+        return json(await handleAdminUsers(client, query));
       });
     }
 
