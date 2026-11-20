@@ -14,16 +14,23 @@ Migrasyon an mande PostgreSQL 14+ ak ekstansyon `pgcrypto`. Li kreye kont kliyan
 
 ## 2. Aplike migrasyon an
 
-Sèvi ak yon koneksyon administratè bazdone a nan zouti founisè PostgreSQL la epi egzekite fichye sa a yon sèl fwa:
+Sèvi ak yon koneksyon administratè bazdone a nan zouti founisè PostgreSQL la epi egzekite de fichye sa yo nan lòd sa a, chak youn yon sèl fwa:
 
-`database/migrations/0001_production_foundation.sql`
+1. `database/migrations/0001_production_foundation.sql` — kont kliyan, bous, ledger, kontwòl sekirite ak konfòmite.
+2. `database/migrations/0002_locked_game_registry.sql` — katalòg 22 jwèt yo ak depo wonn yo; tout jwèt rete dezaktive.
+
+Pa egzekite migrasyon 0002 anvan 0001 paske li itilize fonksyon sekirite migrasyon 0001 kreye a.
 
 Apre sa, verifye:
 
 ```sql
 SELECT version, applied_at FROM schema_migrations ORDER BY version;
 SELECT to_regclass('public.app_users'), to_regclass('public.wallet_accounts'),
-       to_regclass('public.ledger_transactions'), to_regclass('public.ledger_entries');
+       to_regclass('public.ledger_transactions'), to_regclass('public.ledger_entries'),
+       to_regclass('public.game_catalog'), to_regclass('public.game_rounds');
+SELECT version FROM schema_migrations
+WHERE version IN ('0001_production_foundation','0002_locked_game_registry')
+ORDER BY version;
 SELECT provider_code, enabled, environment FROM payment_provider_configs ORDER BY provider_code;
 ```
 
@@ -52,6 +59,8 @@ GRANT INSERT (user_id, currency, daily_deposit_limit_minor, weekly_deposit_limit
 GRANT UPDATE (daily_deposit_limit_minor, weekly_deposit_limit_minor, daily_wager_limit_minor, daily_loss_limit_minor, updated_at)
   ON responsible_gaming_limits TO kazino_lakay_app;
 GRANT INSERT (user_id, secret_ciphertext, secret_iv, verified_at, last_accepted_counter)
+  ON admin_mfa_credentials TO kazino_lakay_app;
+GRANT UPDATE (verified_at, last_accepted_counter)
   ON admin_mfa_credentials TO kazino_lakay_app;
 GRANT INSERT (user_id, token_hash, expires_at) ON admin_mfa_sessions TO kazino_lakay_app;
 GRANT UPDATE (verified_at, expires_at) ON admin_mfa_sessions TO kazino_lakay_app;
@@ -128,7 +137,7 @@ Apre deplwaman sou yon anviwònman staging izole (pa sou production aktyèl la),
 
 - `GET /api/health` retounen `mode=production`.
 - San Hyperdrive, li dwe retounen `status=maintenance` ak `databaseConfigured=false`.
-- Apre migrasyon an, `databaseReady=true`.
+- Apre toude migrasyon yo, `databaseReady=true` epi schema a rapòte `0001+0002`.
 - `paymentsEnabled=false` ak `realMoneyGamesEnabled=false` toujou.
 - `GET /api/games` retounen zewo jwèt aktif.
 - `POST /api/games/demo` ak `POST /api/games/play` retounen HTTP 423.
