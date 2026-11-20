@@ -1,28 +1,26 @@
 # Worker name must match the Cloudflare project: kazino-lakay
 name = "kazino-lakay"
-main = "src/index.js"
+main = "src/production-entry.js"
 compatibility_date = "2026-11-20"
 compatibility_flags = ["nodejs_compat"]
 workers_dev = true
-# Keep dashboard variables when the Git-connected build deploys this Worker.
 keep_vars = true
 
-# The Vite build in the repository root creates ../dist relative to this file.
-# Cloudflare serves the frontend from the same workers.dev origin as the API.
+# Vite writes the frontend to ../dist relative to this config file.
 [assets]
 directory = "../dist"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
 run_worker_first = ["/api/*", "/health", "/firebase-config.js"]
 
-# Production is fail-closed. Add the real Hyperdrive ID after the PostgreSQL
-# database has been provisioned and migration 0001 has been applied.
+# Production is fail-closed. Do not enable these flags for this alpha.
 [vars]
 APP_MODE = "production"
 DEMO_ENABLED = "false"
 PAYMENTS_ENABLED = "false"
 REAL_MONEY_GAMES_ENABLED = "false"
 
+# Configure only after provisioning a separate PostgreSQL staging database.
 # [[hyperdrive]]
 # binding = "HYPERDRIVE"
 # id = "REPLACE_WITH_REAL_HYPERDRIVE_ID"
