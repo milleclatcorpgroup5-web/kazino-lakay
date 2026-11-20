@@ -102,16 +102,16 @@ BEGIN
 
   IF EXISTS (
     SELECT 1 FROM user_roles
-     WHERE user_id = p_target_user_id AND revoked_at IS NULL
-       AND role IN ('admin','compliance','finance','support','auditor')
+     WHERE user_roles.user_id = p_target_user_id AND user_roles.revoked_at IS NULL
+       AND user_roles.role IN ('admin','compliance','finance','support','auditor')
   ) THEN
     RAISE EXCEPTION 'privileged_account_requires_separate_review' USING ERRCODE = '42501';
   END IF;
 
-  SELECT account_status, email_verified
+  SELECT target_user.account_status, target_user.email_verified
     INTO v_previous_status, v_email_verified
-    FROM app_users
-   WHERE id = p_target_user_id
+    FROM app_users AS target_user
+   WHERE target_user.id = p_target_user_id
    FOR UPDATE;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'player_account_not_found' USING ERRCODE = 'P0002';
