@@ -54,7 +54,7 @@ DECLARE
   v_action_code TEXT;
 BEGIN
   IF p_actor_user_id IS NULL OR p_target_user_id IS NULL
-     OR p_action NOT IN ('suspend','reactivate')
+     OR p_action IS NULL OR p_action NOT IN ('suspend','reactivate')
      OR p_reason IS NULL OR length(trim(p_reason)) NOT BETWEEN 10 AND 500
      OR p_idempotency_key IS NULL OR length(p_idempotency_key) NOT BETWEEN 16 AND 128
      OR p_token_hash IS NULL OR p_token_hash !~ '^[a-f0-9]{64}$' THEN
