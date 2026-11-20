@@ -59,7 +59,7 @@ Faire de l'espace joueur et du centre d'administration des outils réellement ex
 Stabiliser l'expérience mobile/tablette, les intégrations et l'exploitation. Cette phase prépare un environnement de staging et un dossier de lancement ; elle n'autorise pas un lancement en argent réel.
 
 ### Travaux
-1. Uniformiser les parcours mobiles et tablette : accueil, inscription, connexion, profil, boussole/solde, historique, paramètres, messages d'erreur, chargement, mode maintenance et accessibilité clavier/lecteur d'écran.
+1. Uniformiser les parcours mobiles et tablette : accueil, inscription, connexion, profil, bous/solde, historique, paramètres, messages d'erreur, chargement, mode maintenance et accessibilité clavier/lecteur d'écran.
 2. Décliner la direction artistique de chaque jeu avec des ressources optimisées pour mobile (formats compressés, chargement différé, fallback léger). Produire les modèles 3D/mocap uniquement avec des ressources originales ou correctement licenciées.
 3. Compléter les intégrations externes nécessaires : vérification d'âge/KYC, livraison OTP SMS/e-mail, notifications et support. Chaque callback doit être signé, idempotent, journalisé et protégé contre le rejeu.
 4. Préparer le déploiement Worker + Static Assets + Hyperdrive, la configuration Firebase Authentication, les secrets séparés, les environnements staging/production et la stratégie de retour arrière.
