@@ -57,3 +57,10 @@ Pa aktive jwèt, paryaj, depo oswa retrè lajan reyèl anvan lisans akò ak patn
 - Ansanm SVG Penalty Lakay la montre non/nimewo jwè a epi li gen mouvman elan, kò, janm frapan, bra ak plonje gadyen ki amelyore.
 - Direksyon atistik 22 jwèt yo dokimante nan `VISUAL-ART-DIRECTION-HA.md`.
 - Sa a poko vle di nou gen modèl fotoreyalis 3D oswa resous mocap. Modèl imen 3D, mouvman mocap, imaj final 22 jwèt yo ak dwa pou itilize resous jwè yo rete travay ki poko fèt.
+
+
+## Travay pwodiksyon ki antre nan Faz 4–6
+
+- Katalòg production lan dwe montre 22 jwèt yo, men tout rete fèmen jouk analiz règ/RTP ak tès yo valide.
+- Migrasyon 0003 prepare aksyon sispann/reyaktive kont jwè ak idempotency/audit; dwa runtime yo dwe ajoute dapre gid bazdone a.
+- Sa pa aktive okenn jwèt oswa peman. Pa gen okenn lansman production ki otorize san staging, CI ak tès reyèl PostgreSQL.
