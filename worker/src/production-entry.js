@@ -78,19 +78,6 @@ async function verifyFirebaseIdentity(request, env, requireVerified = false) {
   };
 }
 
-function corsHeaders(request) {
-  const origin = request.headers.get('Origin') || '';
-  const ownOrigin = new URL(request.url).origin;
-  const allowed = (request.cf?.env?.ALLOWED_ORIGINS || '').split(',').map((item) => item.trim());
-  const permitted = !origin || origin === ownOrigin || allowed.includes('*') || allowed.includes(origin);
-  return {
-    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-    'Access-Control-Allow-Headers': 'Authorization,Content-Type',
-    'Access-Control-Max-Age': '86400',
-    ...(origin && permitted ? { 'Access-Control-Allow-Origin': origin, Vary: 'Origin' } : {})
-  };
-}
-
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -107,6 +94,20 @@ export default {
       ...(origin ? { 'Access-Control-Allow-Origin': origin, Vary: 'Origin' } : {})
     };
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
+
+    if (url.pathname === '/firebase-config.js' && request.method === 'GET') {
+      const projectId = String(env.FIREBASE_PROJECT_ID || env.VITE_FIREBASE_PROJECT_ID || '').trim();
+      const config = {
+        apiKey: String(env.FIREBASE_WEB_API_KEY || env.VITE_FIREBASE_API_KEY || '').trim(),
+        authDomain: String(env.FIREBASE_AUTH_DOMAIN || env.VITE_FIREBASE_AUTH_DOMAIN || (projectId ? `${projectId}.firebaseapp.com` : '')).trim(),
+        projectId,
+        appId: String(env.FIREBASE_APP_ID || env.VITE_FIREBASE_APP_ID || '').trim()
+      };
+      return new Response(`window.__KL_FIREBASE_CONFIG__ = ${JSON.stringify(config)};`, {
+        status: 200,
+        headers: { ...cors, 'Content-Type': 'application/javascript; charset=utf-8', 'Cache-Control': 'no-store, max-age=0' }
+      });
+    }
 
     if (url.pathname === '/api/health' || url.pathname === '/api/production/health' || url.pathname === '/health') {
       return json(await productionHealth(env), 200, cors);
@@ -130,9 +131,7 @@ export default {
       }
     }
 
-    if (env.ASSETS && typeof env.ASSETS.fetch === 'function') {
-      return env.ASSETS.fetch(request);
-    }
+    if (env.ASSETS && typeof env.ASSETS.fetch === 'function') return env.ASSETS.fetch(request);
     return new Response('Frontend assets yo poko konekte. Verifye binding ASSETS la.', { status: 503 });
   }
 };
