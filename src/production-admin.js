@@ -36,6 +36,7 @@ function mfaView() {
 }
 function dashboardView() {
   const s=state.summary||{};
+  const canManagePlayers=state.profile?.roles?.includes('admin')===true;
   const tiles=[
     ['Total kliyan',s.users?.total||0,'Kont anrejistre'],
     ['Kont aktif',s.users?.active||0,'Estati active'],
@@ -51,7 +52,7 @@ function dashboardView() {
     ${state.success?'<div class="admin-success">'+esc(state.success)+'</div>':''}
     <section class="admin-stats production-stats">${tiles.map(([label,value,caption])=>`<article class="panel"><small>${esc(label)}</small><strong>${fmt(value)}</strong><span>${esc(caption)}</span></article>`).join('')}</section>
     <section class="panel"><div class="section-title"><div><small>SEKIRITE AKSYON</small><h2>Estati sèvis</h2></div><span class="status-pill">MFA VERIFYE</span></div><p>PostgreSQL: ${state.health?.databaseReady?'READY':'MAINTENANCE'} · Peman: ${s.paymentsEnabled?'ON':'OFF'} · Jwèt: ${s.realMoneyGamesEnabled?'ON':'OFF'}</p><p class="small-print">Aplikasyon sa a pa gen pèmisyon pou aktive peman oswa jwèt. Tout aksyon kont rete anba audit log.</p></section>
-    ${state.users.length?`<section class="panel"><h2>Dènye kont kliyan yo</h2><div class="admin-table-wrap"><table><thead><tr><th>Imèl</th><th>Estati</th><th>KYC</th><th>Wòl</th><th>Kreye</th></tr></thead><tbody>${state.users.map(u=>`<tr><td>${esc(u.email)}</td><td>${esc(u.account_status)}</td><td>${esc(u.kyc_status)}</td><td>${esc((u.roles||[]).join(', '))}</td><td>${esc(new Date(u.created_at).toLocaleDateString('fr-FR'))}</td></tr>`).join('')}</tbody></table></div></section>`:''}
+    ${state.users.length?`<section class="panel"><div class="section-title"><div><small>JESYON KONT</small><h2>Dènye kont kliyan yo</h2></div><span class="small-print">Maksimòm 100 kont resan</span></div><div class="admin-table-wrap"><table><thead><tr><th>Imèl</th><th>Estati</th><th>KYC</th><th>Wòl</th><th>Kreye</th><th>Aksyon</th></tr></thead><tbody>${state.users.map(u=>{const roles=u.roles||[];const playerOnly=!roles.some(role=>['admin','compliance','finance','support','auditor'].includes(role));const action=canManagePlayers&&playerOnly&&u.account_status==='active'?'suspend':canManagePlayers&&playerOnly&&u.account_status==='suspended'?'reactivate':'';const label=action==='suspend'?'Sispann':action==='reactivate'?'Reaktive':'—';return `<tr><td>${esc(u.email)}</td><td>${esc(u.account_status)}</td><td>${esc(u.kyc_status)}</td><td>${esc(roles.join(', '))}</td><td>${esc(new Date(u.created_at).toLocaleDateString('fr-FR'))}</td><td>${action?`<button class="button button-ghost" data-user-action="${action}" data-user-id="${esc(u.id)}" ${state.busy?'disabled':''}>${label}</button>`:label}</td></tr>`;}).join('')}</tbody></table></div>${canManagePlayers?'<p class="small-print">Se wòl admin kapab sispann oswa reyaktive kont jwè nòmal. Aksyon yo mande rezon, MFA ak yon tras audit; yo pa chanje balans oswa wòl.</p>':''}</section>`:''}
     ${state.audit.length?`<section class="panel"><h2>Dènye aksyon sekirite</h2><div class="admin-table-wrap"><table><thead><tr><th>Aksyon</th><th>Wòl</th><th>Rezilta</th><th>Dat</th></tr></thead><tbody>${state.audit.map(x=>`<tr><td>${esc(x.action)}</td><td>${esc(x.actor_role)}</td><td>${esc(x.outcome)}</td><td>${esc(new Date(x.created_at).toLocaleString('fr-FR'))}</td></tr>`).join('')}</tbody></table></div></section>`:''}
     <footer class="admin-footnote">Done yo soti nan PostgreSQL. Okenn pwen demonstrasyon pa enpòte. Depo, retrè ak jwèt rete dezaktive. Wòl yo jere dirèkteman nan bazdone pa administratè ki otorize.</footer>
   </main>`;
@@ -90,6 +91,40 @@ async function onAuth(user) {
   finally { state.busy=false; }
 }
 root.addEventListener('click', async event=>{
+  const userActionButton=event.target.closest('[data-user-action]');
+  if (userActionButton) {
+    const action=userActionButton.dataset.userAction;
+    const targetUserId=userActionButton.dataset.userId;
+    const reason=window.prompt(action==='suspend'?'Bay rezon pou sispann kont jwè sa a (10–500 karaktè):':'Bay rezon pou reyaktive kont jwè sa a (10–500 karaktè):');
+    if (reason===null) return;
+    if (reason.trim().length<10 || reason.trim().length>500) {
+      state.error='Rezon an dwe gen ant 10 ak 500 karaktè.';
+      dashboardView();
+      return;
+    }
+    const confirmed=window.confirm(action==='suspend'?'Konfime sispansyon kont jwè sa a?':'Konfime reyaktivasyon kont jwè sa a?');
+    if (!confirmed) return;
+    try {
+      state.busy=true;
+      state.error='';
+      state.success='';
+      dashboardView();
+      await api('/api/admin/production/users/status',{method:'POST',body:{
+        targetUserId,
+        action,
+        reason:reason.trim(),
+        idempotencyKey:crypto.randomUUID()
+      }});
+      state.success=action==='suspend'?'Kont jwè a sispann.':'Kont jwè a reyaktive.';
+      await refresh();
+    } catch(error) {
+      state.error=error.message||'Aksyon sou kont jwè a echwe.';
+      dashboardView();
+    } finally {
+      state.busy=false;
+    }
+    return;
+  }
   const action=event.target.closest('[data-admin-action]')?.dataset.adminAction;
   if (!action) return;
   if (action==='logout') { await logoutAccount(); return; }
