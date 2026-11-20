@@ -16,6 +16,7 @@ const client = new Client({
 
 const migration1 = await readFile(new URL('../database/migrations/0001_production_foundation.sql', import.meta.url), 'utf8');
 const migration2 = await readFile(new URL('../database/migrations/0002_locked_game_registry.sql', import.meta.url), 'utf8');
+const migration3 = await readFile(new URL('../database/migrations/0003_admin_account_controls.sql', import.meta.url), 'utf8');
 
 try {
   await client.connect();
@@ -23,17 +24,20 @@ try {
   // Execute both migrations in order, then execute them again to verify safe re-runs.
   await client.query(migration1);
   await client.query(migration2);
+  await client.query(migration3);
   await client.query(migration1);
   await client.query(migration2);
+  await client.query(migration3);
 
   const versions = await client.query(
     `SELECT version FROM schema_migrations
-      WHERE version IN ('0001_production_foundation','0002_locked_game_registry')
+      WHERE version IN ('0001_production_foundation','0002_locked_game_registry','0003_admin_account_controls')
       ORDER BY version`
   );
   assert.deepEqual(versions.rows.map((row) => row.version), [
     '0001_production_foundation',
-    '0002_locked_game_registry'
+    '0002_locked_game_registry',
+    '0003_admin_account_controls'
   ]);
 
   const systemAccounts = await client.query(
@@ -76,6 +80,37 @@ try {
       `SELECT role FROM user_roles WHERE user_id = $1 AND revoked_at IS NULL`, [userId]
     );
     assert.deepEqual(role.rows.map((row) => row.role), ['player']);
+
+    const target = await client.query(
+      `INSERT INTO app_users (auth_provider, auth_subject, email, display_name, email_verified, account_status)
+       VALUES ('firebase', 'ci-phase13-target', 'ci-target@example.invalid', 'Target Test', TRUE, 'active')
+       RETURNING id`
+    );
+    const action = await client.query(
+      `INSERT INTO admin_account_actions
+         (idempotency_key, actor_user_id, target_user_id, action, previous_status, new_status, reason)
+       VALUES ($1,$2,$3,'suspend_player','active','suspended',$4)
+       RETURNING id`,
+      ['ci-admin-action-key-0001', userId, target.rows[0].id, 'CI test verifies immutable admin account events']
+    );
+    assert.equal(action.rowCount, 1);
+    await client.query('SAVEPOINT immutable_admin_action_test');
+    await assert.rejects(
+      client.query(`UPDATE admin_account_actions SET reason = 'tampered' WHERE id = $1`, [action.rows[0].id]),
+      (error) => error.code === '55000'
+    );
+    await client.query('ROLLBACK TO SAVEPOINT immutable_admin_action_test');
+    await client.query('SAVEPOINT duplicate_admin_action_key_test');
+    await assert.rejects(
+      client.query(
+        `INSERT INTO admin_account_actions
+           (idempotency_key, actor_user_id, target_user_id, action, previous_status, new_status, reason)
+         VALUES ($1,$2,$3,'suspend_player','active','suspended',$4)`,
+        ['ci-admin-action-key-0001', userId, target.rows[0].id, 'Duplicate key should be rejected by the database']
+      ),
+      (error) => error.code === '23505'
+    );
+    await client.query('ROLLBACK TO SAVEPOINT duplicate_admin_action_key_test');
 
     const wallet = await client.query(
       `SELECT id, currency, normal_balance
@@ -168,7 +203,7 @@ try {
     await client.query('ROLLBACK');
   }
 
-  console.log('Kazino Lakay PostgreSQL: migrations idempotentes, 22 jeux verrouillés, fournisseurs OFF, wallets à zéro, ledger double-entry, balances normales, idempotency et immutabilité OK.');
+  console.log('Kazino Lakay PostgreSQL: 3 migrations idempotentes, 22 jeux verrouillés, fournisseurs OFF, wallets à zéro, ledger double-entry/idempotency/immutabilité et actions admin imitab OK.');
 } finally {
   await client.end().catch(() => {});
 }
