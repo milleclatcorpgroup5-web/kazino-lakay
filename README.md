@@ -40,3 +40,8 @@ npm run build
 ## Pa gen lajan reyèl
 
 Tout balans, parye, retou ak kont platfòm lan se pwen Demo san valè lajan. Pa gen depo, retrè, peman, MonCash/NatCash, kat bank, konvèsyon pwen oswa lajan reyèl. Pa sèvi ak app sa a pou aksepte parye lajan.
+
+
+## Faz 4–6
+
+Plan travay ak kritè sòti: [PHASE-4-6-ROADMAP-HA.md](./PHASE-4-6-ROADMAP-HA.md). Faz sa yo poko valide ni aktive; tout jwèt ak tout peman rete dezaktive.
