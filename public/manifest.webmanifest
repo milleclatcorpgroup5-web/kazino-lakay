@@ -2,17 +2,14 @@
   "id": "/",
   "name": "Kazino Lakay",
   "short_name": "Kazino Lakay",
-  "description": "Jwèt demonstrasyon ak pwen san valè lajan.",
+  "description": "Kont kliyan ak pwoteksyon jwè. Jwèt, paryaj, depo ak retrè rete dezaktive pandan verifikasyon legal ak teknik.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#080d1c",
   "theme_color": "#080d1c",
   "orientation": "any",
-  "categories": [
-    "games",
-    "entertainment"
-  ],
+  "categories": ["games", "entertainment"],
   "icons": [
     {
       "src": "/icones/icon-192.png",
@@ -27,16 +24,18 @@
       "purpose": "any maskable"
     }
   ],
-  "display_override": [
-    "standalone",
-    "minimal-ui"
-  ],
+  "display_override": ["standalone", "minimal-ui"],
   "prefer_related_applications": false,
   "shortcuts": [
     {
-      "name": "Louvri jwèt yo",
-      "short_name": "Jwèt yo",
-      "url": "/#games"
+      "name": "Kont mwen",
+      "short_name": "Kont",
+      "url": "/"
+    },
+    {
+      "name": "Administrasyon",
+      "short_name": "Admin",
+      "url": "/admin.html"
     }
   ]
 }
