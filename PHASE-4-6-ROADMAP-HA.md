@@ -100,3 +100,10 @@ Les changements ci-dessous sont une première tranche de réalisation et non une
 - **Phase 6 — démarrage QA :** le workflow CI couvre la branche Production, les contrôles de syntaxe, les tests applicatifs, les trois migrations PostgreSQL et le build frontend. La QA mobile/tablette, les tests Cloudflare Worker/Hyperdrive/Firebase en staging, les fournisseurs KYC/OTP, la supervision et la restauration restent à faire.
 
 La migration 0003 doit être appliquée après 0001 et 0002 dans une base PostgreSQL de test/staging. Les droits supplémentaires du rôle runtime sont documentés dans `database/README-SETUP-HA.md`. Ne pas appliquer cette migration à une base réelle avant validation du pipeline et sauvegarde.
+
+### Audit matematik Production — 20 novanm 2026
+
+- Rapò kalkil yo: [PRODUCTION-PHASE-4-MATH-AUDIT-HA.md](./PRODUCTION-PHASE-4-MATH-AUDIT-HA.md).
+- Li montre ansyen tablo pwen V1.9 yo gen RTP ki depase 100% pou plizyè chwa, ansanm ak lòt ki twò ba. Yo rete dyagnostik; yo pa antre nan Production.
+- Tès repwodiktib `worker/test-production-math-audit.mjs` verifye fòmil kle yo nan CI.
+- Pa gen RTP Production ki apwouve. Tout jwèt rete bloke.
