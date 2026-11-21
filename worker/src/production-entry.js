@@ -114,6 +114,17 @@ export default {
       return json(await productionHealth(env), 200, cors);
     }
 
+    // Serve the admin HTML directly from the Worker. This avoids relying on an
+    // asset-level /admin -> /admin.html redirect/rewrite, which can loop when
+    // combined with SPA fallback or inherited Cloudflare redirect rules.
+    if ((url.pathname === '/admin' || url.pathname === '/admin/') && request.method === 'GET') {
+      if (env.ASSETS && typeof env.ASSETS.fetch === 'function') {
+        const adminUrl = new URL('/admin.html', url);
+        return env.ASSETS.fetch(new Request(adminUrl, { method: 'GET', headers: request.headers }));
+      }
+      return new Response('Admin assets yo poko konekte. Verifye binding ASSETS la.', { status: 503 });
+    }
+
     if (url.pathname.startsWith('/api/')) {
       try {
         const response = await handleProductionRoute(request, env, verifyFirebaseIdentity);
