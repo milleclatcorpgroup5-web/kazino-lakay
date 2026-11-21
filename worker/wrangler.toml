@@ -1,6 +1,6 @@
 # Worker name must match the Cloudflare project: kazino-lakay
 name = "kazino-lakay"
-main = "src/production-entry.js"
+main = "src/index.js"
 compatibility_date = "2026-11-20"
 compatibility_flags = ["nodejs_compat"]
 workers_dev = true
@@ -11,12 +11,12 @@ keep_vars = true
 directory = "../dist"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
-run_worker_first = ["/api/*", "/health", "/firebase-config.js"]
+run_worker_first = ["/api/*", "/health", "/firebase-config.js", "/admin", "/admin/*"]
 
 # Production is fail-closed. Do not enable these flags for this alpha.
 [vars]
-APP_MODE = "production"
-DEMO_ENABLED = "false"
+APP_MODE = "points-only"
+DEMO_ENABLED = "true"
 PAYMENTS_ENABLED = "false"
 REAL_MONEY_GAMES_ENABLED = "false"
 
