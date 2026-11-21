@@ -69,10 +69,21 @@ const invalidAuth = await worker.fetch(new Request(`${base}/api/profile/bootstra
 }), { ...env, FIREBASE_PROJECT_ID: 'test-project' });
 assert.equal(invalidAuth.status, 401);
 
-const assetsEnv = { ...env, ASSETS: { fetch: async () => new Response('static asset ok', { status: 200 }) } };
+const assetCalls = [];
+const assetsEnv = { ...env, ASSETS: { fetch: async (request) => {
+  assetCalls.push(new URL(request.url).pathname);
+  return new Response('static asset ok', { status: 200, headers: { 'Content-Type': 'text/html' } });
+} } };
 const asset = await worker.fetch(new Request(`${base}/admin.html`), assetsEnv);
 assert.equal(asset.status, 200);
 assert.equal(await asset.text(), 'static asset ok');
+for (const path of ['/admin', '/admin/']) {
+  const admin = await worker.fetch(new Request(`${base}${path}`), assetsEnv);
+  assert.equal(admin.status, 200, `${path} must serve admin HTML directly`);
+  assert.equal(admin.headers.get('Location'), null, `${path} must not redirect`);
+  assert.equal(await admin.text(), 'static asset ok');
+}
+assert.deepEqual(assetCalls, ['/admin.html', '/admin.html', '/admin.html']);
 
 const blockedOrigin = await worker.fetch(new Request(`${base}/api/health`, {
   headers: { Origin: 'https://malicious.example' }
