@@ -1494,6 +1494,14 @@ export default {
       return json({ error: 'Orijin sa a pa otorize.' }, 403, cors);
     }
     try {
+      const requestUrl = new URL(request.url);
+      if ((requestUrl.pathname === '/admin' || requestUrl.pathname === '/admin/') && request.method === 'GET') {
+        if (!env.ASSETS || typeof env.ASSETS.fetch !== 'function') {
+          return new Response('Admin assets yo poko konekte. Verifye binding ASSETS la.', { status: 503 });
+        }
+        const adminUrl = new URL('/admin.html', requestUrl);
+        return env.ASSETS.fetch(new Request(adminUrl, { method: 'GET', headers: request.headers }));
+      }
       const response = await route(request, env);
       const headers = new Headers(response.headers);
       for (const [key, value] of Object.entries(cors)) headers.set(key, value);

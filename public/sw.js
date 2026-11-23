@@ -1,5 +1,5 @@
-const CACHE_NAME = 'kazino-lakay-v200-alpha2-production';
-const APP_SHELL = ['/', '/admin.html', '/manifest.webmanifest', '/icones/icon-192.png', '/icones/icon-512.png'];
+const CACHE_NAME = 'kazino-lakay-points-only-admin-repair-v1';
+const APP_SHELL = ['/', '/admin', '/admin.html', '/manifest.webmanifest', '/icones/icon-192.png', '/icones/icon-512.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
