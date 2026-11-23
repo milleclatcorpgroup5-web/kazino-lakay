@@ -49,15 +49,14 @@ const mainHtml = await readFile(new URL('../index.html', import.meta.url), 'utf8
 const viteConfig = await readFile(new URL('../vite.config.js', import.meta.url), 'utf8');
 const serviceWorker = await readFile(new URL('../public/sw.js', import.meta.url), 'utf8');
 const adminHtml = await readFile(new URL('../admin.html', import.meta.url), 'utf8');
-const redirects = await readFile(new URL('../public/_redirects', import.meta.url), 'utf8');
 const firestoreRules = await readFile(new URL('../firestore.rules', import.meta.url), 'utf8');
 const firebaseJson = JSON.parse(await readFile(new URL('../firebase.json', import.meta.url), 'utf8'));
 const workerSource = await readFile(new URL('./src/index.js', import.meta.url), 'utf8');
 const adminSource = await readFile(new URL('../src/admin.js', import.meta.url), 'utf8');
 const playerSource = await readFile(new URL('../src/main.js', import.meta.url), 'utf8');
 assert.match(mainHtml, /manifest\.webmanifest/);
-assert.match(adminHtml, /src\/production-admin\.js/, 'Admin HTML dwe sèvi ak nouvo entèfas admin pwodiksyon an.');
-assert.match(redirects, /^\/admin \/admin\.html 200/m, 'URL /admin dwe louvri paj administrasyon apa a.');
+assert.match(adminHtml, /src\/admin\.js/, 'Admin HTML dwe sèvi ak entèfas administrasyon points-only la.');
+assert.match(workerSource, /requestUrl\.pathname === '\/admin'/, 'Worker dwe sèvi admin dirèkteman san redirect.');
 assert.match(adminHtml, /noindex,nofollow/);
 assert.match(firestoreRules, /match \/walletAccounts\/{uid}/);
 assert.match(firestoreRules, /match \/walletTransactions\/{transactionId}/);
@@ -75,6 +74,7 @@ assert.ok(viteConfig.includes("main: resolve(here, 'index.html')"), 'Build la dw
 assert.ok(viteConfig.includes("admin: resolve(here, 'admin.html')"), 'Build la dwe enkli paj admin lan.');
 assert.ok(await readFile(new URL('../public/icones/icon-192.png', import.meta.url)));
 assert.ok(await readFile(new URL('../public/icones/icon-512.png', import.meta.url)));
+assert.match(serviceWorker, /'\/admin'/);
 assert.match(serviceWorker, /'\/admin\.html'/);
 assert.match(serviceWorker, /'\/icones\/icon-192\.png'/);
 
