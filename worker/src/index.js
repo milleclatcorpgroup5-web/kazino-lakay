@@ -24,7 +24,9 @@ const encoder = new TextEncoder();
 const nowSeconds = () => Math.floor(Date.now() / 1000);
 
 function allowedOrigins(env) {
-  return (env.ALLOWED_ORIGINS || '').split(',').map((x) => x.trim()).filter(Boolean);
+  const configured = (env.ALLOWED_ORIGINS || '').split(',').map((x) => x.trim()).filter(Boolean);
+  // The public Pages frontend is an intentional first-party client of this Worker.
+  return [...new Set(['https://kazino-lakay.pages.dev', ...configured])];
 }
 function corsHeaders(request, env) {
   const origin = request.headers.get('Origin') || '';
