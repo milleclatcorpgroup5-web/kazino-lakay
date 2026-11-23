@@ -282,7 +282,7 @@ function render() {
 }
 
 function gameChoiceMarkup(game) {
-  return game.controls.map((field) => {
+  return game.controls.filter((field) => !['volatility','risk','mineCount','difficulty','standAt','dealerSoft17'].includes(field.id)).map((field) => {
     if (game.id === 'penalty' && field.id === 'team') {
       const current = state.penaltyTeam || field.value || 'haiti';
       return `<section class="kl-control-group penalty-team-control"><div class="kl-control-heading"><span>DRAPO EKIP OU</span><b>ADVÈSÈ A CHWAZI OTÒMATIKMAN</b></div><input type="hidden" name="team" value="${esc(current)}" data-choice-input="team"><div class="penalty-team-grid">${PENALTY_TEAMS.map((team) => `<button type="button" class="penalty-team-chip ${team.id === current ? 'is-active' : ''}" data-game-choice="team" data-choice-value="${team.id}" aria-pressed="${team.id === current}"><span>${team.flag}</span><b>${esc(team.name)}</b><small>${esc(team.player.name)}</small></button>`).join('')}</div></section>`;

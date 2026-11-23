@@ -542,3 +542,26 @@
 .penalty-team-chip.is-active small{color:#fff0c5}
 .striker-arm-left,.striker-arm-right{transform-origin:50% 12%;transform-box:fill-box;will-change:transform}
 @media(max-width:520px){.penalty-player-card{top:99px;max-width:58%;padding:5px 7px;gap:6px}.penalty-player-number{width:28px;height:28px;flex-basis:28px;font-size:11px}.penalty-team-chip{min-height:58px}.penalty-team-chip small{font-size:6px}}
+
+/* 2026 3D production visual pass — shared depth system for all 22 game stages */
+.kl-game-screen{perspective:1800px;perspective-origin:50% 22%}
+.kl-game-screen .kl-stage-wrap{perspective:1500px;perspective-origin:50% 38%;transform-style:preserve-3d}
+.casino-stage{border-radius:22px;overflow:hidden;transform:translateZ(0) rotateX(1.6deg);box-shadow:0 34px 70px #0009,inset 0 1px #ffffff26,0 0 42px #55aaff16}
+.casino-stage:after{content:"";position:absolute;inset:0;z-index:4;pointer-events:none;border-radius:inherit;background:linear-gradient(125deg,#ffffff0c 0%,transparent 26%,transparent 72%,#64c9ff0a 100%);mix-blend-mode:screen}
+.stage-visual-3d{transform-style:preserve-3d;perspective:1300px;perspective-origin:50% 38%}
+.stage-visual-3d>*{backface-visibility:hidden}
+.stage-visual-3d .crash-screen,.stage-visual-3d .slots-cabinet,.stage-visual-3d .roulette-table,.stage-visual-3d .mines-board-wrap,.stage-visual-3d .plinko-board,.stage-visual-3d .penalty-field,.stage-visual-3d .holdem-table,.stage-visual-3d .bingo-table{transform:translateZ(24px) rotateX(1deg);transform-style:preserve-3d;filter:drop-shadow(0 26px 20px #0008)}
+.stage-visual-3d .roulette-wheel{box-shadow:0 22px 28px #000a,inset 0 2px 9px #fff5,0 -7px 18px #0009}
+.stage-visual-3d .slot-reel{border:1px solid #ffffff38;background:linear-gradient(100deg,#070b13,#26354c 18%,#101a2b 48%,#34445c 78%,#090e18);box-shadow:inset 0 0 18px #000c,0 14px 24px #0009}
+.stage-visual-3d .playing-card{box-shadow:0 18px 26px #0009,inset 0 1px 0 #fff;transform:translateZ(34px) rotateY(-4deg)}
+.stage-visual-3d .die-face{box-shadow:inset 0 2px 5px #fff9,0 16px 25px #000b;transform:translateZ(36px) rotateX(14deg) rotateY(-15deg)}
+.stage-visual-3d .penalty-field{perspective:1000px;transform:translateZ(26px) rotateX(2deg);transform-style:preserve-3d;box-shadow:0 28px 38px #000b,inset 0 0 0 2px #ffffff18}
+.stage-visual-3d .penalty-goal-frame{transform:translateZ(34px) rotateX(-2deg);transform-style:preserve-3d}
+.stage-visual-3d .penalty-keeper{transform:translate(-50%,-50%) translateZ(48px);filter:drop-shadow(0 18px 12px #000c)}
+.stage-visual-3d .penalty-striker{transform:translateZ(34px);filter:drop-shadow(0 20px 12px #000c)}
+.stage-visual-3d .penalty-ball{transform:translate(-50%,-50%) translateZ(58px);filter:drop-shadow(0 12px 9px #000b)}
+.stage-visual-3d .penalty-goal-net{filter:drop-shadow(0 0 10px #bdeaff28)}
+.difficulty-badge{color:#ffd0a1;border-color:#ff8b584d;background:linear-gradient(135deg,#6e271f77,#341b2c77);box-shadow:0 0 18px #ff633322}
+.kl-game-screen .kl-play-panel,.kl-game-screen .kl-game-footer{transform:translateZ(12px)}
+@media(max-width:700px){.kl-game-screen .kl-stage-wrap{perspective:900px}.casino-stage{transform:translateZ(0) rotateX(.5deg)}.stage-visual-3d{perspective:800px}.stage-visual-3d .penalty-field{transform:translateZ(12px) rotateX(1deg)}}
+@media(prefers-reduced-motion:reduce){.casino-stage,.stage-visual-3d>*{transition:none!important;animation-duration:.01ms!important;animation-iteration-count:1!important}}

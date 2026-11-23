@@ -79,6 +79,10 @@ assert.match(serviceWorker, /'\/admin\.html'/);
 assert.match(serviceWorker, /'\/icones\/icon-192\.png'/);
 
 assert.deepEqual(GAMES.map((game) => game.id), Object.keys(cases), 'Frontend ak backend dwe gen menm 22 jwèt yo nan menm lòd la.');
+const playerSourceForDifficulty = await readFile(new URL('../src/main.js', import.meta.url), 'utf8');
+assert.match(workerSource, /choice = \{ \.\.\.choice, volatility: 'high', risk: 'high', mineCount: 10, difficulty: 'hard', standAt: 20, dealerSoft17: 'hit' \}/, 'Backend dwe fòse pwofil difisil la.');
+assert.match(playerSourceForDifficulty, /filter\(\(field\) => !\['volatility','risk','mineCount','difficulty','standAt','dealerSoft17'\]/, 'Entèfas la pa dwe kite jwè chwazi nivo difikilte.');
+
 
 for (const [gameId, choice] of Object.entries(cases)) {
   for (let i = 0; i < 100; i += 1) {

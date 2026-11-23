@@ -755,6 +755,8 @@ function createBingoCard() {
 }
 
 export function resolveGame(gameId, stake, choice = {}) {
+  // Server-authoritative challenge profile: clients cannot downgrade difficulty.
+  choice = { ...choice, volatility: 'high', risk: 'high', mineCount: 10, difficulty: 'hard', standAt: 20, dealerSoft17: 'hit' };
   let won = false, multiplier = 0, title = 'Wonn fini', message = '', details = {}, animationKey = gameId, exactPayoutPoints = null;
   switch (gameId) {
     case 'crash': {
