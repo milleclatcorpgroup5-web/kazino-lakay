@@ -9,6 +9,8 @@ const root = document.querySelector('#admin-root');
 let signedUser = null;
 let busy = false;
 let dashboardData = null;
+let backendHealth = null;
+let backendHealthError = '';
 const esc = (v='') => String(v).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt = (v=0) => Math.floor(Number(v)||0).toLocaleString('fr-FR');
 const DEFAULT_CONTROL = { globalEnabled: true, maintenanceMessage: '', games: Object.fromEntries(GAMES.map((g) => [g.id, true])) };
@@ -23,6 +25,9 @@ function renderLogin(message='') {
   root.innerHTML = `<main class="admin-shell"><header class="admin-brand"><a href="/">← Retounen sou sit la</a><span class="brand-mark">KL</span><div><small>KAZINO LAKAY</small><h1>Sant administrasyon</h1></div></header>
     ${!firebaseReady ? `<div class="config-alert"><strong>Firebase frontend poko konfigire.</strong><span>${firebaseMissing.map(esc).join(', ')}</span></div>` : ''}
     ${message?`<div class="config-alert"><strong>${esc(message)}</strong></div>`:''}
+    ${backendHealthError?`<div class="config-alert"><strong>Backend pa reponn.</strong><span>${esc(backendHealthError)}</span></div>`:''}
+    ${backendHealth && !backendHealth.frontendFirebaseConfigured?`<div class="config-alert"><strong>Konfigirasyon Firebase Web la manke.</strong><span>${esc((backendHealth.frontendFirebaseMissing||[]).join(', ')||'Verifye FIREBASE_WEB_API_KEY, FIREBASE_AUTH_DOMAIN, FIREBASE_PROJECT_ID ak FIREBASE_APP_ID sou Worker la.')}</span></div>`:''}
+    ${backendHealth && !backendHealth.adminConfigured?`<div class="config-alert"><strong>Imèl administratè a poko otorize.</strong><span>Sou Cloudflare Worker kazino-lakay, mete INITIAL_ADMIN_EMAILS kòm yon Variable ki gen menm adrès imèl Firebase ou pral itilize pou konekte a. Pa mete modpas oswa kle sekrè ladan l.</span></div>`:''}
     <section class="admin-login panel"><h2>Koneksyon administratè</h2><p>Antre ak imel administratè ki anrejistre nan <code>INITIAL_ADMIN_EMAILS</code> sou Cloudflare. Kont Firebase la dwe deja egziste epi imel la dwe verifye.</p>
       <form id="admin-login-form"><label class="field"><span>Imel administratè</span><input name="email" type="email" autocomplete="username" required></label><label class="field"><span>Modpas</span><input name="password" type="password" autocomplete="current-password" required></label><button class="button button-primary button-wide" type="submit" ${!firebaseReady||busy?'disabled':''}>Konekte an sekirite</button><button class="button button-ghost button-wide" type="button" data-admin-action="reset-password">Mwen bliye modpas mwen</button></form>
       <p class="small-print">Pa gen modpas default. Firebase Authentication verifye idantite a; Worker la verifye dwa administratè a apa.</p>
@@ -185,11 +190,19 @@ root.addEventListener('click', async (event) => {
     });
   }
 });
-if (!firebaseReady) renderLogin();
-else {
-  renderLogin();
-  watchAuth((user) => { onUser(user); });
+async function loadBackendHealth() {
+  try {
+    backendHealth = await api('/api/health');
+    backendHealthError = '';
+  } catch (error) {
+    backendHealth = null;
+    backendHealthError = error.message || 'Pa kapab kontakte API Worker la.';
+  }
+  if (!signedUser) renderLogin();
 }
+renderLogin();
+loadBackendHealth();
+if (firebaseReady) watchAuth((user) => { onUser(user); });
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).catch(() => {}), { once: true });
 }
