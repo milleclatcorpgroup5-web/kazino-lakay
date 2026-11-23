@@ -40,43 +40,85 @@ function torus(scene,x,y,z,r,tube,color,rx=Math.PI/2) {
 }
 function addLights(scene,accent) {
   scene.add(new THREE.HemisphereLight(0xd9edff,0x182033,2.0));
-  const key=new THREE.DirectionalLight(0xffffff,3.1); key.position.set(5,9,7); scene.add(key);
+  const key=new THREE.DirectionalLight(0xffffff,3.1); key.position.set(5,9,7); key.castShadow=true; key.shadow.mapSize.set(1024,1024); scene.add(key);
   const rim=new THREE.PointLight(accent,36,18); rim.position.set(-5,3,-3); scene.add(rim);
 }
+function addFootballer(scene,x,z,shirt,keeper=false) {
+  const group=new THREE.Group(); group.position.set(x,0,z); scene.add(group);
+  const skin=material('#9a6749',.72,.02), fabric=material(shirt,.7,.02), shorts=material(keeper?'#26364b':'#172d4d',.78,.02), boots=material('#101820',.55,.08);
+  const torso=new THREE.Mesh(new THREE.CapsuleGeometry(.27,.48,5,10),fabric); torso.position.y=1.12; group.add(torso);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(.19,20,16),skin); head.position.y=1.68; group.add(head);
+  const hair=new THREE.Mesh(new THREE.SphereGeometry(.195,16,10,0,Math.PI*2,0,Math.PI*.48),material('#17191d')); hair.position.y=1.76; group.add(hair);
+  for(const side of [-1,1]) {
+    const arm=new THREE.Mesh(new THREE.CapsuleGeometry(.085,.43,4,8),fabric); arm.position.set(side*.34,1.12,.015); arm.rotation.z=side*(keeper?.72:.18); group.add(arm);
+    const hand=new THREE.Mesh(new THREE.SphereGeometry(.09,12,10),skin); hand.position.set(side*(keeper?.68:.39),keeper?1.35: .82,.02); group.add(hand);
+    const leg=new THREE.Mesh(new THREE.CapsuleGeometry(.105,.48,4,8),shorts); leg.position.set(side*.13,.48,0); leg.rotation.z=side*.06; group.add(leg);
+    const boot=new THREE.Mesh(new THREE.BoxGeometry(.17,.1,.31),boots); boot.position.set(side*.13,.12,-.07); group.add(boot);
+  }
+  return group;
+}
 function addStadium(scene,accent) {
-  box(scene,0,-.32,0,14,.35,10,'#176b3d');
-  for(let i=-4;i<=4;i++) box(scene,i*1.45,-.12,0,.018,.012,9.5,'#bce8c5');
-  box(scene,0,-.1,0,7,.015,.02,'#e4f4df');
-  torus(scene,0,-.09,0,1.1,.012,'#d7f1dc');
-  for(let side of [-1,1]) {
-    box(scene,side*7,1.25,0,.45,3.1,10,'#26384c');
-    for(let row=0;row<4;row++) for(let col=0;col<18;col++)
-      box(scene,side*7+(side*.02),2.9+row*.28,-4.5+col*.52,.38,.18,.32,(row+col)%3===0?accent:'#74849a');
-    for(let x=-5.5;x<=5.5;x+=3.7) {
-      cylinder(scene,x,4.4,-4.7,.045,.045,1.4,'#d8e5ef',10);
-      sphere(scene,x,5.15,-4.7,.19,'#fff4c4',16);
+  // Full-size pitch and marked penalty area.
+  box(scene,0,-.34,0,15,.32,11,'#176b3d');
+  for(let i=0;i<10;i++) box(scene,-6.7+i*1.48,-.165,0,1.43,.012,10.65,i%2?'#197441':'#1c8048');
+  for(let x=-6;x<=6;x+=1.5) box(scene,x,-.145,0,.018,.012,10.4,'#c8e8cf');
+  box(scene,0,-.14,0,.025,.014,10.4,'#eaf5e8');
+  box(scene,0,-.13,0,15,.014,.025,'#eaf5e8');
+  torus(scene,0,-.12,0,1.05,.018,'#eaf5e8');
+  // Penalty box and six-yard box lines facing the camera.
+  for(const [w,d,z] of [[7.4,3.2,-3.35],[3.5,1.45,-4.15]]) {
+    box(scene,-w/2,-.12,z,w,.014,.022,'#edf6eb');
+    box(scene,w/2,-.12,z,w,.014,.022,'#edf6eb');
+    box(scene,0,-.12,z-d/2,.022,.014,d,'#edf6eb');
+  }
+  sphere(scene,0,-.095,-2.2,.055,'#ffffff',12);
+  // Stadium bowl, tiered seats and roof canopy.
+  for(const side of [-1,1]) {
+    box(scene,side*7.65,1.05,0,.48,2.7,11.4,'#26364b');
+    for(let tier=0;tier<7;tier++) {
+      const y=2.1+tier*.28, z=-5.15+tier*.12;
+      box(scene,side*(7.1+tier*.12),y,0,.32,.16,11.1,'#34465e');
+      for(let seat=0;seat<34;seat++) {
+        const color=(seat+tier)%7===0?accent:(seat+tier)%3===0?'#d5dce5':'#65758c';
+        box(scene,side*(7.15+tier*.12),y+.13,-5.15+seat*.31,.25,.15,.23,color);
+      }
+    }
+    // Roof supports and canopy.
+    box(scene,side*7.1,4.45,0,.16,.18,11.8,'#9ba9b8');
+    box(scene,side*5.2,4.75,0,4.2,.12,11.7,'#26364b');
+    for(let z=-5;z<=5;z+=2.5) {
+      const beam=box(scene,side*6.1,4.35,z,.09,1.0,.09,'#b5c2cf'); beam.rotation.z=side*.32;
+    }
+    // Floodlight banks.
+    for(let z=-4.5;z<=4.5;z+=3) {
+      const mast=box(scene,side*7.0,4.0,z,.075,2.0,.075,'#d4dce5');
+      const lamp=box(scene,side*6.9,5.05,z,.72,.18,.34,'#fff2c5');
+      lamp.material.emissive=new THREE.Color('#fff0bd'); lamp.material.emissiveIntensity=.5;
+      const light=new THREE.PointLight(0xffedc2,9,8); light.position.set(side*6.7,4.9,z); scene.add(light);
     }
   }
-  // Goal frame, net and penalty spot.
-  box(scene,0,1.18,-4.45,3.65,.13,.13,'#f7f7f1');
-  box(scene,-1.76,.57,-4.45,.13,1.25,.13,'#f7f7f1');
-  box(scene,1.76,.57,-4.45,.13,1.25,.13,'#f7f7f1');
-  for(let x=-1.55;x<=1.56;x+=.22) box(scene,x,.58,-4.32,.012,1.1,.012,'#d8e3df');
-  for(let y=.1;y<=1.1;y+=.18) box(scene,0,y,-4.32,3.35,.012,.012,'#d8e3df');
-  sphere(scene,0,.035,-1.6,.055,'#ffffff');
-  // 3D striker and keeper silhouettes.
-  cylinder(scene,-.65,.75,-1.0,.22,.25,.8,'#e5e9ed',16);
-  sphere(scene,-.65,1.32,-1.0,.2,'#a96f4c',20);
-  box(scene,-.65,.88,-1.0,.46,.56,.26,'#123f99');
-  cylinder(scene,-.65,.22,-.92,.08,.1,.48,'#111827',12);
-  cylinder(scene,-.65,.22,-1.12,.08,.1,.48,'#111827',12);
-  box(scene,0,.76,-4.05,.42,.6,.22,'#e7c33c');
-  sphere(scene,0,1.2,-4.05,.18,'#a96f4c',20);
-  const ball=sphere(scene,-.65,.18,-.25,.16,'#f5f7f5',24);
+  // Goal frame, tensioned net grid and rear supports.
+  const goalZ=-4.9, goalW=3.7, goalH=1.35;
+  box(scene,0,goalH,goalZ,goalW,.095,.095,'#f7f8f3');
+  for(const x of [-goalW/2,goalW/2]) box(scene,x,goalH/2,goalZ,.095,goalH,.095,'#f7f8f3');
+  box(scene,0,.045,goalZ+.8,goalW,.07,.07,'#e8eee9');
+  for(const x of [-goalW/2,goalW/2]) box(scene,x,.68,goalZ+.8,.07,1.35,.07,'#dfe8e5');
+  for(let x=-goalW/2+.08;x<goalW/2;x+=.19) box(scene,x,.68,goalZ+.1,.012,1.25,.012,'#d8e5e2');
+  for(let y=.12;y<1.35;y+=.16) box(scene,0,y,goalZ+.1,goalW-.08,.012,.012,'#d8e5e2');
+  // Keeper and penalty taker, with articulated silhouettes.
+  const striker=addFootballer(scene,-.72,-1.25,'#123f99',false);
+  striker.rotation.y=.12;
+  const keeper=addFootballer(scene,0,-4.55,'#e5b82d',true);
+  keeper.scale.set(.94,.94,.94);
+  // Football with raised black pentagon panels.
+  const ballGroup=new THREE.Group(); ballGroup.position.set(-.72,.19,-.28); scene.add(ballGroup);
+  const ball=new THREE.Mesh(new THREE.SphereGeometry(.17,32,24),material('#f7f7f1',.34,.03)); ballGroup.add(ball);
   for(let i=0;i<5;i++) {
-    const patch=sphere(scene,-.65+Math.cos(i*1.256)*.12,.18+Math.sin(i*1.256)*.12,-.25,.035,'#17212a',10);
+    const a=i*Math.PI*2/5;
+    const patch=new THREE.Mesh(new THREE.CircleGeometry(.045,5),material('#17212a',.65,.02));
+    patch.position.set(Math.cos(a)*.145,Math.sin(a)*.145,.09); ballGroup.add(patch);
   }
-  return {ball};
+  return {ball:ballGroup};
 }
 function buildScene(scene,id,accent,secondary) {
   const animated=[];
@@ -158,7 +200,7 @@ export function mountGame3D(container, gameId) {
     renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:'low-power'});
     renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5));
     renderer.outputColorSpace=THREE.SRGBColorSpace;
-    renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+    renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.12;
     renderer.domElement.className='three-scene-canvas';renderer.domElement.setAttribute('aria-hidden','true');
     container.appendChild(renderer.domElement);
     addLights(scene,accent);
@@ -171,7 +213,7 @@ export function mountGame3D(container, gameId) {
     const observer=typeof ResizeObserver!=='undefined'?new ResizeObserver(resize):null;observer?.observe(container);resize();
     const animate=()=>{if(disposed)return;raf=requestAnimationFrame(animate);const t=clock.getElapsedTime();frame++;
       stage.animated.forEach((obj,i)=>{obj.rotation.y+=.003+(i%3)*.001;obj.position.y+=Math.sin(t*1.25+i)*.0018;});
-      if(stage.ball){stage.ball.position.x=-.65+Math.sin(t*.7)*.035;stage.ball.rotation.x+=.018;stage.ball.rotation.z+=.025;}
+      if(stage.ball){stage.ball.position.x=-.72+Math.sin(t*.7)*.035;stage.ball.rotation.x+=.018;stage.ball.rotation.z+=.025;}
       ring.rotation.z+=.0015;
       camera.position.x=Math.sin(t*.12)*.14;camera.lookAt(0,.45,0);
       renderer.render(scene,camera);
