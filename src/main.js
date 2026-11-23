@@ -5,6 +5,7 @@ import { firebaseReady, firebaseMissing, auth } from './firebase.js';
 import { watchAuth, registerAccount, loginAccount, logoutAccount, resendVerification } from './auth.js';
 import { api } from './api.js';
 import { renderRouletteScreen, rouletteCardIcon, rouletteResultMarkup, animateRouletteSpin, playRouletteSound } from './games/roulette.js';
+import { mountGame3D, disposeGame3D } from './games/three-scenes.js';
 
 const root = document.querySelector('#app');
 const state = { user: null, profile: null, health: null, gameControl: { globalEnabled: true, gameSettings: {} }, category: 'Tout jwèt', query: '', activeGame: null, selected: new Set(), busy: false, installPrompt: null, rouletteStake: 100, rouletteBets: [], rouletteBetHistory: [], rouletteMenuOpen: false, rouletteSoundOn: true, rouletteBusy: false, rouletteResult: null, gameStake: 100, gameMenuOpen: false, gameSoundOn: true, gameResult: null, penaltyTeam: 'haiti', penaltyOpponent: 'france', penaltyAim: null, penaltyGesture: null };
@@ -337,6 +338,8 @@ function renderGameModal() {
       canAccountPlay,
       result: state.rouletteResult
     });
+    const roulette3D = document.querySelector('#roulette-fullscreen');
+    if (roulette3D) mountGame3D(roulette3D, 'roulette');
     return;
   }
   const canAccountPlay = Boolean(state.user && state.user.emailVerified && firebaseReady && state.health?.firebaseConfigured === true);
@@ -358,6 +361,8 @@ function renderGameModal() {
     <aside class="kl-menu-layer" data-game-menu-layer ${state.gameMenuOpen?'':'hidden'}><button class="kl-menu-backdrop" type="button" data-game-action="menu-close" aria-label="Fèmen meni"></button><section class="kl-menu-panel" role="dialog" aria-modal="true" aria-labelledby="kl-menu-title"><div class="kl-menu-head"><div><small>KAZINO LAKAY</small><h2 id="kl-menu-title">Gid jwèt la</h2></div><button type="button" data-game-action="menu-close" class="kl-menu-close" aria-label="Fèmen">×</button></div>${rules}<div class="kl-menu-actions"><button type="button" data-game-action="sound" class="kl-menu-action">${state.gameSoundOn?'🔊 Son aktive':'🔇 Son dezaktive'}</button><button type="button" data-game-action="back" class="kl-menu-action">← Retounen nan lis jwèt yo</button></div><p class="kl-menu-disclaimer">Mòd demonstrasyon sèlman. Pwen yo pa gen valè lajan; yo pa kapab achte, vann, transfere oswa retire.</p></section></aside>
     <div class="kl-result-layer" data-game-result-layer hidden></div>
   </section>`;
+  const gameStage = document.querySelector('#game-room-screen .stage-visual');
+  if (gameStage) mountGame3D(gameStage, game.id);
 }
 
 
@@ -738,7 +743,11 @@ async function playGame(form, demoMode = false) {
     const result = await api(demoMode ? '/api/games/demo' : '/api/games/play', { method: 'POST', body: { gameId: game.id, stakePoints, choice, requestId: crypto.randomUUID() } });
     const panel = document.querySelector('#game-room-screen');
     const stage = panel?.querySelector('.casino-stage');
-    if (stage) stage.outerHTML = renderGameStage(game.id, result.result.details, 'rolling');
+    if (stage) {
+      stage.outerHTML = renderGameStage(game.id, result.result.details, 'rolling');
+      const updatedStage = panel?.querySelector('.stage-visual');
+      if (updatedStage) mountGame3D(updatedStage, game.id);
+    }
     playRouletteSound(state.gameSoundOn, 'spin');
     await animateResult(panel, game.id);
     if (!demoMode) state.profile = { ...(state.profile || {}), pointsBalance: result.balancePoints };
@@ -995,7 +1004,7 @@ root.addEventListener('click', async (event) => {
     }
   }
   else if (action?.dataset.action === 'resend-verification') { try { await resendVerification(); toast('Nou voye yon nouvo imel verifikasyon.', 'success'); } catch (error) { toast(error.message, 'error'); } }
-  else if (close) { document.body.style.overflow = ''; if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {}); state.activeGame = null; state.busy = false; document.querySelector('#modal-root').innerHTML = ''; }
+  else if (close) { document.body.style.overflow = ''; if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {}); state.activeGame = null; state.busy = false; disposeGame3D(); document.querySelector('#modal-root').innerHTML = ''; }
   else if (authMode) renderAuthModal(authMode.dataset.authMode);
   else if (number && state.activeGame) {
     const max = state.activeGame.controls.find((f) => f.type === 'grid' || f.type === 'numbers')?.count || 5;
