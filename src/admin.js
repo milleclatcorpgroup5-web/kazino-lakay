@@ -29,7 +29,7 @@ function renderLogin(message='') {
     ${backendHealth && !backendHealth.frontendFirebaseConfigured?`<div class="config-alert"><strong>Konfigirasyon Firebase Web la manke.</strong><span>${esc((backendHealth.frontendFirebaseMissing||[]).join(', ')||'Verifye FIREBASE_WEB_API_KEY, FIREBASE_AUTH_DOMAIN, FIREBASE_PROJECT_ID ak FIREBASE_APP_ID sou Worker la.')}</span></div>`:''}
     ${backendHealth && !backendHealth.adminConfigured?`<div class="config-alert"><strong>Imèl administratè a poko otorize.</strong><span>Sou Cloudflare Worker kazino-lakay, mete INITIAL_ADMIN_EMAILS kòm yon Variable ki gen menm adrès imèl Firebase ou pral itilize pou konekte a. Pa mete modpas oswa kle sekrè ladan l.</span></div>`:''}
     <section class="admin-login panel"><h2>Koneksyon administratè</h2><p>Antre ak imel administratè ki anrejistre nan <code>INITIAL_ADMIN_EMAILS</code> sou Cloudflare. Kont Firebase la dwe deja egziste epi imel la dwe verifye.</p>
-      <form id="admin-login-form"><label class="field"><span>Imel administratè</span><input name="email" type="email" autocomplete="username" required></label><label class="field"><span>Modpas</span><input name="password" type="password" autocomplete="current-password" required></label><button class="button button-primary button-wide" type="submit" ${!firebaseReady||busy?'disabled':''}>Konekte an sekirite</button><button class="button button-ghost button-wide" type="button" data-admin-action="reset-password">Mwen bliye modpas mwen</button></form>
+      <form id="admin-login-form"><label class="field"><span>Imel administratè</span><input name="email" type="email" autocomplete="username" required></label><label class="field"><span>Modpas</span><input name="password" type="password" autocomplete="current-password" required></label><button class="button button-primary button-wide" type="submit" ${busy?'disabled':''}>Konekte an sekirite</button><button class="button button-ghost button-wide" type="button" data-admin-action="reset-password">Mwen bliye modpas mwen</button></form>
       <p class="small-print">Pa gen modpas default. Firebase Authentication verifye idantite a; Worker la verifye dwa administratè a apa.</p>
     </section></main>`;
 }
@@ -113,7 +113,10 @@ root.addEventListener('submit', async (event) => {
     const data = Object.fromEntries(new FormData(event.target));
     const button = event.target.querySelector('button[type="submit"]');
     if (button) { button.disabled = true; button.textContent = 'Koneksyon an ap fèt…'; }
-    try { await loginAccount({ email: data.email, password: data.password }); }
+    try {
+      if (!firebaseReady) throw new Error(`Firebase pa pare pou koneksyon an. Paramèt ki manke: ${firebaseMissing.join(', ') || 'konfigirasyon Worker /firebase-config.js'}. Verifye FIREBASE_WEB_API_KEY, FIREBASE_AUTH_DOMAIN, FIREBASE_PROJECT_ID ak FIREBASE_APP_ID sou Worker kazino-lakay.`);
+      await loginAccount({ email: data.email, password: data.password });
+    }
     catch (error) { const code = error?.code || ''; const message = code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found' ? 'Imel oswa modpas la pa kòrèk, oubyen kont lan poko egziste nan Firebase Authentication. Verifye lis Users la.' : (error.message || 'Koneksyon an echwe.'); renderLogin(message); }
     finally { if (button?.isConnected) { button.disabled = false; button.textContent = 'Konekte an sekirite'; } }
   }
