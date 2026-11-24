@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 
-// Production: the Worker serves /firebase-config.js from its public runtime variables.
+// Production: Cloudflare Pages Function serves /firebase-config from Pages runtime variables.
 // Local Vite development: values can still come from .env / .env.local.
 const runtime = globalThis.__KL_FIREBASE_CONFIG__ || {};
 const env = import.meta.env || {};
