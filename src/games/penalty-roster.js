@@ -1,7 +1,7 @@
 // Kazino Lakay — seleksyon foutbolè reprezantan pou Penalty Lakay.
 // Non jwè yo se chwa editoryal pou jwèt la, se pa yon klasman ofisyèl.
 export const PENALTY_TEAMS = Object.freeze([
-  { id: 'haiti', name: 'Ayiti', flag: '🇭🇹', primary: '#123b89', secondary: '#d92e43', player: { name: 'Duckens Nazon', shirtNumber: 9, role: 'Atakan' } },
+  { id: 'haiti', name: 'Ayiti', flag: '🇭🇹', primary: '#123b89', secondary: '#d92e43', player: { name: 'Duckens Nazon', shirtNumber: 10, role: 'Atakan' } },
   { id: 'france', name: 'Lafrans', flag: '🇫🇷', primary: '#174b9b', secondary: '#f5f7fb', player: { name: 'Kylian Mbappé', shirtNumber: 10, role: 'Atakan' } },
   { id: 'argentina', name: 'Ajantin', flag: '🇦🇷', primary: '#75bde8', secondary: '#f7f7f3', player: { name: 'Lionel Messi', shirtNumber: 10, role: 'Atakan' } },
   { id: 'brazil', name: 'Brezil', flag: '🇧🇷', primary: '#e6c51e', secondary: '#168344', player: { name: 'Neymar Jr.', shirtNumber: 10, role: 'Atakan' } },
