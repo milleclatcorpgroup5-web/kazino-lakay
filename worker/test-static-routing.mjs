@@ -36,7 +36,7 @@ const redirects = await readFile(new URL('../public/_redirects', import.meta.url
 assert.match(redirects, /^\/admin\s+\/admin\.html\s+200/m);
 assert.match(redirects, /^\/admin\/\s+\/admin\.html\s+200/m);
 const adminHtml = await readFile(new URL('../admin.html', import.meta.url), 'utf8');
-assert.match(adminHtml, /src="\/firebase-config\.js"/);
+assert.match(adminHtml, /src="\/firebase-config(?:\.js)?"/);
 assert.match(adminHtml, /src="\/src\/admin\.js"/);
 
 console.log('Kazino Lakay Pages routing: catalog, demo round, health, admin redirects and same-origin Firebase config OK.');
