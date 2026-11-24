@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const THEMES = {
   crash:['#071c2b','#20d6bc','#f3c96b'], slots:['#210d2b','#f2b64c','#e84b86'],
@@ -189,6 +190,65 @@ function addStadium(scene,accent,options={}) {
   return {ball:ballGroup,striker,keeper};
 }
 function numberForTeam(team) { return Number(team.player?.shirtNumber||10); }
+
+const penaltyGLTFLoader = new GLTFLoader();
+function loadPenaltyCharacter(scene, personGroup, url, role, colors, stage) {
+  if(!url) return;
+  penaltyGLTFLoader.load(url, (gltf) => {
+    if(!personGroup.parent) return;
+    const model=gltf.scene;
+    model.traverse((node)=>{
+      if(!node.isMesh) return;
+      node.castShadow=true; node.receiveShadow=true;
+      const name=String(node.material?.name||node.name||'').toLowerCase();
+      const mats=Array.isArray(node.material)?node.material:[node.material];
+      node.material=mats.map((source)=>{
+        if(!source) return source;
+        const mat=source.clone();
+        if(mat.color) {
+          if(/shirt|jersey|upper|torso|top|uniform/.test(name)) mat.color.set(colors.shirt);
+          else if(/short|trouser|pant/.test(name)) mat.color.set(colors.shorts);
+          else if(/sock/.test(name)) mat.color.set(colors.socks);
+        }
+        return mat;
+      });
+      if(!Array.isArray(node.material)) node.material=node.material[0];
+    });
+    const bounds=new THREE.Box3().setFromObject(model);
+    const size=new THREE.Vector3(); bounds.getSize(size);
+    if(size.y>0) {
+      const scale=1.86/size.y;
+      model.scale.setScalar(scale);
+      model.position.y=-bounds.min.y*scale;
+    }
+    // Keep the name/number sprites while replacing only the primitive body meshes.
+    personGroup.traverse((node)=>{ if(node!==personGroup&&node.isMesh) node.visible=false; });
+    personGroup.add(model);
+    if(gltf.animations?.length) {
+      const mixer=new THREE.AnimationMixer(model);
+      const actions={};
+      for(const clip of gltf.animations) {
+        const key=clip.name.toLowerCase();
+        actions[key]=mixer.clipAction(clip);
+      }
+      const idleClip=gltf.animations.find(c=>/idle|stand|breath/i.test(c.name))||gltf.animations[0];
+      if(idleClip) actions[idleClip.name.toLowerCase()].play();
+      stage.modelMixers.push(mixer);
+      stage.modelActions[role]=actions;
+    }
+    console.info('[Penalty Lakay] GLB loaded:',role,url);
+  }, undefined, (error)=>{
+    console.warn('[Penalty Lakay] GLB pa chaje; fallback 3D rete aktif:',role,error?.message||error);
+  });
+}
+function playPenaltyClip(stage, role, pattern) {
+  const actions=stage.modelActions?.[role];
+  if(!actions) return;
+  const key=Object.keys(actions).find(name=>pattern.test(name));
+  if(!key) return;
+  Object.entries(actions).forEach(([name,action])=>{ if(name!==key) action.fadeOut(.12); });
+  const action=actions[key]; action.reset().fadeIn(.12).play();
+}
 function buildScene(scene,id,accent,secondary,options={}) {
   const animated=[];
   if(id==='penalty') return {animated,...addStadium(scene,accent,options)};
@@ -320,15 +380,15 @@ export function mountGame3D(container, gameId, options={}) {
     container.appendChild(renderer.domElement);
     addLights(scene,accent);
     const floor= new THREE.Mesh(new THREE.PlaneGeometry(22,22),material(bg,.92,0));floor.rotation.x=-Math.PI/2;floor.position.y=-.42;floor.receiveShadow=true;scene.add(floor);
-    const stage=buildScene(scene,gameId,accent,secondary,options);
+    const stage=buildScene(scene,gameId,accent,secondary,options);\n    if(gameId==='penalty'){stage.modelMixers=[];stage.modelActions={};loadPenaltyCharacter(scene,stage.striker,options.playerModelUrl||'/models/penalty-player.glb','player',{shirt:options.team?.primary||'#1f3fbf',shorts:options.team?.secondary||'#d92e43',socks:'#ffffff'},stage);loadPenaltyCharacter(scene,stage.keeper,options.keeperModelUrl||'/models/penalty-keeper.glb','keeper',{shirt:options.keeperShirt||'#2772c8',shorts:'#18253a',socks:'#e8eef4'},stage);}
     const ring=torus(scene,0,-.29,0,4.1,.025,accent);ring.material.transparent=true;ring.material.opacity=.45;
     const labelGroup=new THREE.Group();scene.add(labelGroup);
     const clock=new THREE.Clock();let frame=0;let disposed=false;let raf=0;let shotStartedAt=null;let shotDetail=options.shot?{shot:options.shot,shotX:options.shotX??.5}:null;
-    const onPenaltyShot=(event)=>{shotDetail=event.detail||shotDetail||{};shotStartedAt=clock.getElapsedTime();};
+    const onPenaltyShot=(event)=>{shotDetail=event.detail||shotDetail||{};shotStartedAt=clock.getElapsedTime();playPenaltyClip(stage,'player',/run|kick|shoot|strike/i);playPenaltyClip(stage,'keeper',/dive|save|jump|goalkeeper/i);};
     if(gameId==='penalty') container.addEventListener('penalty-shot-start',onPenaltyShot);
     const resize=()=>{const w=Math.max(1,container.clientWidth),h=Math.max(1,container.clientHeight);camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false);};
     const observer=typeof ResizeObserver!=='undefined'?new ResizeObserver(resize):null;observer?.observe(container);resize();
-    const animate=()=>{if(disposed)return;raf=requestAnimationFrame(animate);const t=clock.getElapsedTime();frame++;
+    const animate=()=>{if(disposed)return;raf=requestAnimationFrame(animate);const delta=clock.getDelta();const t=clock.elapsedTime;frame++;stage.modelMixers?.forEach(mixer=>mixer.update(delta));
       stage.animated.forEach((obj,i)=>{
         const base=obj.userData.baseY ?? (obj.userData.baseY=obj.position.y);
         obj.rotation.y+=.003+(i%3)*.001;
