@@ -29,7 +29,7 @@ const cases = {
   bingo: { pattern: 'row' }
 };
 
-const base = 'https://kazino-lakay.milleclatcorpgroup5.workers.dev';
+const base = 'https://kazino-lakay.pages.dev';
 const env = { ALLOWED_ORIGINS: '' };
 
 const rouletteSvg = rouletteWheelSvg();
