@@ -30,7 +30,7 @@ function renderLogin(message='') {
     ${backendHealth && !backendHealth.adminConfigured?`<div class="config-alert"><strong>Imèl administratè a poko otorize.</strong><span>Sou Cloudflare Pages kazino-lakay, mete INITIAL_ADMIN_EMAILS kòm yon Variable ki gen menm adrès imèl Firebase ou pral itilize pou konekte a. Pa mete modpas oswa kle sekrè ladan l.</span></div>`:''}
     <section class="admin-login panel"><h2>Koneksyon administratè</h2><p>Antre ak imel administratè ki anrejistre nan <code>INITIAL_ADMIN_EMAILS</code> sou Cloudflare. Kont Firebase la dwe deja egziste epi imel la dwe verifye.</p>
       <form id="admin-login-form"><label class="field"><span>Imel administratè</span><input name="email" type="email" autocomplete="username" required></label><label class="field"><span>Modpas</span><input name="password" type="password" autocomplete="current-password" required></label><button class="button button-primary button-wide" type="submit" ${busy?'disabled':''}>Konekte an sekirite</button><button class="button button-ghost button-wide" type="button" data-admin-action="reset-password">Mwen bliye modpas mwen</button></form>
-      <p class="small-print">Pa gen modpas default. Firebase Authentication verifye idantite a; Worker la verifye dwa administratè a apa.</p>
+      <p class="small-print">Pa gen modpas default. Firebase Authentication verifye idantite a; Pages Functions yo verifye dwa administratè a apa.</p>
     </section></main>`;
 }
 function renderVerify() {
@@ -42,11 +42,11 @@ function renderDenied(message='Kont sa a pa gen dwa administratè.') {
 function renderGameControl(settings) {
   const control = { ...DEFAULT_CONTROL, ...(settings || {}), games: { ...DEFAULT_CONTROL.games, ...(settings?.games || {}) } };
   const enabledCount = control.globalEnabled ? GAMES.filter((g) => control.games[g.id] !== false).length : 0;
-  return `<section id="game-controls" class="panel admin-section game-control-section"><div class="admin-section-head"><div><small>KONTWÒL GLOBAL</small><h2>Kontwòl 22 jwèt yo</h2><p>Sispann tout jwèt yo yon sèl kou oswa aktive/dezaktive chak jwèt apa. Chanjman yo aplike sou sèvè a tou.</p></div><span class="admin-count">${enabledCount}/${GAMES.length} aktif</span></div>
+  return `<section id="game-controls" class="panel admin-section game-control-section"><div class="admin-section-head"><div><small>KONTWÒL GLOBAL</small><h2>Kontwòl 22 jwèt yo</h2><p>Tout 22 jwèt yo gen sèn 3D Three.js pa yo. Aktive tout jwèt yo yon sèl kou oswa kontwole yo apa; chanjman yo aplike sou Pages API a tou.</p></div><span class="admin-count">${enabledCount}/${GAMES.length} aktif</span></div>
     <form id="game-control-form">
       <div class="global-control-row"><label class="global-switch"><input type="checkbox" name="globalEnabled" ${control.globalEnabled?'checked':''}><span class="switch-track"></span><span><strong>${control.globalEnabled?'Tout jwèt yo ouvè':'Tout jwèt yo sou poz'}</strong><small>Kontwòl prensipal pou tout sit la</small></span></label><label class="maintenance-field"><span>Mesaj lè jwèt yo sou poz</span><input name="maintenanceMessage" type="text" maxlength="200" value="${esc(control.maintenanceMessage||'')}" placeholder="Egzanp: Nou ap fè antretyen. Tounen pita."></label></div>
       <div class="game-control-toolbar"><strong>Estati chak jwèt</strong><div><button type="button" class="button button-small button-ghost" data-game-control-bulk="on">Aktive tout</button><button type="button" class="button button-small button-ghost" data-game-control-bulk="off">Sispann tout</button></div></div>
-      <div class="game-control-grid">${GAMES.map((game)=>`<label class="game-control-item"><span class="game-control-symbol">${esc(game.symbol)}</span><span class="game-control-name"><strong>${esc(game.name)}</strong><small>${esc(game.category)}</small></span><input type="checkbox" name="game:${esc(game.id)}" ${control.games[game.id]!==false?'checked':''}><span class="game-control-state">${control.games[game.id]!==false?'Aktif':'Sispann'}</span></label>`).join('')}</div>
+      <div class="game-control-grid">${GAMES.map((game)=>`<label class="game-control-item"><span class="game-control-symbol">${esc(game.symbol)}</span><span class="game-control-name"><strong>${esc(game.name)}</strong><small>${esc(game.category)} · SÈN 3D</small></span><input type="checkbox" name="game:${esc(game.id)}" ${control.games[game.id]!==false?'checked':''}><span class="game-control-state">${control.games[game.id]!==false?'Aktif':'Sispann'}</span></label>`).join('')}</div>
       <div class="admin-save-row"><label class="maintenance-field reason-field"><span>Rezon chanjman an (obligatwa)</span><input name="reason" type="text" minlength="3" maxlength="250" required placeholder="Egzanp: Antretyen teknik / relansman jwèt"></label><button class="button button-primary" type="submit" ${busy?'disabled':''}>Sove kontwòl jwèt yo</button></div>
     </form><p class="small-print">Mòd DEMO sèlman. Kontwòl sa yo chanje disponiblite jwèt yo; yo pa modifye rezilta o aza ni bay pwen valè lajan.</p></section>`;
 }
@@ -114,7 +114,7 @@ root.addEventListener('submit', async (event) => {
     const button = event.target.querySelector('button[type="submit"]');
     if (button) { button.disabled = true; button.textContent = 'Koneksyon an ap fèt…'; }
     try {
-      if (!firebaseReady) throw new Error(`Firebase pa pare pou koneksyon an. Paramèt ki manke: ${firebaseMissing.join(', ') || 'konfigirasyon Worker /firebase-config.js'}. Verifye FIREBASE_WEB_API_KEY, FIREBASE_AUTH_DOMAIN, FIREBASE_PROJECT_ID ak FIREBASE_APP_ID sou Pages kazino-lakay.`);
+      if (!firebaseReady) throw new Error(`Firebase pa pare pou koneksyon an. Paramèt ki manke: ${firebaseMissing.join(', ') || 'konfigirasyon Pages /firebase-config.js'}. Verifye FIREBASE_WEB_API_KEY, FIREBASE_AUTH_DOMAIN, FIREBASE_PROJECT_ID ak FIREBASE_APP_ID sou Pages kazino-lakay.`);
       await loginAccount({ email: data.email, password: data.password });
     }
     catch (error) { const code = error?.code || ''; const message = code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found' ? 'Imel oswa modpas la pa kòrèk, oubyen kont lan poko egziste nan Firebase Authentication. Verifye lis Users la.' : (error.message || 'Koneksyon an echwe.'); renderLogin(message); }
