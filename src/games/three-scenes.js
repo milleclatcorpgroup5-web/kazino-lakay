@@ -91,6 +91,7 @@ function addFootballer(scene,x,z,shirt,keeper=false,name='PLAYER',number=10,shor
     for(const side of [-1,1]) makeBodyPart(group,new THREE.BoxGeometry(.19,.16,.11),glove,[side*.39,1.0,-.015]);
   }
   const numberLabel=makeLabelSprite('#'+number,'#fff5ce'); numberLabel.position.set(0,1.25,-.285); numberLabel.scale.set(.55,.28,1); group.add(numberLabel);
+  if(!keeper){const shirtName=makeLabelSprite(name,'#ffffff');shirtName.position.set(0,1.48,-.285);shirtName.scale.set(.82,.17,1);group.add(shirtName);}
   const nameLabel=makeLabelSprite(name,keeper?'#c9edff':'#fff0b7'); nameLabel.position.set(0,2.28,0); group.add(nameLabel);
   if(!keeper) makeBodyPart(group,new THREE.ConeGeometry(.075,.16,8),material('#36a9ff',.28,.22),[0,2.62,0],[Math.PI,0,0]);
   group.userData={armL,armR,keeper}; return group;
@@ -201,8 +202,9 @@ function loadPenaltyCharacter(scene, personGroup, url, role, colors, stage) {
       if(!node.isMesh) return;
       node.castShadow=true; node.receiveShadow=true;
       const name=String(node.material?.name||node.name||'').toLowerCase();
-      const mats=Array.isArray(node.material)?node.material:[node.material];
-      node.material=mats.map((source)=>{
+      const wasArray=Array.isArray(node.material);
+      const mats=wasArray?node.material:[node.material];
+      const recolored=mats.map((source)=>{
         if(!source) return source;
         const mat=source.clone();
         if(mat.color) {
@@ -212,7 +214,7 @@ function loadPenaltyCharacter(scene, personGroup, url, role, colors, stage) {
         }
         return mat;
       });
-      if(!Array.isArray(node.material)) node.material=node.material[0];
+      node.material=wasArray?recolored:recolored[0];
     });
     const bounds=new THREE.Box3().setFromObject(model);
     const size=new THREE.Vector3(); bounds.getSize(size);
