@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const THEMES = {
   crash:['#071c2b','#20d6bc','#f3c96b'], slots:['#210d2b','#f2b64c','#e84b86'],
@@ -67,34 +66,47 @@ function addFootballer(scene,x,z,shirt,keeper=false,name='PLAYER',number=10,shor
   const skin=material('#9b684d',.78,.01), fabric=material(shirt,.68,.03), shorts=material(shortColor,.78,.01);
   const socks=material(keeper?'#e8eef4':'#e8edf3',.82,.01), boots=material('#101820',.42,.12);
   const dark=material('#17191d',.85,.01), glove=material('#f3f5f4',.48,.02);
-  // Torso, shirt, shoulder seams and back number.
-  makeBodyPart(group,new THREE.CapsuleGeometry(.255,.48,6,12),fabric,[0,1.23,0]);
-  makeBodyPart(group,new THREE.BoxGeometry(.46,.08,.28),fabric,[0,1.49,0]);
-  makeBodyPart(group,new THREE.CylinderGeometry(.115,.13,.13,16),skin,[0,1.63,0]);
-  makeBodyPart(group,new THREE.SphereGeometry(.17,24,18),skin,[0,1.84,0]);
-  makeBodyPart(group,new THREE.SphereGeometry(.176,20,12,0,Math.PI*2,0,Math.PI*.58),dark,[0,1.91,.012]);
-  // Neck and shorts.
-  makeBodyPart(group,new THREE.CylinderGeometry(.075,.08,.16,12),skin,[0,1.66,0]);
-  makeBodyPart(group,new THREE.CapsuleGeometry(.25,.18,4,10),shorts,[0,.82,0]);
-  const limbGeo=new THREE.CapsuleGeometry(.075,.43,5,10);
-  const legGeo=new THREE.CapsuleGeometry(.105,.43,5,10);
-  const armL=makeBodyPart(group,limbGeo,fabric,[-.31,1.17,0],[0,0,-.12]);
-  const armR=makeBodyPart(group,limbGeo,fabric,[.31,1.17,0],[0,0,.12]);
+  const joint=(parent,x,y,z,r,mat)=>makeBodyPart(parent,new THREE.SphereGeometry(r,18,14),mat,[x,y,z]);
+  makeBodyPart(group,new THREE.CapsuleGeometry(.255,.48,8,18),fabric,[0,1.23,0]);
+  makeBodyPart(group,new THREE.SphereGeometry(.27,20,16),fabric,[0,1.48,0]);
+  makeBodyPart(group,new THREE.CylinderGeometry(.115,.13,.13,20),skin,[0,1.63,0]);
+  makeBodyPart(group,new THREE.CapsuleGeometry(.25,.18,6,14),shorts,[0,.82,0]);
+  // Face details: ears, cheeks, eyes, pupils, brows, nose, mouth and hair.
+  makeBodyPart(group,new THREE.SphereGeometry(.166,32,24),skin,[0,1.88,0]);
+  makeBodyPart(group,new THREE.SphereGeometry(.135,24,16),skin,[0,1.81,.015]);
   for(const side of [-1,1]) {
-    makeBodyPart(group,new THREE.SphereGeometry(.085,14,12),skin,[side*.34,.88,0]);
-    makeBodyPart(group,legGeo,shorts,[side*.135,.48,0],[.04,0,side*.035]);
-    makeBodyPart(group,new THREE.CylinderGeometry(.067,.075,.28,12),socks,[side*.135,.2,0]);
-    makeBodyPart(group,new THREE.BoxGeometry(.18,.105,.34),boots,[side*.135,.075,-.075]);
-    for(let stud=0;stud<3;stud++) makeBodyPart(group,new THREE.CylinderGeometry(.018,.018,.025,8),dark,[side*.135-.055+stud*.055,.018,-.19]);
+    joint(group,side*.171,1.87,0,.043,skin);
+    joint(group,side*.061,1.91,.145,.025,material('#f7eee4',.55,.01));
+    joint(group,side*.061,1.91,.166,.011,material('#24201e',.3,.02));
+    makeBodyPart(group,new THREE.BoxGeometry(.052,.012,.018),dark,[side*.061,1.95,.145],[0,0,side*-.12]);
   }
-  if(keeper) {
-    for(const side of [-1,1]) makeBodyPart(group,new THREE.BoxGeometry(.19,.16,.11),glove,[side*.39,1.0,-.015]);
+  makeBodyPart(group,new THREE.ConeGeometry(.027,.075,12),skin,[0,1.875,.177]);
+  makeBodyPart(group,new THREE.BoxGeometry(.055,.012,.012),material('#713b39',.7,.01),[0,1.82,.151]);
+  const hair=makeBodyPart(group,new THREE.SphereGeometry(.171,24,16,0,Math.PI*2,0,Math.PI*.57),dark,[0,1.94,-.008]); hair.scale.set(1.02,.8,1.02);
+  // Shoulder, elbow and wrist pivots; hip and knee pivots.
+  const armL=new THREE.Group(),armR=new THREE.Group(); armL.position.set(-.29,1.43,0); armR.position.set(.29,1.43,0); group.add(armL,armR);
+  for(const [arm,side] of [[armL,-1],[armR,1]]) {
+    makeBodyPart(arm,new THREE.SphereGeometry(.105,18,14),fabric,[0,0,0]);
+    makeBodyPart(arm,new THREE.CapsuleGeometry(.071,.29,6,12),fabric,[side*.025,-.22,0],[0,0,side*-.07]);
+    joint(arm,side*.045,-.42,0,.067,skin);
+    makeBodyPart(arm,new THREE.CapsuleGeometry(.06,.22,5,10),skin,[side*.05,-.57,.005]);
+    joint(arm,side*.05,-.7,.01,.07,skin);
+    if(keeper) makeBodyPart(arm,new THREE.BoxGeometry(.18,.14,.095),glove,[side*.05,-.76,.025]);
+  }
+  const legL=new THREE.Group(),legR=new THREE.Group(); legL.position.set(-.135,.78,0); legR.position.set(.135,.78,0); group.add(legL,legR);
+  for(const leg of [legL,legR]) {
+    makeBodyPart(leg,new THREE.CapsuleGeometry(.095,.37,7,14),shorts,[0,-.22,0]);
+    joint(leg,0,-.43,0,.082,skin);
+    makeBodyPart(leg,new THREE.CapsuleGeometry(.064,.29,6,12),socks,[0,-.63,0]);
+    makeBodyPart(leg,new THREE.BoxGeometry(.18,.105,.34),boots,[0,-.81,-.075]);
+    for(let stud=0;stud<4;stud++) makeBodyPart(leg,new THREE.CylinderGeometry(.016,.016,.022,8),dark,[-.06+stud*.04,-.866,-.19]);
   }
   const numberLabel=makeLabelSprite('#'+number,'#fff5ce'); numberLabel.position.set(0,1.25,-.285); numberLabel.scale.set(.55,.28,1); group.add(numberLabel);
   if(!keeper){const shirtName=makeLabelSprite(name,'#ffffff');shirtName.position.set(0,1.48,-.285);shirtName.scale.set(.82,.17,1);group.add(shirtName);}
   const nameLabel=makeLabelSprite(name,keeper?'#c9edff':'#fff0b7'); nameLabel.position.set(0,2.28,0); group.add(nameLabel);
   if(!keeper) makeBodyPart(group,new THREE.ConeGeometry(.075,.16,8),material('#36a9ff',.28,.22),[0,2.62,0],[Math.PI,0,0]);
-  group.userData={armL,armR,keeper}; return group;
+  group.userData={armL,armR,legL,legR,keeper,breathPhase:Math.random()*Math.PI*2};
+  return group;
 }
 function addCrowd(scene,accent) {
   const crowdGeo=new THREE.SphereGeometry(.045,6,5);
@@ -192,65 +204,6 @@ function addStadium(scene,accent,options={}) {
 }
 function numberForTeam(team) { return Number(team.player?.shirtNumber||10); }
 
-const penaltyGLTFLoader = new GLTFLoader();
-function loadPenaltyCharacter(scene, personGroup, url, role, colors, stage) {
-  if(!url) return;
-  penaltyGLTFLoader.load(url, (gltf) => {
-    if(!personGroup.parent) return;
-    const model=gltf.scene;
-    model.traverse((node)=>{
-      if(!node.isMesh) return;
-      node.castShadow=true; node.receiveShadow=true;
-      const name=String(node.material?.name||node.name||'').toLowerCase();
-      const wasArray=Array.isArray(node.material);
-      const mats=wasArray?node.material:[node.material];
-      const recolored=mats.map((source)=>{
-        if(!source) return source;
-        const mat=source.clone();
-        if(mat.color) {
-          if(/shirt|jersey|upper|torso|top|uniform/.test(name)) mat.color.set(colors.shirt);
-          else if(/short|trouser|pant/.test(name)) mat.color.set(colors.shorts);
-          else if(/sock/.test(name)) mat.color.set(colors.socks);
-        }
-        return mat;
-      });
-      node.material=wasArray?recolored:recolored[0];
-    });
-    const bounds=new THREE.Box3().setFromObject(model);
-    const size=new THREE.Vector3(); bounds.getSize(size);
-    if(size.y>0) {
-      const scale=1.86/size.y;
-      model.scale.setScalar(scale);
-      model.position.y=-bounds.min.y*scale;
-    }
-    // Keep the name/number sprites while replacing only the primitive body meshes.
-    personGroup.traverse((node)=>{ if(node!==personGroup&&node.isMesh) node.visible=false; });
-    personGroup.add(model);
-    if(gltf.animations?.length) {
-      const mixer=new THREE.AnimationMixer(model);
-      const actions={};
-      for(const clip of gltf.animations) {
-        const key=clip.name.toLowerCase();
-        actions[key]=mixer.clipAction(clip);
-      }
-      const idleClip=gltf.animations.find(c=>/idle|stand|breath/i.test(c.name))||gltf.animations[0];
-      if(idleClip) actions[idleClip.name.toLowerCase()].play();
-      stage.modelMixers.push(mixer);
-      stage.modelActions[role]=actions;
-    }
-    console.info('[Penalty Lakay] GLB loaded:',role,url);
-  }, undefined, (error)=>{
-    console.warn('[Penalty Lakay] GLB pa chaje; fallback 3D rete aktif:',role,error?.message||error);
-  });
-}
-function playPenaltyClip(stage, role, pattern) {
-  const actions=stage.modelActions?.[role];
-  if(!actions) return;
-  const key=Object.keys(actions).find(name=>pattern.test(name));
-  if(!key) return;
-  Object.entries(actions).forEach(([name,action])=>{ if(name!==key) action.fadeOut(.12); });
-  const action=actions[key]; action.reset().fadeIn(.12).play();
-}
 function buildScene(scene,id,accent,secondary,options={}) {
   const animated=[];
   if(id==='penalty') return {animated,...addStadium(scene,accent,options)};
@@ -383,15 +336,14 @@ export function mountGame3D(container, gameId, options={}) {
     addLights(scene,accent);
     const floor= new THREE.Mesh(new THREE.PlaneGeometry(22,22),material(bg,.92,0));floor.rotation.x=-Math.PI/2;floor.position.y=-.42;floor.receiveShadow=true;scene.add(floor);
     const stage=buildScene(scene,gameId,accent,secondary,options);
-    if(gameId==='penalty'){stage.modelMixers=[];stage.modelActions={};loadPenaltyCharacter(scene,stage.striker,options.playerModelUrl||'/models/penalty-player.glb','player',{shirt:options.team?.primary||'#1f3fbf',shorts:options.team?.secondary||'#d92e43',socks:'#ffffff'},stage);loadPenaltyCharacter(scene,stage.keeper,options.keeperModelUrl||'/models/penalty-keeper.glb','keeper',{shirt:options.keeperShirt||'#2772c8',shorts:'#18253a',socks:'#e8eef4'},stage);}
     const ring=torus(scene,0,-.29,0,4.1,.025,accent);ring.material.transparent=true;ring.material.opacity=.45;
     const labelGroup=new THREE.Group();scene.add(labelGroup);
     const clock=new THREE.Clock();let frame=0;let disposed=false;let raf=0;let shotStartedAt=null;let shotDetail=options.shot?{shot:options.shot,shotX:options.shotX??.5}:null;
-    const onPenaltyShot=(event)=>{shotDetail=event.detail||shotDetail||{};shotStartedAt=clock.getElapsedTime();playPenaltyClip(stage,'player',/run|kick|shoot|strike/i);playPenaltyClip(stage,'keeper',/dive|save|jump|goalkeeper/i);};
+    const onPenaltyShot=(event)=>{shotDetail=event.detail||shotDetail||{};shotStartedAt=clock.getElapsedTime();};
     if(gameId==='penalty') container.addEventListener('penalty-shot-start',onPenaltyShot);
     const resize=()=>{const w=Math.max(1,container.clientWidth),h=Math.max(1,container.clientHeight);camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false);};
     const observer=typeof ResizeObserver!=='undefined'?new ResizeObserver(resize):null;observer?.observe(container);resize();
-    const animate=()=>{if(disposed)return;raf=requestAnimationFrame(animate);const delta=clock.getDelta();const t=clock.elapsedTime;frame++;stage.modelMixers?.forEach(mixer=>mixer.update(delta));
+    const animate=()=>{if(disposed)return;raf=requestAnimationFrame(animate);const delta=clock.getDelta();const t=clock.elapsedTime;frame++;
       stage.animated.forEach((obj,i)=>{
         const base=obj.userData.baseY ?? (obj.userData.baseY=obj.position.y);
         obj.rotation.y+=.003+(i%3)*.001;
@@ -402,8 +354,8 @@ export function mountGame3D(container, gameId, options={}) {
         if(gameId==='plinko'&&i===stage.animated.length-1) obj.position.z=1+Math.sin(t*1.7)*.5;
       });
       if(stage.ball){if(gameId==='penalty'){stage.ball.rotation.x+=.018;stage.ball.rotation.z+=.025;const elapsed=shotStartedAt===null?-1:t-shotStartedAt;if(elapsed>=0&&elapsed<2.1){const kick=Math.min(1,Math.max(0,(elapsed-.48)/.78));stage.ball.position.y=.18+Math.sin(kick*Math.PI)*.85;stage.ball.position.z=.48-kick*5.2;stage.ball.position.x=1.12+(((Number(shotDetail?.shotX??.5)-.5)*3.2)-1.12)*kick;}else if(elapsed>=2.1){stage.ball.position.set(1.12,.18,.48);if(stage.keeper){stage.keeper.position.x=0;stage.keeper.rotation.z=0;}shotStartedAt=null;}}else{stage.ball.position.x=-.72+Math.sin(t*.7)*.035;stage.ball.rotation.x+=.018;stage.ball.rotation.z+=.025;}}
-      if(gameId==='penalty'&&stage.striker){const elapsed=shotStartedAt===null?-1:t-shotStartedAt;const kick=elapsed<0?0:Math.min(1,Math.max(0,(elapsed-.12)/.82));stage.striker.position.x=1.12-Math.sin(kick*Math.PI)*.22;stage.striker.position.z=1.55-Math.max(0,kick)*.72;stage.striker.rotation.x=Math.sin(kick*Math.PI)*-.24;stage.striker.rotation.z=Math.sin(kick*Math.PI)*.13;stage.striker.userData.armL.rotation.z=-.12-kick*.35;stage.striker.userData.armR.rotation.z=.12+kick*.35;}
-      if(gameId==='penalty'&&stage.keeper&&shotStartedAt!==null){const elapsed=t-shotStartedAt;const dive=Math.min(1,Math.max(0,(elapsed-.62)/.55));stage.keeper.position.x=(Number(shotDetail?.shotX??.5)-.5)*2.4*dive;stage.keeper.rotation.z=(Number(shotDetail?.shotX??.5)-.5)*-.8*dive;}
+      if(gameId==='penalty'&&stage.striker){const elapsed=shotStartedAt===null?-1:t-shotStartedAt;const kick=elapsed<0?0:Math.min(1,Math.max(0,(elapsed-.12)/.82));const u=stage.striker.userData;stage.striker.position.x=1.12-Math.sin(kick*Math.PI)*.22;stage.striker.position.z=1.55-Math.max(0,kick)*.72;stage.striker.rotation.x=Math.sin(kick*Math.PI)*-.24;stage.striker.rotation.z=Math.sin(kick*Math.PI)*.13;u.armL.rotation.z=-.12-kick*.35;u.armR.rotation.z=.12+kick*.35;u.legL.rotation.x=-Math.sin(kick*Math.PI)*.8;u.legR.rotation.x=Math.sin(kick*Math.PI)*.35;u.armL.rotation.x=Math.sin(t*2+u.breathPhase)*.025;u.armR.rotation.x=-Math.sin(t*2+u.breathPhase)*.025;}
+      if(gameId==='penalty'&&stage.keeper){const u=stage.keeper.userData;const elapsed=shotStartedAt===null?-1:t-shotStartedAt;const dive=elapsed<0?0:Math.min(1,Math.max(0,(elapsed-.62)/.55));const side=(Number(shotDetail?.shotX??.5)-.5);stage.keeper.position.x=side*2.4*dive;stage.keeper.rotation.z=side*-.8*dive;u.armL.rotation.z=-.2-side*dive*.8;u.armR.rotation.z=.2-side*dive*.8;u.legL.rotation.x=.12+Math.sin(t*2+u.breathPhase)*.025;u.legR.rotation.x=-.12-Math.sin(t*2+u.breathPhase)*.025;}
       if(gameId==='penalty') scene.userData.penaltyFlags?.forEach(flag=>{flag.rotation.z=Math.sin(t*2.1+flag.userData.wave)*.14;});
       ring.rotation.z+=.0015;
       if(gameId!=='penalty'){camera.position.x=Math.sin(t*.12)*.14;camera.lookAt(0,.45,0);}
