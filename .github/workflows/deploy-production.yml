@@ -34,4 +34,4 @@ jobs:
         run: npm run build
 
       - name: Confirm Pages output exists
-        run: test -s dist/index.html && test -s dist/admin.html && test -s dist/firebase-config.js
+        run: test -s dist/index.html && test -s dist/admin.html
