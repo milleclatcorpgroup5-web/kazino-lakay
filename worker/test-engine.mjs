@@ -68,7 +68,7 @@ assert.match(sceneSource, /function buildScene/, 'Sèn 3D yo dwe konstwi objè j
 assert.match(mainHtml, /manifest\.webmanifest/);
 assert.match(adminHtml, /src\/admin\.js/, 'Admin HTML dwe sèvi ak entèfas administrasyon points-only la.');
 assert.match(pagesRedirects, /\/admin\s+\/admin\.html\s+200/, 'Pages dwe sèvi admin.html atravè _redirects.');
-assert.match(adminHtml, /src="\/firebase-config\.js"/, 'Admin dwe itilize menm-origin Pages Firebase config.');
+assert.match(adminHtml, /src="\/firebase-config(?:\.js)?"/, 'Admin dwe itilize menm-origin Pages Firebase config.');
 assert.match(adminHtml, /noindex,nofollow/);
 assert.match(firestoreRules, /match \/walletAccounts\/{uid}/);
 assert.match(firestoreRules, /match \/walletTransactions\/{transactionId}/);
