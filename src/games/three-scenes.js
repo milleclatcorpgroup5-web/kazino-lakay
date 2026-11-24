@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { createPenaltyAthlete, animatePenaltyAthlete } from './penalty-athlete.js';
+import { upgradePenaltyAthletes } from './penalty-real-assets.js';
 
 const THEMES = {
   crash:['#071c2b','#20d6bc','#f3c96b'], slots:['#210d2b','#f2b64c','#e84b86'],
@@ -312,6 +313,7 @@ export function mountGame3D(container, gameId, options={}) {
     addLights(scene,accent);
     const floor= new THREE.Mesh(new THREE.PlaneGeometry(22,22),material(bg,.92,0));floor.rotation.x=-Math.PI/2;floor.position.y=-.42;floor.receiveShadow=true;scene.add(floor);
     const stage=buildScene(scene,gameId,accent,secondary,options);
+    if(gameId==='penalty') upgradePenaltyAthletes(stage.striker,stage.keeper);
     const ring=torus(scene,0,-.29,0,4.1,.025,accent);ring.material.transparent=true;ring.material.opacity=.45;
     const labelGroup=new THREE.Group();scene.add(labelGroup);
     const clock=new THREE.Clock();let frame=0;let disposed=false;let raf=0;let shotStartedAt=null;let shotDetail=options.shot?{shot:options.shot,shotX:options.shotX??.5}:null;
