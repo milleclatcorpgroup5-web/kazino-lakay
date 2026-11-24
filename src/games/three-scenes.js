@@ -97,7 +97,7 @@ function addCrowd(scene,accent) {
   const crowdGeo=new THREE.SphereGeometry(.045,6,5);
   const palette=['#d9e1ea','#b8c5d4','#e7c9a3','#4c78a8','#d84d59','#e2c65e','#f2f4f5','#17253a'];
   const crowdMat=palette.map(c=>material(c,.92,.01));
-  const inst=crowdMat.map(m=>new THREE.InstancedMesh(crowdGeo,m,180));
+  const inst=crowdMat.map(m=>new THREE.InstancedMesh(crowdGeo,m,240));
   inst.forEach(mesh=>{mesh.castShadow=false;mesh.receiveShadow=false;mesh.count=0;scene.add(mesh);});
   let n=0;
   for(let tier=0;tier<9;tier++) for(let seat=0;seat<180;seat++) {
