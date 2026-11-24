@@ -1,9 +1,7 @@
 import { auth } from './firebase.js';
 
-// Pages Production uses the same-origin UI and the Worker API. Keep the API
-// origin explicit so /api/* never falls through to static Pages (404).
-const DEFAULT_API_BASE = 'https://kazino-lakay.milleclatcorpgroup5.workers.dev';
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE).replace(/\/$/, '');
+// Cloudflare Pages Functions sèvi API a sou menm domèn ak aplikasyon an.
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
 
 export async function api(path, options = {}) {
   if (typeof path !== 'string' || !path.startsWith('/')) {
@@ -24,7 +22,7 @@ export async function api(path, options = {}) {
       cache: 'no-store'
     });
   } catch {
-    throw new Error('Worker API a pa reponn. Verifye deplwaman backend Kazino Lakay la.');
+    throw new Error('API Pages la pa reponn. Verifye deplwaman Cloudflare Pages la.');
   }
 
   const payload = await response.json().catch(() => ({}));
