@@ -178,10 +178,10 @@ function addStadium(scene,accent,options={}) {
   // Keeper at the centre of the goal; shooter is framed from behind on the lower-right.
   const keeper=addFootballer(scene,0,-4.35,'#2772c8',true,options.keeperName||'ANGELO PERUZZI',1,'#18253a');
   keeper.rotation.y=0;
-  const striker=addFootballer(scene,1.12,1.55,shirt,false,options.playerName||team.player?.name||'LIONEL MESSI',numberForTeam(team),shorts);
+  const striker=addFootballer(scene,0,1.05,shirt,false,options.playerName||team.player?.name||'LIONEL MESSI',numberForTeam(team),shorts);
   striker.rotation.y=Math.PI;
   // Match ball on the penalty spot with panel geometry and a soft contact shadow.
-  const ballGroup=new THREE.Group(); ballGroup.position.set(1.12,.18,.48); scene.add(ballGroup);
+  const ballGroup=new THREE.Group(); ballGroup.position.set(0,.18,-2.2); scene.add(ballGroup);
   const ballMat=material('#f8f8f2',.3,.02);
   makeBodyPart(ballGroup,new THREE.SphereGeometry(.17,32,24),ballMat,[0,0,0]);
   for(let i=0;i<5;i++) {
@@ -343,8 +343,8 @@ export function mountGame3D(container, gameId, options={}) {
         if(gameId==='crash'&&i===stage.animated.length-1) obj.position.x=Math.sin(t*.42)*2.1;
         if(gameId==='plinko'&&i===stage.animated.length-1) obj.position.z=1+Math.sin(t*1.7)*.5;
       });
-      if(stage.ball){if(gameId==='penalty'){stage.ball.rotation.x+=.018;stage.ball.rotation.z+=.025;const elapsed=shotStartedAt===null?-1:t-shotStartedAt;if(elapsed>=0&&elapsed<2.1){const kick=Math.min(1,Math.max(0,(elapsed-.48)/.78));stage.ball.position.y=.18+Math.sin(kick*Math.PI)*.85;stage.ball.position.z=.48-kick*5.2;stage.ball.position.x=1.12+(((Number(shotDetail?.shotX??.5)-.5)*3.2)-1.12)*kick;}else if(elapsed>=2.1){stage.ball.position.set(1.12,.18,.48);if(stage.keeper){stage.keeper.position.x=0;stage.keeper.rotation.z=0;}shotStartedAt=null;}}else{stage.ball.position.x=-.72+Math.sin(t*.7)*.035;stage.ball.rotation.x+=.018;stage.ball.rotation.z+=.025;}}
-      if(gameId==='penalty'&&stage.striker){const elapsed=shotStartedAt===null?-1:t-shotStartedAt;const kick=elapsed<0?0:Math.min(1,Math.max(0,(elapsed-.12)/.82));stage.striker.position.x=1.12-Math.sin(kick*Math.PI)*.22;stage.striker.position.z=1.55-Math.max(0,kick)*.72;stage.striker.rotation.x=Math.sin(kick*Math.PI)*-.12;stage.striker.rotation.z=Math.sin(kick*Math.PI)*.08;animatePenaltyAthlete(stage.striker,t,{kick:Math.sin(kick*Math.PI)});}
+      if(stage.ball){if(gameId==='penalty'){stage.ball.rotation.x+=.018;stage.ball.rotation.z+=.025;const elapsed=shotStartedAt===null?-1:t-shotStartedAt;if(elapsed>=0&&elapsed<2.1){const kick=Math.min(1,Math.max(0,(elapsed-.48)/.78));stage.ball.position.y=.18+Math.sin(kick*Math.PI)*.85;stage.ball.position.z=-2.2-kick*2.9;stage.ball.position.x=((Number(shotDetail?.shotX??.5)-.5)*3.2)*kick;}else if(elapsed>=2.1){stage.ball.position.set(0,.18,-2.2);if(stage.keeper){stage.keeper.position.x=0;stage.keeper.rotation.z=0;}shotStartedAt=null;}}else{stage.ball.position.x=-.72+Math.sin(t*.7)*.035;stage.ball.rotation.x+=.018;stage.ball.rotation.z+=.025;}}
+      if(gameId==='penalty'&&stage.striker){const elapsed=shotStartedAt===null?-1:t-shotStartedAt;const kick=elapsed<0?0:Math.min(1,Math.max(0,(elapsed-.12)/.82));stage.striker.position.x=-Math.sin(kick*Math.PI)*.12;stage.striker.position.z=1.05-Math.max(0,kick)*.65;stage.striker.rotation.x=Math.sin(kick*Math.PI)*-.12;stage.striker.rotation.z=Math.sin(kick*Math.PI)*.08;animatePenaltyAthlete(stage.striker,t,{kick:Math.sin(kick*Math.PI)});}
       if(gameId==='penalty'&&stage.keeper){const elapsed=shotStartedAt===null?-1:t-shotStartedAt;const dive=elapsed<0?0:Math.min(1,Math.max(0,(elapsed-.62)/.55));const side=(Number(shotDetail?.shotX??.5)-.5);stage.keeper.position.x=side*2.4*dive;stage.keeper.rotation.z=side*-.8*dive;stage.keeper.rotation.x=-dive*.16;animatePenaltyAthlete(stage.keeper,t,{dive,side});}
       if(gameId==='penalty') scene.userData.penaltyFlags?.forEach(flag=>{flag.rotation.z=Math.sin(t*2.1+flag.userData.wave)*.14;});
       ring.rotation.z+=.0015;
