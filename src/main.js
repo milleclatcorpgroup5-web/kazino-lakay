@@ -263,8 +263,8 @@ function render() {
       ${state.user ? `${state.user.emailVerified ? `<button class="button button-ghost" data-action="wallet">Bous</button>` : ''}<button class="button button-ghost" data-action="history">Istwa</button><span class="user-label">${esc(state.user.displayName || state.user.email || 'Jwè')}</span><button class="button button-ghost" data-action="logout">Dekonekte</button>` : `<button class="button button-ghost" data-action="login">Konekte</button><button class="button button-primary" data-action="register">Kreye kont</button>`}
     </div></header>
     <main id="top" class="shell">
-      ${!firebaseReady ? `<div class="config-alert"><strong>Kont jwè yo poko aktive.</strong><span>Konfigirasyon frontend Firebase ki manke: ${firebaseMissing.map(esc).join(', ')}. Mete valè piblik Firebase Web App yo nan Cloudflare Worker Variables; jwèt DEMO yo ap kontinye mache pandan sa.</span></div>` : ''}
-      ${state.health && state.health.frontendFirebaseConfigured === false ? `<div class="config-alert"><strong>Konfigirasyon Firebase Web la manke.</strong><span>Mete paramèt piblik yo nan Cloudflare Worker Variables: ${(state.health.frontendFirebaseMissing || []).map(esc).join(', ')}.</span></div>` : ''}
+      ${!firebaseReady ? `<div class="config-alert"><strong>Kont jwè yo poko aktive.</strong><span>Konfigirasyon frontend Firebase ki manke: ${firebaseMissing.map(esc).join(', ')}. Mete valè piblik Firebase Web App yo nan Cloudflare Pages Variables; jwèt DEMO yo ap kontinye mache pandan sa.</span></div>` : ''}
+      ${state.health && state.health.frontendFirebaseConfigured === false ? `<div class="config-alert"><strong>Konfigirasyon Firebase Web la manke.</strong><span>Mete paramèt piblik yo nan Cloudflare Pages Variables: ${(state.health.frontendFirebaseMissing || []).map(esc).join(', ')}.</span></div>` : ''}
       ${state.health && !state.health.firebaseConfigured ? `<div class="config-alert"><strong>Backend Firebase poko konekte.</strong><span>Kont, balans pwen ki sove, istwa ak Admin ap rete bloke jiskaske service account Firebase la konfigire. Paramèt ki manke: ${(state.health.firebaseMissing || []).map(esc).join(', ') || 'verifye kle prive a'}.</span></div>` : ''}
       ${state.gameControl?.globalEnabled === false ? `<div class="config-alert"><strong>Jwèt yo sou poz.</strong><span>${esc(state.gameControl.maintenanceMessage || 'Administrasyon an mete tout jwèt yo sou poz pou kounye a.')}</span></div>` : ''}
       <section class="hero"><div class="hero-copy"><span class="eyebrow">GAME CENTER • KAZINO LAKAY</span><h1>Jwe ak lespri.<br><em>Konprann chak mouvman.</em></h1><p>Eksplore jwèt yo, aprann règ yo, epi swiv rezilta ou. Chak jwèt gen eksplikasyon klè anvan ou kòmanse.</p><div class="hero-actions"><a class="button button-primary" href="#games">Eksplore 22 jwèt yo <span>↘</span></a><span class="hero-note">Pwen jwèt san valè lajan</span></div></div>
@@ -1130,7 +1130,7 @@ async function loadBackendHealth() {
   try {
     state.health = await api('/api/health');
   } catch {
-    state.health = { status: 'unreachable', firebaseConfigured: false, firebaseMissing: ['Worker API pa reponn'] };
+    state.health = { status: 'unreachable', firebaseConfigured: false, firebaseMissing: ['API Pages la pa reponn'] };
   }
   try {
     const catalog = await api('/api/games');
@@ -1140,7 +1140,7 @@ async function loadBackendHealth() {
       maintenanceMessage: catalog.maintenanceMessage || ''
     };
   } catch (error) {
-    // Fail closed in the UI if a configured Worker cannot read the admin game switches.
+    // Fail closed in the UI if a konfigirasyon Pages cannot read the admin game switches.
     const diagnostic = state.health?.gameControlReadError || error?.message || 'Sistèm nan pa kapab verifye estati jwèt yo kounye a.';
     state.gameControl = { globalEnabled: false, gameSettings: {}, maintenanceMessage: diagnostic };
     console.error('[Kazino Lakay] Game-control check failed:', diagnostic);
