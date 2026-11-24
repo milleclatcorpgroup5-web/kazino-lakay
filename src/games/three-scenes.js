@@ -342,9 +342,18 @@ export function mountGame3D(container, gameId, options={}) {
     active={container,dispose,gameId};
     return dispose;
   } catch(error) {
-    console.warn('[Kazino Lakay 3D]',gameId,error?.message||error);
+    console.error('[Kazino Lakay 3D]',gameId,error);
     renderer?.dispose?.();container.querySelector('.three-scene-canvas')?.remove();
-    return () => {};
+    if(gameId==='penalty') {
+      container.querySelector('.penalty-webgl-fallback')?.remove();
+      const fallback=document.createElement('div');
+      fallback.className='penalty-webgl-fallback';
+      fallback.setAttribute('role','img');
+      fallback.setAttribute('aria-label','Teren foutbòl Penalty Lakay');
+      fallback.innerHTML='<div class="fallback-stands">KAZINO LAKAY · NATIONAL STADIUM</div><div class="fallback-pitch"><i class="fallback-midline"></i><i class="fallback-box"></i><i class="fallback-goal"></i><i class="fallback-spot"></i><i class="fallback-ball"></i><i class="fallback-player"><b></b></i><i class="fallback-keeper"><b></b></i></div><div class="fallback-note">MÒD VIZYÈL SEKOU · 3D AP RETOUNEN</div>';
+      container.appendChild(fallback);
+    }
+    return () => { container.querySelector('.penalty-webgl-fallback')?.remove(); };
   }
 }
 export function disposeGame3D() { if(active) active.dispose(); }
