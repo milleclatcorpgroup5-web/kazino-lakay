@@ -362,7 +362,20 @@ function renderGameModal() {
     <div class="kl-result-layer" data-game-result-layer hidden></div>
   </section>`;
   const gameStage = document.querySelector('#game-room-screen .stage-visual');
-  if (gameStage) mountGame3D(gameStage, game.id);
+  if (gameStage) {
+    const penaltyField = document.querySelector('.penalty-field');
+    if (game.id === 'penalty') {
+      const team = getPenaltyTeam(state.penaltyTeam);
+      const shotZone = penaltyField?.dataset.shot || '';
+      mountGame3D(gameStage, game.id, {
+        team,
+        playerName: team.player.name,
+        keeperName: 'Angelo Peruzzi',
+        shot: shotZone,
+        shotX: PENALTY_ZONE_POINTS[shotZone]?.x ?? .5
+      });
+    } else mountGame3D(gameStage, game.id);
+  }
 }
 
 
