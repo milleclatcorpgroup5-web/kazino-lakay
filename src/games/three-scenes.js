@@ -382,7 +382,8 @@ export function mountGame3D(container, gameId, options={}) {
     container.appendChild(renderer.domElement);
     addLights(scene,accent);
     const floor= new THREE.Mesh(new THREE.PlaneGeometry(22,22),material(bg,.92,0));floor.rotation.x=-Math.PI/2;floor.position.y=-.42;floor.receiveShadow=true;scene.add(floor);
-    const stage=buildScene(scene,gameId,accent,secondary,options);\n    if(gameId==='penalty'){stage.modelMixers=[];stage.modelActions={};loadPenaltyCharacter(scene,stage.striker,options.playerModelUrl||'/models/penalty-player.glb','player',{shirt:options.team?.primary||'#1f3fbf',shorts:options.team?.secondary||'#d92e43',socks:'#ffffff'},stage);loadPenaltyCharacter(scene,stage.keeper,options.keeperModelUrl||'/models/penalty-keeper.glb','keeper',{shirt:options.keeperShirt||'#2772c8',shorts:'#18253a',socks:'#e8eef4'},stage);}
+    const stage=buildScene(scene,gameId,accent,secondary,options);
+    if(gameId==='penalty'){stage.modelMixers=[];stage.modelActions={};loadPenaltyCharacter(scene,stage.striker,options.playerModelUrl||'/models/penalty-player.glb','player',{shirt:options.team?.primary||'#1f3fbf',shorts:options.team?.secondary||'#d92e43',socks:'#ffffff'},stage);loadPenaltyCharacter(scene,stage.keeper,options.keeperModelUrl||'/models/penalty-keeper.glb','keeper',{shirt:options.keeperShirt||'#2772c8',shorts:'#18253a',socks:'#e8eef4'},stage);}
     const ring=torus(scene,0,-.29,0,4.1,.025,accent);ring.material.transparent=true;ring.material.opacity=.45;
     const labelGroup=new THREE.Group();scene.add(labelGroup);
     const clock=new THREE.Clock();let frame=0;let disposed=false;let raf=0;let shotStartedAt=null;let shotDetail=options.shot?{shot:options.shot,shotX:options.shotX??.5}:null;
