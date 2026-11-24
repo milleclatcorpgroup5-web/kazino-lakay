@@ -309,8 +309,8 @@ export function mountGame3D(container, gameId, options={}) {
     const [bg,accent,secondary]=THEMES[gameId];
     const scene=new THREE.Scene();scene.background=new THREE.Color(bg);
     scene.fog=new THREE.Fog(bg,9,24);
-    const camera=new THREE.PerspectiveCamera(42,1,.1,80);
-    camera.position.set(0,4.8,9.6);camera.lookAt(0,.45,0);
+    const camera=new THREE.PerspectiveCamera(gameId==='penalty'?36:42,1,.1,100);
+    if(gameId==='penalty'){camera.position.set(3.9,4.05,8.2);camera.lookAt(.05,1.0,-3.55);}else{camera.position.set(0,4.8,9.6);camera.lookAt(0,.45,0);}
     renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:'low-power'});
     renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5));
     renderer.outputColorSpace=THREE.SRGBColorSpace;
@@ -318,11 +318,13 @@ export function mountGame3D(container, gameId, options={}) {
     renderer.domElement.className='three-scene-canvas';renderer.domElement.setAttribute('aria-hidden','true');
     container.appendChild(renderer.domElement);
     addLights(scene,accent);
-    const floor= new THREE.Mesh(new THREE.PlaneGeometry(22,22),material(bg,.92,0));floor.rotation.x=-Math.PI/2;floor.position.y=-.42;scene.add(floor);
+    const floor= new THREE.Mesh(new THREE.PlaneGeometry(22,22),material(bg,.92,0));floor.rotation.x=-Math.PI/2;floor.position.y=-.42;floor.receiveShadow=true;scene.add(floor);
     const stage=buildScene(scene,gameId,accent,secondary,options);
     const ring=torus(scene,0,-.29,0,4.1,.025,accent);ring.material.transparent=true;ring.material.opacity=.45;
     const labelGroup=new THREE.Group();scene.add(labelGroup);
-    const clock=new THREE.Clock();let frame=0;let disposed=false;let raf=0;let shotStartedAt=null;let shotDetail=options.shot?{shot:options.shot,shotX:options.shotX??.5}:null;\n    const onPenaltyShot=(event)=>{shotDetail=event.detail||shotDetail||{};shotStartedAt=clock.getElapsedTime();};\n    if(gameId==='penalty') container.addEventListener('penalty-shot-start',onPenaltyShot);
+    const clock=new THREE.Clock();let frame=0;let disposed=false;let raf=0;let shotStartedAt=null;let shotDetail=options.shot?{shot:options.shot,shotX:options.shotX??.5}:null;
+    const onPenaltyShot=(event)=>{shotDetail=event.detail||shotDetail||{};shotStartedAt=clock.getElapsedTime();};
+    if(gameId==='penalty') container.addEventListener('penalty-shot-start',onPenaltyShot);
     const resize=()=>{const w=Math.max(1,container.clientWidth),h=Math.max(1,container.clientHeight);camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false);};
     const observer=typeof ResizeObserver!=='undefined'?new ResizeObserver(resize):null;observer?.observe(container);resize();
     const animate=()=>{if(disposed)return;raf=requestAnimationFrame(animate);const t=clock.getElapsedTime();frame++;
@@ -335,7 +337,9 @@ export function mountGame3D(container, gameId, options={}) {
         if(gameId==='crash'&&i===stage.animated.length-1) obj.position.x=Math.sin(t*.42)*2.1;
         if(gameId==='plinko'&&i===stage.animated.length-1) obj.position.z=1+Math.sin(t*1.7)*.5;
       });
-      if(stage.ball){if(gameId==='penalty'){stage.ball.rotation.x+=.018;stage.ball.rotation.z+=.025;const elapsed=shotStartedAt===null?-1:t-shotStartedAt;if(elapsed>=0&&elapsed<2.1){const kick=Math.min(1,Math.max(0,(elapsed-.48)/.78));stage.ball.position.y=.18+Math.sin(kick*Math.PI)*.85;stage.ball.position.z=.48-kick*3.6;stage.ball.position.x=1.12+(Number(shotDetail?.shotX??.5)-.5)*2.1*kick;}else if(elapsed>=2.1){stage.ball.position.set(1.12,.18,.48);shotStartedAt=null;}}else{stage.ball.position.x=-.72+Math.sin(t*.7)*.035;stage.ball.rotation.x+=.018;stage.ball.rotation.z+=.025;}}\n      if(gameId==='penalty'&&stage.striker){const elapsed=shotStartedAt===null?-1:t-shotStartedAt;const kick=elapsed<0?0:Math.min(1,Math.max(0,(elapsed-.12)/.82));stage.striker.position.x=1.12-Math.sin(kick*Math.PI)*.22;stage.striker.position.z=1.55-Math.max(0,kick)*.72;stage.striker.rotation.x=Math.sin(kick*Math.PI)*-.24;stage.striker.rotation.z=Math.sin(kick*Math.PI)*.13;stage.striker.userData.armL.rotation.z=-.12-kick*.35;stage.striker.userData.armR.rotation.z=.12+kick*.35;}\n      if(gameId==='penalty'&&stage.keeper&&shotStartedAt!==null){const elapsed=t-shotStartedAt;const dive=Math.min(1,Math.max(0,(elapsed-.62)/.55));stage.keeper.position.x=(Number(shotDetail?.shotX??.5)-.5)*2.4*dive;stage.keeper.rotation.z=(Number(shotDetail?.shotX??.5)-.5)*-.8*dive;}
+      if(stage.ball){if(gameId==='penalty'){stage.ball.rotation.x+=.018;stage.ball.rotation.z+=.025;const elapsed=shotStartedAt===null?-1:t-shotStartedAt;if(elapsed>=0&&elapsed<2.1){const kick=Math.min(1,Math.max(0,(elapsed-.48)/.78));stage.ball.position.y=.18+Math.sin(kick*Math.PI)*.85;stage.ball.position.z=.48-kick*3.6;stage.ball.position.x=1.12+(Number(shotDetail?.shotX??.5)-.5)*2.1*kick;}else if(elapsed>=2.1){stage.ball.position.set(1.12,.18,.48);shotStartedAt=null;}}else{stage.ball.position.x=-.72+Math.sin(t*.7)*.035;stage.ball.rotation.x+=.018;stage.ball.rotation.z+=.025;}}
+      if(gameId==='penalty'&&stage.striker){const elapsed=shotStartedAt===null?-1:t-shotStartedAt;const kick=elapsed<0?0:Math.min(1,Math.max(0,(elapsed-.12)/.82));stage.striker.position.x=1.12-Math.sin(kick*Math.PI)*.22;stage.striker.position.z=1.55-Math.max(0,kick)*.72;stage.striker.rotation.x=Math.sin(kick*Math.PI)*-.24;stage.striker.rotation.z=Math.sin(kick*Math.PI)*.13;stage.striker.userData.armL.rotation.z=-.12-kick*.35;stage.striker.userData.armR.rotation.z=.12+kick*.35;}
+      if(gameId==='penalty'&&stage.keeper&&shotStartedAt!==null){const elapsed=t-shotStartedAt;const dive=Math.min(1,Math.max(0,(elapsed-.62)/.55));stage.keeper.position.x=(Number(shotDetail?.shotX??.5)-.5)*2.4*dive;stage.keeper.rotation.z=(Number(shotDetail?.shotX??.5)-.5)*-.8*dive;}
       ring.rotation.z+=.0015;
       if(gameId!=='penalty'){camera.position.x=Math.sin(t*.12)*.14;camera.lookAt(0,.45,0);}
       renderer.render(scene,camera);
