@@ -574,3 +574,26 @@
 #roulette-fullscreen>*:not(.three-scene-canvas){position:relative;z-index:1}
 @media(max-width:600px){.three-scene-canvas{opacity:.68}.stage-visual{min-height:240px}}
 @media(prefers-reduced-motion:reduce){.three-scene-canvas{opacity:.68}}
+
+
+/* Penalty Lakay — 3D stadium is the hero; keep only the touch controls above it. */
+.stage-penalty .stage-visual{position:relative;width:100%;height:clamp(390px,58vh,570px);min-height:390px;padding:0;overflow:hidden;background:#071626}
+.stage-penalty .stage-visual-3d{position:relative;width:100%;height:100%;min-height:390px;padding:0;overflow:hidden;display:block}
+.stage-penalty .three-scene-canvas{z-index:2;opacity:1;mix-blend-mode:normal}
+.stage-penalty .penalty-field{position:absolute;inset:0;z-index:3;width:100%;height:100%;min-height:0;max-width:none;border:0;border-radius:0;background:transparent;box-shadow:none;overflow:hidden;pointer-events:none}
+.stage-penalty .penalty-field:before,.stage-penalty .penalty-field:after{display:none}
+.stage-penalty .penalty-crowd,.stage-penalty .penalty-stadium-lights,.stage-penalty .penalty-matchup,
+.stage-penalty .penalty-player-card,.stage-penalty .penalty-goal-frame,.stage-penalty .penalty-goal-shadow,
+.stage-penalty .penalty-keeper,.stage-penalty .penalty-striker{display:none!important}
+.stage-penalty .penalty-ball{left:77%;top:83%;width:clamp(46px,10vw,70px);opacity:0;pointer-events:auto;z-index:14}
+.stage-penalty .penalty-aim-line{z-index:12}
+.stage-penalty .penalty-aim-dot{z-index:13}
+.stage-penalty .penalty-aim-help{left:50%;bottom:12px;max-width:82%;z-index:16;font-size:clamp(8px,2vw,10px)}
+.stage-penalty .penalty-random-button{right:10px;top:10px;left:auto;bottom:auto;z-index:17}
+.stage-penalty .penalty-goal-status{left:10px;right:auto;top:10px;bottom:auto;z-index:17}
+.stage-penalty .stage-caption{position:relative;z-index:5}
+@media(max-width:600px){
+  .stage-penalty .stage-visual,.stage-penalty .stage-visual-3d{height:clamp(390px,59vh,520px);min-height:390px}
+  .stage-penalty .penalty-ball{left:77%;top:83%;width:58px}
+  .stage-penalty .penalty-aim-help{bottom:8px;max-width:90%}
+}
