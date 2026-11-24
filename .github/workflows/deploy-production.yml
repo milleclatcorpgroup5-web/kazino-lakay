@@ -1,4 +1,4 @@
-name: Deploy Kazino Lakay to Cloudflare Production
+name: Test Kazino Lakay Pages Production
 
 on:
   push:
@@ -10,12 +10,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: kazino-lakay-production
+  group: kazino-lakay-pages-production
   cancel-in-progress: false
 
 jobs:
-  deploy:
-    name: Build, test and deploy Production Worker
+  verify:
+    name: Verify Cloudflare Pages build
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -30,20 +30,8 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Run checks, regression tests and production build
+      - name: Run checks, regression tests and Pages production build
         run: npm run build
 
-      - name: Verify Cloudflare deployment secrets exist
-        env:
-          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          test -n "$CF_API_TOKEN" || { echo "::error::Missing GitHub Actions secret CLOUDFLARE_API_TOKEN"; exit 1; }
-          test -n "$CF_ACCOUNT_ID" || { echo "::error::Missing GitHub Actions secret CLOUDFLARE_ACCOUNT_ID"; exit 1; }
-
-      - name: Deploy kazino-lakay Worker and static assets
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy --config worker/wrangler.toml
+      - name: Confirm Pages output exists
+        run: test -s dist/index.html && test -s dist/admin.html && test -s dist/firebase-config.js
