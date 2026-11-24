@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { createPenaltyAthlete, animatePenaltyAthlete } from './penalty-athlete.js';
-import { upgradePenaltyAthletes } from './penalty-real-assets.js';
 
 const THEMES = {
   crash:['#071c2b','#20d6bc','#f3c96b'], slots:['#210d2b','#f2b64c','#e84b86'],
@@ -51,7 +50,7 @@ function makeLabelSprite(text,color='#ffffff') {
   const ctx=canvas.getContext('2d');
   ctx.clearRect(0,0,512,128);
   ctx.fillStyle='rgba(3,12,25,.78)';
-  ctx.beginPath(); ctx.roundRect(12,18,488,94,24); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(36,18); ctx.lineTo(476,18); ctx.quadraticCurveTo(500,18,500,42); ctx.lineTo(500,88); ctx.quadraticCurveTo(500,112,476,112); ctx.lineTo(36,112); ctx.quadraticCurveTo(12,112,12,88); ctx.lineTo(12,42); ctx.quadraticCurveTo(12,18,36,18); ctx.closePath(); ctx.fill();
   ctx.strokeStyle='rgba(255,255,255,.72)'; ctx.lineWidth=4; ctx.stroke();
   ctx.fillStyle=color; ctx.font='900 42px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
   ctx.shadowColor='#000'; ctx.shadowBlur=8; ctx.fillText(String(text).toUpperCase().slice(0,24),256,66);
@@ -125,6 +124,11 @@ function addStadium(scene,accent,options={}) {
     box(scene,0,-.135,z-d/2,w,.018,.025,'#f5f8ed');
   }
   sphere(scene,0,-.105,-2.2,.065,'#ffffff',16);
+  // Midfield markings and centre circle complete the full-size pitch composition.
+  box(scene,0,-.132,0,15,.014,.025,'#f5f8ed');
+  const centreRing=new THREE.Mesh(new THREE.RingGeometry(1.08,1.12,64),new THREE.MeshBasicMaterial({color:'#f5f8ed',side:THREE.DoubleSide}));
+  centreRing.rotation.x=-Math.PI/2; centreRing.position.set(0,-.125,0); scene.add(centreRing);
+  sphere(scene,0,-.105,0,.045,'#f5f8ed',12);
   // Penalty arc (D) and corner arcs.
   const arcCurve=new THREE.EllipseCurve(0,0,1.72,1.72,Math.PI*.08,Math.PI*.92,false,0);
   const arcPoints=arcCurve.getPoints(48).map(p=>new THREE.Vector3(p.x,-.126,-2.2+p.y));
@@ -156,6 +160,15 @@ function addStadium(scene,accent,options={}) {
   post(0,goalH,goalZ,goalW,.085,.085);
   post(-goalW/2,goalH/2,goalZ,.085,goalH,.085); post(goalW/2,goalH/2,goalZ,.085,goalH,.085);
   post(0,.04,goalZ+.95,goalW,.055,.055);
+  // Recessed net roof, back and side panels: visible depth from the broadcast camera.
+  const netMat=new THREE.LineBasicMaterial({color:'#e8f0ec',transparent:true,opacity:.48});
+  for(let x=-goalW/2;x<=goalW/2;x+=.24) {
+    const back=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x,.08,goalZ+.95),new THREE.Vector3(x,goalH-.05,goalZ+.95)]),netMat); scene.add(back);
+    const roof=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x,goalH,goalZ),new THREE.Vector3(x,goalH,goalZ+.95)]),netMat); scene.add(roof);
+  }
+  for(const side of [-1,1]) for(let y=.12;y<=goalH;y+=.16) {
+    const sideNet=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(side*goalW/2,y,goalZ),new THREE.Vector3(side*goalW/2,y,goalZ+.95)]),netMat); scene.add(sideNet);
+  }
   for(let x=-goalW/2;x<=goalW/2;x+=.16) {
     const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x,.08,goalZ+.04),new THREE.Vector3(x,goalH-.05,goalZ+.04)]),new THREE.LineBasicMaterial({color:'#e8f0ec'})); scene.add(line);
   }
@@ -165,10 +178,10 @@ function addStadium(scene,accent,options={}) {
   // Keeper at the centre of the goal; shooter is framed from behind on the lower-right.
   const keeper=addFootballer(scene,0,-4.35,'#2772c8',true,options.keeperName||'ANGELO PERUZZI',1,'#18253a');
   keeper.rotation.y=0;
-  const striker=addFootballer(scene,1.12,1.55,shirt,false,options.playerName||team.player?.name||'LIONEL MESSI',numberForTeam(team),shorts);
+  const striker=addFootballer(scene,0,1.05,shirt,false,options.playerName||team.player?.name||'LIONEL MESSI',numberForTeam(team),shorts);
   striker.rotation.y=Math.PI;
   // Match ball on the penalty spot with panel geometry and a soft contact shadow.
-  const ballGroup=new THREE.Group(); ballGroup.position.set(1.12,.18,.48); scene.add(ballGroup);
+  const ballGroup=new THREE.Group(); ballGroup.position.set(0,.18,-2.2); scene.add(ballGroup);
   const ballMat=material('#f8f8f2',.3,.02);
   makeBodyPart(ballGroup,new THREE.SphereGeometry(.17,32,24),ballMat,[0,0,0]);
   for(let i=0;i<5;i++) {
@@ -302,8 +315,8 @@ export function mountGame3D(container, gameId, options={}) {
     const [bg,accent,secondary]=THEMES[gameId];
     const scene=new THREE.Scene();scene.background=new THREE.Color(bg);
     scene.fog=new THREE.Fog(bg,9,24);
-    const camera=new THREE.PerspectiveCamera(gameId==='penalty'?36:42,1,.1,100);
-    if(gameId==='penalty'){camera.position.set(3.9,4.05,8.2);camera.lookAt(.05,1.0,-3.55);}else{camera.position.set(0,4.8,9.6);camera.lookAt(0,.45,0);}
+    const camera=new THREE.PerspectiveCamera(gameId==='penalty'?42:42,1,.1,100);
+    if(gameId==='penalty'){camera.position.set(2.7,3.05,8.9);camera.lookAt(0,1.0,-3.25);}else{camera.position.set(0,4.8,9.6);camera.lookAt(0,.45,0);}
     renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:'low-power'});
     renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5));
     renderer.outputColorSpace=THREE.SRGBColorSpace;
@@ -313,7 +326,6 @@ export function mountGame3D(container, gameId, options={}) {
     addLights(scene,accent);
     const floor= new THREE.Mesh(new THREE.PlaneGeometry(22,22),material(bg,.92,0));floor.rotation.x=-Math.PI/2;floor.position.y=-.42;floor.receiveShadow=true;scene.add(floor);
     const stage=buildScene(scene,gameId,accent,secondary,options);
-    if(gameId==='penalty') upgradePenaltyAthletes(stage.striker,stage.keeper);
     const ring=torus(scene,0,-.29,0,4.1,.025,accent);ring.material.transparent=true;ring.material.opacity=.45;
     const labelGroup=new THREE.Group();scene.add(labelGroup);
     const clock=new THREE.Clock();let frame=0;let disposed=false;let raf=0;let shotStartedAt=null;let shotDetail=options.shot?{shot:options.shot,shotX:options.shotX??.5}:null;
@@ -331,8 +343,8 @@ export function mountGame3D(container, gameId, options={}) {
         if(gameId==='crash'&&i===stage.animated.length-1) obj.position.x=Math.sin(t*.42)*2.1;
         if(gameId==='plinko'&&i===stage.animated.length-1) obj.position.z=1+Math.sin(t*1.7)*.5;
       });
-      if(stage.ball){if(gameId==='penalty'){stage.ball.rotation.x+=.018;stage.ball.rotation.z+=.025;const elapsed=shotStartedAt===null?-1:t-shotStartedAt;if(elapsed>=0&&elapsed<2.1){const kick=Math.min(1,Math.max(0,(elapsed-.48)/.78));stage.ball.position.y=.18+Math.sin(kick*Math.PI)*.85;stage.ball.position.z=.48-kick*5.2;stage.ball.position.x=1.12+(((Number(shotDetail?.shotX??.5)-.5)*3.2)-1.12)*kick;}else if(elapsed>=2.1){stage.ball.position.set(1.12,.18,.48);if(stage.keeper){stage.keeper.position.x=0;stage.keeper.rotation.z=0;}shotStartedAt=null;}}else{stage.ball.position.x=-.72+Math.sin(t*.7)*.035;stage.ball.rotation.x+=.018;stage.ball.rotation.z+=.025;}}
-      if(gameId==='penalty'&&stage.striker){const elapsed=shotStartedAt===null?-1:t-shotStartedAt;const kick=elapsed<0?0:Math.min(1,Math.max(0,(elapsed-.12)/.82));stage.striker.position.x=1.12-Math.sin(kick*Math.PI)*.22;stage.striker.position.z=1.55-Math.max(0,kick)*.72;stage.striker.rotation.x=Math.sin(kick*Math.PI)*-.12;stage.striker.rotation.z=Math.sin(kick*Math.PI)*.08;animatePenaltyAthlete(stage.striker,t,{kick:Math.sin(kick*Math.PI)});}
+      if(stage.ball){if(gameId==='penalty'){stage.ball.rotation.x+=.018;stage.ball.rotation.z+=.025;const elapsed=shotStartedAt===null?-1:t-shotStartedAt;if(elapsed>=0&&elapsed<2.1){const kick=Math.min(1,Math.max(0,(elapsed-.48)/.78));stage.ball.position.y=.18+Math.sin(kick*Math.PI)*.85;stage.ball.position.z=-2.2-kick*2.9;stage.ball.position.x=((Number(shotDetail?.shotX??.5)-.5)*3.2)*kick;}else if(elapsed>=2.1){stage.ball.position.set(0,.18,-2.2);if(stage.keeper){stage.keeper.position.x=0;stage.keeper.rotation.z=0;}shotStartedAt=null;}}else{stage.ball.position.x=-.72+Math.sin(t*.7)*.035;stage.ball.rotation.x+=.018;stage.ball.rotation.z+=.025;}}
+      if(gameId==='penalty'&&stage.striker){const elapsed=shotStartedAt===null?-1:t-shotStartedAt;const kick=elapsed<0?0:Math.min(1,Math.max(0,(elapsed-.12)/.82));stage.striker.position.x=-Math.sin(kick*Math.PI)*.12;stage.striker.position.z=1.05-Math.max(0,kick)*.65;stage.striker.rotation.x=Math.sin(kick*Math.PI)*-.12;stage.striker.rotation.z=Math.sin(kick*Math.PI)*.08;animatePenaltyAthlete(stage.striker,t,{kick:Math.sin(kick*Math.PI)});}
       if(gameId==='penalty'&&stage.keeper){const elapsed=shotStartedAt===null?-1:t-shotStartedAt;const dive=elapsed<0?0:Math.min(1,Math.max(0,(elapsed-.62)/.55));const side=(Number(shotDetail?.shotX??.5)-.5);stage.keeper.position.x=side*2.4*dive;stage.keeper.rotation.z=side*-.8*dive;stage.keeper.rotation.x=-dive*.16;animatePenaltyAthlete(stage.keeper,t,{dive,side});}
       if(gameId==='penalty') scene.userData.penaltyFlags?.forEach(flag=>{flag.rotation.z=Math.sin(t*2.1+flag.userData.wave)*.14;});
       ring.rotation.z+=.0015;
