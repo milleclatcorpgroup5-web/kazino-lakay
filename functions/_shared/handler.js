@@ -1286,13 +1286,13 @@ async function apiStatus(env) {
     gameControlReadError,
     gameCount: GAME_IDS.length,
     gameIds: GAME_IDS,
-    endpoints: ['/firebase-config.js', '/api/health', '/api/games', '/api/games/demo', '/api/profile/bootstrap', '/api/me', '/api/history', '/api/wallet', '/api/games/play', '/api/admin/setup', '/api/admin/wallet', '/api/admin/summary', '/api/admin/users', '/api/admin/rounds', '/api/admin/actions', '/api/admin/users/update', '/api/admin/games/control']
+    endpoints: ['/firebase-config', '/api/health', '/api/games', '/api/games/demo', '/api/profile/bootstrap', '/api/me', '/api/history', '/api/wallet', '/api/games/play', '/api/admin/setup', '/api/admin/wallet', '/api/admin/summary', '/api/admin/users', '/api/admin/rounds', '/api/admin/actions', '/api/admin/users/update', '/api/admin/games/control']
   };
 }
 
 async function route(request, env) {
   const url = new URL(request.url);
-  if (url.pathname === '/firebase-config.js' && request.method === 'GET') {
+  if ((url.pathname === '/firebase-config' || url.pathname === '/firebase-config.js') && request.method === 'GET') {
     const projectId = String(env.FIREBASE_PROJECT_ID || env.VITE_FIREBASE_PROJECT_ID || '').trim();
     const config = {
       apiKey: String(env.FIREBASE_WEB_API_KEY || env.VITE_FIREBASE_API_KEY || '').trim(),
