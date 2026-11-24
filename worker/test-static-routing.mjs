@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import worker from './src/index.js';
+import worker from '../functions/_shared/handler.js';
 
 const base = 'https://kazino-lakay.test';
 const seen = [];
