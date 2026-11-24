@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createPenaltyAthlete, animatePenaltyAthlete } from './penalty-athlete.js';
 
 const THEMES = {
   crash:['#071c2b','#20d6bc','#f3c96b'], slots:['#210d2b','#f2b64c','#e84b86'],
@@ -62,51 +63,9 @@ function makeBodyPart(parent,geometry,mat,pos,rot=[0,0,0]) {
   mesh.castShadow=true; mesh.receiveShadow=true; parent.add(mesh); return mesh;
 }
 function addFootballer(scene,x,z,shirt,keeper=false,name='PLAYER',number=10,shortColor='#172d4d') {
-  const group=new THREE.Group(); group.position.set(x,0,z); scene.add(group);
-  const skin=material('#9b684d',.78,.01), fabric=material(shirt,.68,.03), shorts=material(shortColor,.78,.01);
-  const socks=material(keeper?'#e8eef4':'#e8edf3',.82,.01), boots=material('#101820',.42,.12);
-  const dark=material('#17191d',.85,.01), glove=material('#f3f5f4',.48,.02);
-  const joint=(parent,x,y,z,r,mat)=>makeBodyPart(parent,new THREE.SphereGeometry(r,18,14),mat,[x,y,z]);
-  makeBodyPart(group,new THREE.CapsuleGeometry(.255,.48,8,18),fabric,[0,1.23,0]);
-  makeBodyPart(group,new THREE.SphereGeometry(.27,20,16),fabric,[0,1.48,0]);
-  makeBodyPart(group,new THREE.CylinderGeometry(.115,.13,.13,20),skin,[0,1.63,0]);
-  makeBodyPart(group,new THREE.CapsuleGeometry(.25,.18,6,14),shorts,[0,.82,0]);
-  // Face details: ears, cheeks, eyes, pupils, brows, nose, mouth and hair.
-  makeBodyPart(group,new THREE.SphereGeometry(.166,32,24),skin,[0,1.88,0]);
-  makeBodyPart(group,new THREE.SphereGeometry(.135,24,16),skin,[0,1.81,.015]);
-  for(const side of [-1,1]) {
-    joint(group,side*.171,1.87,0,.043,skin);
-    joint(group,side*.061,1.91,.145,.025,material('#f7eee4',.55,.01));
-    joint(group,side*.061,1.91,.166,.011,material('#24201e',.3,.02));
-    makeBodyPart(group,new THREE.BoxGeometry(.052,.012,.018),dark,[side*.061,1.95,.145],[0,0,side*-.12]);
-  }
-  makeBodyPart(group,new THREE.ConeGeometry(.027,.075,12),skin,[0,1.875,.177]);
-  makeBodyPart(group,new THREE.BoxGeometry(.055,.012,.012),material('#713b39',.7,.01),[0,1.82,.151]);
-  const hair=makeBodyPart(group,new THREE.SphereGeometry(.171,24,16,0,Math.PI*2,0,Math.PI*.57),dark,[0,1.94,-.008]); hair.scale.set(1.02,.8,1.02);
-  // Shoulder, elbow and wrist pivots; hip and knee pivots.
-  const armL=new THREE.Group(),armR=new THREE.Group(); armL.position.set(-.29,1.43,0); armR.position.set(.29,1.43,0); group.add(armL,armR);
-  for(const [arm,side] of [[armL,-1],[armR,1]]) {
-    makeBodyPart(arm,new THREE.SphereGeometry(.105,18,14),fabric,[0,0,0]);
-    makeBodyPart(arm,new THREE.CapsuleGeometry(.071,.29,6,12),fabric,[side*.025,-.22,0],[0,0,side*-.07]);
-    joint(arm,side*.045,-.42,0,.067,skin);
-    makeBodyPart(arm,new THREE.CapsuleGeometry(.06,.22,5,10),skin,[side*.05,-.57,.005]);
-    joint(arm,side*.05,-.7,.01,.07,skin);
-    if(keeper) makeBodyPart(arm,new THREE.BoxGeometry(.18,.14,.095),glove,[side*.05,-.76,.025]);
-  }
-  const legL=new THREE.Group(),legR=new THREE.Group(); legL.position.set(-.135,.78,0); legR.position.set(.135,.78,0); group.add(legL,legR);
-  for(const leg of [legL,legR]) {
-    makeBodyPart(leg,new THREE.CapsuleGeometry(.095,.37,7,14),shorts,[0,-.22,0]);
-    joint(leg,0,-.43,0,.082,skin);
-    makeBodyPart(leg,new THREE.CapsuleGeometry(.064,.29,6,12),socks,[0,-.63,0]);
-    makeBodyPart(leg,new THREE.BoxGeometry(.18,.105,.34),boots,[0,-.81,-.075]);
-    for(let stud=0;stud<4;stud++) makeBodyPart(leg,new THREE.CylinderGeometry(.016,.016,.022,8),dark,[-.06+stud*.04,-.866,-.19]);
-  }
-  const numberLabel=makeLabelSprite('#'+number,'#fff5ce'); numberLabel.position.set(0,1.25,-.285); numberLabel.scale.set(.55,.28,1); group.add(numberLabel);
-  if(!keeper){const shirtName=makeLabelSprite(name,'#ffffff');shirtName.position.set(0,1.48,-.285);shirtName.scale.set(.82,.17,1);group.add(shirtName);}
-  const nameLabel=makeLabelSprite(name,keeper?'#c9edff':'#fff0b7'); nameLabel.position.set(0,2.28,0); group.add(nameLabel);
-  if(!keeper) makeBodyPart(group,new THREE.ConeGeometry(.075,.16,8),material('#36a9ff',.28,.22),[0,2.62,0],[Math.PI,0,0]);
-  group.userData={armL,armR,legL,legR,keeper,breathPhase:Math.random()*Math.PI*2};
-  return group;
+  const athlete=createPenaltyAthlete({x,z,shirt,keeper,name,number,shortColor});
+  scene.add(athlete);
+  return athlete;
 }
 function addCrowd(scene,accent) {
   const crowdGeo=new THREE.SphereGeometry(.045,6,5);
@@ -371,8 +330,8 @@ export function mountGame3D(container, gameId, options={}) {
         if(gameId==='plinko'&&i===stage.animated.length-1) obj.position.z=1+Math.sin(t*1.7)*.5;
       });
       if(stage.ball){if(gameId==='penalty'){stage.ball.rotation.x+=.018;stage.ball.rotation.z+=.025;const elapsed=shotStartedAt===null?-1:t-shotStartedAt;if(elapsed>=0&&elapsed<2.1){const kick=Math.min(1,Math.max(0,(elapsed-.48)/.78));stage.ball.position.y=.18+Math.sin(kick*Math.PI)*.85;stage.ball.position.z=.48-kick*5.2;stage.ball.position.x=1.12+(((Number(shotDetail?.shotX??.5)-.5)*3.2)-1.12)*kick;}else if(elapsed>=2.1){stage.ball.position.set(1.12,.18,.48);if(stage.keeper){stage.keeper.position.x=0;stage.keeper.rotation.z=0;}shotStartedAt=null;}}else{stage.ball.position.x=-.72+Math.sin(t*.7)*.035;stage.ball.rotation.x+=.018;stage.ball.rotation.z+=.025;}}
-      if(gameId==='penalty'&&stage.striker){const elapsed=shotStartedAt===null?-1:t-shotStartedAt;const kick=elapsed<0?0:Math.min(1,Math.max(0,(elapsed-.12)/.82));const u=stage.striker.userData;stage.striker.position.x=1.12-Math.sin(kick*Math.PI)*.22;stage.striker.position.z=1.55-Math.max(0,kick)*.72;stage.striker.rotation.x=Math.sin(kick*Math.PI)*-.24;stage.striker.rotation.z=Math.sin(kick*Math.PI)*.13;u.armL.rotation.z=-.12-kick*.35;u.armR.rotation.z=.12+kick*.35;u.legL.rotation.x=-Math.sin(kick*Math.PI)*.8;u.legR.rotation.x=Math.sin(kick*Math.PI)*.35;u.armL.rotation.x=Math.sin(t*2+u.breathPhase)*.025;u.armR.rotation.x=-Math.sin(t*2+u.breathPhase)*.025;}
-      if(gameId==='penalty'&&stage.keeper){const u=stage.keeper.userData;const elapsed=shotStartedAt===null?-1:t-shotStartedAt;const dive=elapsed<0?0:Math.min(1,Math.max(0,(elapsed-.62)/.55));const side=(Number(shotDetail?.shotX??.5)-.5);stage.keeper.position.x=side*2.4*dive;stage.keeper.rotation.z=side*-.8*dive;u.armL.rotation.z=-.2-side*dive*.8;u.armR.rotation.z=.2-side*dive*.8;u.legL.rotation.x=.12+Math.sin(t*2+u.breathPhase)*.025;u.legR.rotation.x=-.12-Math.sin(t*2+u.breathPhase)*.025;}
+      if(gameId==='penalty'&&stage.striker){const elapsed=shotStartedAt===null?-1:t-shotStartedAt;const kick=elapsed<0?0:Math.min(1,Math.max(0,(elapsed-.12)/.82));stage.striker.position.x=1.12-Math.sin(kick*Math.PI)*.22;stage.striker.position.z=1.55-Math.max(0,kick)*.72;stage.striker.rotation.x=Math.sin(kick*Math.PI)*-.12;stage.striker.rotation.z=Math.sin(kick*Math.PI)*.08;animatePenaltyAthlete(stage.striker,t,{kick:Math.sin(kick*Math.PI)});}
+      if(gameId==='penalty'&&stage.keeper){const elapsed=shotStartedAt===null?-1:t-shotStartedAt;const dive=elapsed<0?0:Math.min(1,Math.max(0,(elapsed-.62)/.55));const side=(Number(shotDetail?.shotX??.5)-.5);stage.keeper.position.x=side*2.4*dive;stage.keeper.rotation.z=side*-.8*dive;stage.keeper.rotation.x=-dive*.16;animatePenaltyAthlete(stage.keeper,t,{dive,side});}
       if(gameId==='penalty') scene.userData.penaltyFlags?.forEach(flag=>{flag.rotation.z=Math.sin(t*2.1+flag.userData.wave)*.14;});
       ring.rotation.z+=.0015;
       if(gameId!=='penalty'){camera.position.x=Math.sin(t*.12)*.14;camera.lookAt(0,.45,0);}
