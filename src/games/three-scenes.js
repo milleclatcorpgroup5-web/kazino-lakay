@@ -142,12 +142,21 @@ function addAdBoard(scene) {
   const board=new THREE.Mesh(new THREE.PlaneGeometry(9.2,1.15),new THREE.MeshBasicMaterial({map:tex}));
   board.position.set(0,1.1,-5.65); scene.add(board);
 }
+function makePitchGrassTexture() {
+  const canvas=document.createElement('canvas'); canvas.width=512; canvas.height=512;
+  const ctx=canvas.getContext('2d'); ctx.fillStyle='#176b38'; ctx.fillRect(0,0,512,512);
+  for(let i=0;i<14;i++){ctx.fillStyle=i%2?'rgba(104,177,87,.12)':'rgba(3,45,20,.10)';ctx.fillRect(0,i*512/14,512,512/14);}
+  let seed=90210; const rand=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};
+  for(let i=0;i<18000;i++){const x=rand()*512,y=rand()*512;ctx.strokeStyle=rand()>.5?'rgba(145,194,104,.22)':'rgba(3,39,18,.2)';ctx.lineWidth=.5+rand();ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+(rand()-.5)*3,y-2-rand()*5);ctx.stroke();}
+  const tex=new THREE.CanvasTexture(canvas); tex.colorSpace=THREE.SRGBColorSpace; tex.wrapS=tex.wrapT=THREE.RepeatWrapping; tex.repeat.set(2,2); tex.anisotropy=4; return tex;
+}
 function addStadium(scene,accent,options={}) {
   const team=options.team||{};
   const shirt=team.primary||'#d52d45', shorts=team.secondary||'#143b7b';
-  // Pitch with alternating high-resolution grass bands.
-  box(scene,0,-.34,0,15,.32,13,'#176b3d');
-  for(let i=0;i<14;i++) box(scene,-6.95+i*1.07,-.165,0,1.04,.012,12.7,i%2?'#197441':'#21824a');
+  // Full pitch surface with procedural grass-blade texture and mowing bands.
+  const pitch=new THREE.Mesh(new THREE.PlaneGeometry(15,13),new THREE.MeshStandardMaterial({map:makePitchGrassTexture(),roughness:.96,metalness:0})); pitch.rotation.x=-Math.PI/2; pitch.position.y=-.165; pitch.receiveShadow=true; scene.add(pitch);
+  box(scene,0,-.34,0,15,.32,13,'#14552f');
+  for(let i=0;i<14;i++) box(scene,-6.95+i*1.07,-.158,0,1.04,.006,12.7,i%2?'#197441':'#21824a');
   // Penalty box, six-yard box, goal line and spot.
   box(scene,0,-.145,-5.1,15,.014,.025,'#f5f8ed');
   for(const [w,z,d] of [[7.4,-3.35,3.5],[3.5,-4.2,1.65]]) {
@@ -156,6 +165,14 @@ function addStadium(scene,accent,options={}) {
     box(scene,0,-.135,z-d/2,w,.018,.025,'#f5f8ed');
   }
   sphere(scene,0,-.105,-2.2,.065,'#ffffff',16);
+  // Penalty arc (D) and corner arcs.
+  const arcCurve=new THREE.EllipseCurve(0,0,1.72,1.72,Math.PI*.08,Math.PI*.92,false,0);
+  const arcPoints=arcCurve.getPoints(48).map(p=>new THREE.Vector3(p.x,-.126,-2.2+p.y));
+  scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(arcPoints),new THREE.LineBasicMaterial({color:'#f5f8ed'})));
+  for(const cx of [-7.15,7.15]) for(const cz of [-6.05,6.05]) {
+    const pts=[]; for(let i=0;i<=12;i++){const a=(i/12)*Math.PI/2;pts.push(new THREE.Vector3(cx+Math.cos(a)*.38,-.125,cz+Math.sin(a)*.38));}
+    scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:'#f5f8ed'})));
+  }
   // Stadium bowl, distant stands and roof.
   for(const side of [-1,1]) {
     for(let tier=0;tier<8;tier++) {
