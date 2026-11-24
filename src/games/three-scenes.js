@@ -91,6 +91,7 @@ function addFootballer(scene,x,z,shirt,keeper=false,name='PLAYER',number=10,shor
   }
   const numberLabel=makeLabelSprite('#'+number,'#fff5ce'); numberLabel.position.set(0,1.25,-.285); numberLabel.scale.set(.55,.28,1); group.add(numberLabel);
   const nameLabel=makeLabelSprite(name,keeper?'#c9edff':'#fff0b7'); nameLabel.position.set(0,2.28,0); group.add(nameLabel);
+  if(!keeper) makeBodyPart(group,new THREE.ConeGeometry(.075,.16,8),material('#36a9ff',.28,.22),[0,2.62,0],[Math.PI,0,0]);
   group.userData={armL,armR,keeper}; return group;
 }
 function addCrowd(scene,accent) {
