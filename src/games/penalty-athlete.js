@@ -102,7 +102,7 @@ export function createPenaltyAthlete({x,z,shirt,keeper=false,name='PLAYER',numbe
   // Neck/shoulder proportions and facial details are kept consistent across player roles.
   const namePlate=new THREE.Group(); namePlate.position.set(0,2.32,0); group.add(namePlate);
   const canvas=document.createElement('canvas');canvas.width=512;canvas.height=128;
-  const ctx=canvas.getContext('2d');ctx.fillStyle='rgba(5,12,22,.8)';ctx.beginPath();ctx.roundRect(8,12,496,104,24);ctx.fill();
+  const ctx=canvas.getContext('2d');ctx.fillStyle='rgba(5,12,22,.8)';ctx.fillRect(8,12,496,104);
   ctx.fillStyle=keeper?'#bce5ff':'#fff0bd';ctx.font='900 42px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(String(name).toUpperCase().slice(0,22),256,65);
   const tex=new THREE.CanvasTexture(canvas);tex.colorSpace=THREE.SRGBColorSpace;
   const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false}));sprite.scale.set(2.2,.55,1);namePlate.add(sprite);
