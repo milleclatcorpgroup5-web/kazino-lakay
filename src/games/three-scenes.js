@@ -89,7 +89,7 @@ function addFootballer(scene,x,z,shirt,keeper=false,name='PLAYER',number=10,shor
   if(keeper) {
     for(const side of [-1,1]) makeBodyPart(group,new THREE.BoxGeometry(.19,.16,.11),glove,[side*.39,1.0,-.015]);
   }
-  const numberLabel=makeLabelSprite('#'+number,'#fff5ce'); numberLabel.position.set(0,1.25,.285); numberLabel.scale.set(.55,.28,1); group.add(numberLabel);
+  const numberLabel=makeLabelSprite('#'+number,'#fff5ce'); numberLabel.position.set(0,1.25,-.285); numberLabel.scale.set(.55,.28,1); group.add(numberLabel);
   const nameLabel=makeLabelSprite(name,keeper?'#c9edff':'#fff0b7'); nameLabel.position.set(0,2.28,0); group.add(nameLabel);
   group.userData={armL,armR,keeper}; return group;
 }
@@ -98,7 +98,7 @@ function addCrowd(scene,accent) {
   const palette=['#d9e1ea','#b8c5d4','#e7c9a3','#4c78a8','#d84d59','#e2c65e','#f2f4f5','#17253a'];
   const crowdMat=palette.map(c=>material(c,.92,.01));
   const inst=crowdMat.map(m=>new THREE.InstancedMesh(crowdGeo,m,180));
-  inst.forEach(mesh=>{mesh.castShadow=false;mesh.receiveShadow=false;scene.add(mesh);});
+  inst.forEach(mesh=>{mesh.castShadow=false;mesh.receiveShadow=false;mesh.count=0;scene.add(mesh);});
   let n=0;
   for(let tier=0;tier<9;tier++) for(let seat=0;seat<180;seat++) {
     const angle=(seat/179)*Math.PI;
@@ -172,7 +172,7 @@ function addStadium(scene,accent,options={}) {
   }
   // Keeper at the centre of the goal; shooter is framed from behind on the lower-right.
   const keeper=addFootballer(scene,0,-4.35,'#2772c8',true,options.keeperName||'ANGELO PERUZZI',1,'#18253a');
-  keeper.rotation.y=Math.PI;
+  keeper.rotation.y=0;
   const striker=addFootballer(scene,1.12,1.55,shirt,false,options.playerName||team.player?.name||'LIONEL MESSI',numberForTeam(team),shorts);
   striker.rotation.y=Math.PI;
   // Match ball on the penalty spot with panel geometry and a soft contact shadow.
@@ -322,7 +322,7 @@ export function mountGame3D(container, gameId, options={}) {
     const stage=buildScene(scene,gameId,accent,secondary,options);
     const ring=torus(scene,0,-.29,0,4.1,.025,accent);ring.material.transparent=true;ring.material.opacity=.45;
     const labelGroup=new THREE.Group();scene.add(labelGroup);
-    const clock=new THREE.Clock();let frame=0;let disposed=false;let raf=0;
+    const clock=new THREE.Clock();let frame=0;let disposed=false;let raf=0;let shotStartedAt=null;let shotDetail=options.shot?{shot:options.shot,shotX:options.shotX??.5}:null;\n    const onPenaltyShot=(event)=>{shotDetail=event.detail||shotDetail||{};shotStartedAt=clock.getElapsedTime();};\n    if(gameId==='penalty') container.addEventListener('penalty-shot-start',onPenaltyShot);
     const resize=()=>{const w=Math.max(1,container.clientWidth),h=Math.max(1,container.clientHeight);camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false);};
     const observer=typeof ResizeObserver!=='undefined'?new ResizeObserver(resize):null;observer?.observe(container);resize();
     const animate=()=>{if(disposed)return;raf=requestAnimationFrame(animate);const t=clock.getElapsedTime();frame++;
@@ -335,13 +335,13 @@ export function mountGame3D(container, gameId, options={}) {
         if(gameId==='crash'&&i===stage.animated.length-1) obj.position.x=Math.sin(t*.42)*2.1;
         if(gameId==='plinko'&&i===stage.animated.length-1) obj.position.z=1+Math.sin(t*1.7)*.5;
       });
-      if(stage.ball){if(gameId==='penalty'){stage.ball.rotation.x+=.018;stage.ball.rotation.z+=.025;if(options.shot){const kick=Math.min(1,Math.max(0,(t-.8)/.9));stage.ball.position.y=.18+Math.sin(kick*Math.PI)*.75;stage.ball.position.z=.48-kick*3.2;stage.ball.position.x=1.12+(Number(options.shotX||0)-.5)*1.8*kick;}}else{stage.ball.position.x=-.72+Math.sin(t*.7)*.035;stage.ball.rotation.x+=.018;stage.ball.rotation.z+=.025;}}\n      if(gameId==='penalty'&&stage.striker){const kick=options.shot?Math.min(1,Math.max(0,(t-.45)/.7)):0;stage.striker.rotation.x=Math.sin(kick*Math.PI)*-.24;stage.striker.rotation.z=Math.sin(kick*Math.PI)*.13;stage.striker.userData.armL.rotation.z=-.12-kick*.35;stage.striker.userData.armR.rotation.z=.12+kick*.35;}\n      if(gameId==='penalty'&&stage.keeper&&options.shot){const dive=Math.min(1,Math.max(0,(t-.8)/.5));stage.keeper.position.x=(Number(options.shotX||.5)-.5)*2.4*dive;stage.keeper.rotation.z=(Number(options.shotX||.5)-.5)*-.8*dive;}
+      if(stage.ball){if(gameId==='penalty'){stage.ball.rotation.x+=.018;stage.ball.rotation.z+=.025;const elapsed=shotStartedAt===null?-1:t-shotStartedAt;if(elapsed>=0&&elapsed<2.1){const kick=Math.min(1,Math.max(0,(elapsed-.48)/.78));stage.ball.position.y=.18+Math.sin(kick*Math.PI)*.85;stage.ball.position.z=.48-kick*3.6;stage.ball.position.x=1.12+(Number(shotDetail?.shotX??.5)-.5)*2.1*kick;}else if(elapsed>=2.1){stage.ball.position.set(1.12,.18,.48);shotStartedAt=null;}}else{stage.ball.position.x=-.72+Math.sin(t*.7)*.035;stage.ball.rotation.x+=.018;stage.ball.rotation.z+=.025;}}\n      if(gameId==='penalty'&&stage.striker){const elapsed=shotStartedAt===null?-1:t-shotStartedAt;const kick=elapsed<0?0:Math.min(1,Math.max(0,(elapsed-.12)/.82));stage.striker.position.x=1.12-Math.sin(kick*Math.PI)*.22;stage.striker.position.z=1.55-Math.max(0,kick)*.72;stage.striker.rotation.x=Math.sin(kick*Math.PI)*-.24;stage.striker.rotation.z=Math.sin(kick*Math.PI)*.13;stage.striker.userData.armL.rotation.z=-.12-kick*.35;stage.striker.userData.armR.rotation.z=.12+kick*.35;}\n      if(gameId==='penalty'&&stage.keeper&&shotStartedAt!==null){const elapsed=t-shotStartedAt;const dive=Math.min(1,Math.max(0,(elapsed-.62)/.55));stage.keeper.position.x=(Number(shotDetail?.shotX??.5)-.5)*2.4*dive;stage.keeper.rotation.z=(Number(shotDetail?.shotX??.5)-.5)*-.8*dive;}
       ring.rotation.z+=.0015;
       if(gameId!=='penalty'){camera.position.x=Math.sin(t*.12)*.14;camera.lookAt(0,.45,0);}
       renderer.render(scene,camera);
     };
     animate();
-    const dispose=()=>{disposed=true;cancelAnimationFrame(raf);observer?.disconnect();renderer.dispose();scene.traverse(o=>{o.geometry?.dispose?.();if(o.material){if(Array.isArray(o.material))o.material.forEach(m=>m.dispose());else o.material.dispose();}});renderer.domElement.remove();if(active?.container===container)active=null;};
+    const dispose=()=>{disposed=true;cancelAnimationFrame(raf);observer?.disconnect();if(gameId==='penalty')container.removeEventListener('penalty-shot-start',onPenaltyShot);renderer.dispose();scene.traverse(o=>{o.geometry?.dispose?.();if(o.material){if(Array.isArray(o.material))o.material.forEach(m=>m.dispose());else o.material.dispose();}});renderer.domElement.remove();if(active?.container===container)active=null;};
     active={container,dispose,gameId};
     return dispose;
   } catch(error) {
