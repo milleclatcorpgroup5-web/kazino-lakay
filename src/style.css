@@ -568,9 +568,9 @@
 
 /* Dedicated Three.js game environments */
 .stage-visual,.kl-stage-wrap,#roulette-fullscreen{position:relative;isolation:isolate;overflow:hidden}
-.three-scene-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:2;pointer-events:none;opacity:.58;mix-blend-mode:screen}
+.three-scene-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:2;pointer-events:none;opacity:.78;mix-blend-mode:screen}
 .stage-visual{min-height:280px}
 #roulette-fullscreen>.three-scene-canvas{position:fixed;inset:0;width:100vw;height:100vh;opacity:.28;z-index:0}
 #roulette-fullscreen>*:not(.three-scene-canvas){position:relative;z-index:1}
-@media(max-width:600px){.three-scene-canvas{opacity:.46}.stage-visual{min-height:240px}}
-@media(prefers-reduced-motion:reduce){.three-scene-canvas{opacity:.28}}
+@media(max-width:600px){.three-scene-canvas{opacity:.68}.stage-visual{min-height:240px}}
+@media(prefers-reduced-motion:reduce){.three-scene-canvas{opacity:.68}}
