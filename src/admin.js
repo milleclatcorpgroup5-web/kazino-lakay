@@ -26,8 +26,8 @@ function renderLogin(message='') {
     ${!firebaseReady ? `<div class="config-alert"><strong>Firebase frontend poko konfigire.</strong><span>${firebaseMissing.map(esc).join(', ')}</span></div>` : ''}
     ${message?`<div class="config-alert"><strong>${esc(message)}</strong></div>`:''}
     ${backendHealthError?`<div class="config-alert"><strong>Backend pa reponn.</strong><span>${esc(backendHealthError)}</span></div>`:''}
-    ${backendHealth && !backendHealth.frontendFirebaseConfigured?`<div class="config-alert"><strong>Konfigirasyon Firebase Web la manke.</strong><span>${esc((backendHealth.frontendFirebaseMissing||[]).join(', ')||'Verifye FIREBASE_WEB_API_KEY, FIREBASE_AUTH_DOMAIN, FIREBASE_PROJECT_ID ak FIREBASE_APP_ID sou Worker la.')}</span></div>`:''}
-    ${backendHealth && !backendHealth.adminConfigured?`<div class="config-alert"><strong>Imèl administratè a poko otorize.</strong><span>Sou Cloudflare Worker kazino-lakay, mete INITIAL_ADMIN_EMAILS kòm yon Variable ki gen menm adrès imèl Firebase ou pral itilize pou konekte a. Pa mete modpas oswa kle sekrè ladan l.</span></div>`:''}
+    ${backendHealth && !backendHealth.frontendFirebaseConfigured?`<div class="config-alert"><strong>Konfigirasyon Firebase Web la manke.</strong><span>${esc((backendHealth.frontendFirebaseMissing||[]).join(', ')||'Verifye FIREBASE_WEB_API_KEY, FIREBASE_AUTH_DOMAIN, FIREBASE_PROJECT_ID ak FIREBASE_APP_ID sou Cloudflare Pages.')}</span></div>`:''}
+    ${backendHealth && !backendHealth.adminConfigured?`<div class="config-alert"><strong>Imèl administratè a poko otorize.</strong><span>Sou Cloudflare Pages kazino-lakay, mete INITIAL_ADMIN_EMAILS kòm yon Variable ki gen menm adrès imèl Firebase ou pral itilize pou konekte a. Pa mete modpas oswa kle sekrè ladan l.</span></div>`:''}
     <section class="admin-login panel"><h2>Koneksyon administratè</h2><p>Antre ak imel administratè ki anrejistre nan <code>INITIAL_ADMIN_EMAILS</code> sou Cloudflare. Kont Firebase la dwe deja egziste epi imel la dwe verifye.</p>
       <form id="admin-login-form"><label class="field"><span>Imel administratè</span><input name="email" type="email" autocomplete="username" required></label><label class="field"><span>Modpas</span><input name="password" type="password" autocomplete="current-password" required></label><button class="button button-primary button-wide" type="submit" ${busy?'disabled':''}>Konekte an sekirite</button><button class="button button-ghost button-wide" type="button" data-admin-action="reset-password">Mwen bliye modpas mwen</button></form>
       <p class="small-print">Pa gen modpas default. Firebase Authentication verifye idantite a; Worker la verifye dwa administratè a apa.</p>
@@ -41,7 +41,7 @@ function renderDenied(message='Kont sa a pa gen dwa administratè.') {
 }
 function renderGameControl(settings) {
   const control = { ...DEFAULT_CONTROL, ...(settings || {}), games: { ...DEFAULT_CONTROL.games, ...(settings?.games || {}) } };
-  const enabledCount = GAMES.filter((g) => control.games[g.id] !== false).length;
+  const enabledCount = control.globalEnabled ? GAMES.filter((g) => control.games[g.id] !== false).length : 0;
   return `<section id="game-controls" class="panel admin-section game-control-section"><div class="admin-section-head"><div><small>KONTWÒL GLOBAL</small><h2>Kontwòl 22 jwèt yo</h2><p>Sispann tout jwèt yo yon sèl kou oswa aktive/dezaktive chak jwèt apa. Chanjman yo aplike sou sèvè a tou.</p></div><span class="admin-count">${enabledCount}/${GAMES.length} aktif</span></div>
     <form id="game-control-form">
       <div class="global-control-row"><label class="global-switch"><input type="checkbox" name="globalEnabled" ${control.globalEnabled?'checked':''}><span class="switch-track"></span><span><strong>${control.globalEnabled?'Tout jwèt yo ouvè':'Tout jwèt yo sou poz'}</strong><small>Kontwòl prensipal pou tout sit la</small></span></label><label class="maintenance-field"><span>Mesaj lè jwèt yo sou poz</span><input name="maintenanceMessage" type="text" maxlength="200" value="${esc(control.maintenanceMessage||'')}" placeholder="Egzanp: Nou ap fè antretyen. Tounen pita."></label></div>
@@ -99,7 +99,7 @@ async function onUser(user) {
     await user.getIdToken(true);
     await api('/api/profile/bootstrap', { method: 'POST', body: { displayName: user.displayName || '' } });
     const profile = await api('/api/me');
-    if (profile.role !== 'admin') { renderDenied(`Kont ${user.email} konekte, men imel sa a pa gen wòl administratè sou Worker la.`); return; }
+    if (profile.role !== 'admin') { renderDenied(`Kont ${user.email} konekte, men imel sa a pa gen wòl administratè sou Cloudflare Pages.`); return; }
     const setupResponse = await api('/api/admin/setup', { method: 'POST', body: {} });
     dashboardData = { setup: setupResponse.setup };
     await refreshDashboard();
@@ -114,7 +114,7 @@ root.addEventListener('submit', async (event) => {
     const button = event.target.querySelector('button[type="submit"]');
     if (button) { button.disabled = true; button.textContent = 'Koneksyon an ap fèt…'; }
     try {
-      if (!firebaseReady) throw new Error(`Firebase pa pare pou koneksyon an. Paramèt ki manke: ${firebaseMissing.join(', ') || 'konfigirasyon Worker /firebase-config.js'}. Verifye FIREBASE_WEB_API_KEY, FIREBASE_AUTH_DOMAIN, FIREBASE_PROJECT_ID ak FIREBASE_APP_ID sou Worker kazino-lakay.`);
+      if (!firebaseReady) throw new Error(`Firebase pa pare pou koneksyon an. Paramèt ki manke: ${firebaseMissing.join(', ') || 'konfigirasyon Worker /firebase-config.js'}. Verifye FIREBASE_WEB_API_KEY, FIREBASE_AUTH_DOMAIN, FIREBASE_PROJECT_ID ak FIREBASE_APP_ID sou Pages kazino-lakay.`);
       await loginAccount({ email: data.email, password: data.password });
     }
     catch (error) { const code = error?.code || ''; const message = code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found' ? 'Imel oswa modpas la pa kòrèk, oubyen kont lan poko egziste nan Firebase Authentication. Verifye lis Users la.' : (error.message || 'Koneksyon an echwe.'); renderLogin(message); }
@@ -186,11 +186,23 @@ root.addEventListener('click', async (event) => {
   }
   const bulk = event.target.closest('[data-game-control-bulk]')?.dataset.gameControlBulk;
   if (bulk) {
+    const activate = bulk === 'on';
     root.querySelectorAll('#game-control-form .game-control-item input[type="checkbox"]').forEach((input) => {
-      input.checked = bulk === 'on';
+      input.checked = activate;
       const status = input.closest('.game-control-item')?.querySelector('.game-control-state');
-      if (status) status.textContent = input.checked ? 'Aktif' : 'Sispann';
+      if (status) status.textContent = activate ? 'Aktif' : 'Sispann';
     });
+    const globalInput = root.querySelector('#game-control-form input[name="globalEnabled"]');
+    if (globalInput) {
+      globalInput.checked = activate;
+      const label = globalInput.closest('.global-switch')?.querySelector('strong');
+      if (label) label.textContent = activate ? 'Tout jwèt yo ouvè' : 'Tout jwèt yo sou poz';
+    }
+    const message = root.querySelector('#game-control-form input[name="maintenanceMessage"]');
+    if (activate && message) message.value = '';
+    const reason = root.querySelector('#game-control-form input[name="reason"]');
+    if (reason && !reason.value.trim()) reason.value = activate ? 'Relansman tout 22 jwèt yo' : 'Mete tout jwèt yo sou poz';
+    notify(activate ? '22 jwèt yo make pou aktive. Peze “Sove kontwòl jwèt yo” pou aplike chanjman an.' : '22 jwèt yo make pou sispann. Peze “Sove kontwòl jwèt yo” pou aplike chanjman an.');
   }
 });
 async function loadBackendHealth() {
@@ -199,7 +211,7 @@ async function loadBackendHealth() {
     backendHealthError = '';
   } catch (error) {
     backendHealth = null;
-    backendHealthError = error.message || 'Pa kapab kontakte API Worker la.';
+    backendHealthError = error.message || 'Pa kapab kontakte API Pages la.';
   }
   if (!signedUser) renderLogin();
 }
