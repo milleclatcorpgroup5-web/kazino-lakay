@@ -51,23 +51,25 @@ const serviceWorker = await readFile(new URL('../public/sw.js', import.meta.url)
 const adminHtml = await readFile(new URL('../admin.html', import.meta.url), 'utf8');
 const firestoreRules = await readFile(new URL('../firestore.rules', import.meta.url), 'utf8');
 const firebaseJson = JSON.parse(await readFile(new URL('../firebase.json', import.meta.url), 'utf8'));
-const workerSource = await readFile(new URL('./src/index.js', import.meta.url), 'utf8');
+const handlerSource = await readFile(new URL('../functions/_shared/handler.js', import.meta.url), 'utf8');
+const pagesRedirects = await readFile(new URL('../public/_redirects', import.meta.url), 'utf8');
 const adminSource = await readFile(new URL('../src/admin.js', import.meta.url), 'utf8');
 const playerSource = await readFile(new URL('../src/main.js', import.meta.url), 'utf8');
 assert.match(mainHtml, /manifest\.webmanifest/);
 assert.match(adminHtml, /src\/admin\.js/, 'Admin HTML dwe sèvi ak entèfas administrasyon points-only la.');
-assert.match(workerSource, /requestUrl\.pathname === '\/admin'/, 'Worker dwe sèvi admin dirèkteman san redirect.');
+assert.match(pagesRedirects, /\/admin\s+\/admin\.html\s+200/, 'Pages dwe sèvi admin.html atravè _redirects.');
+assert.match(adminHtml, /src="\/firebase-config\.js"/, 'Admin dwe itilize menm-origin Pages Firebase config.');
 assert.match(adminHtml, /noindex,nofollow/);
 assert.match(firestoreRules, /match \/walletAccounts\/{uid}/);
 assert.match(firestoreRules, /match \/walletTransactions\/{transactionId}/);
 assert.match(firestoreRules, /allow read, write: if false/);
 assert.equal(firebaseJson.firestore.indexes, 'firestore-indexes.json', 'Firebase CLI dwe jwenn bon non fichye index la.');
-assert.match(workerSource, /platformWallet\/main/);
-assert.match(workerSource, /walletAccounts/);
-assert.match(workerSource, /walletTransactions/);
-assert.match(workerSource, /api\/admin\/setup/);
-assert.match(workerSource, /api\/admin\/wallet/);
-assert.match(workerSource, /api\/wallet/);
+assert.match(handlerSource, /platformWallet\/main/);
+assert.match(handlerSource, /walletAccounts/);
+assert.match(handlerSource, /walletTransactions/);
+assert.match(handlerSource, /api\/admin\/setup/);
+assert.match(handlerSource, /api\/admin\/wallet/);
+assert.match(handlerSource, /api\/wallet/);
 assert.match(adminSource, /Kont pwen platfòm nan/);
 assert.match(playerSource, /data-action="wallet"/);
 assert.ok(viteConfig.includes("main: resolve(here, 'index.html')"), 'Build la dwe enkli paj prensipal la.');
@@ -80,7 +82,7 @@ assert.match(serviceWorker, /'\/icones\/icon-192\.png'/);
 
 assert.deepEqual(GAMES.map((game) => game.id), Object.keys(cases), 'Frontend ak backend dwe gen menm 22 jwèt yo nan menm lòd la.');
 const playerSourceForDifficulty = await readFile(new URL('../src/main.js', import.meta.url), 'utf8');
-assert.match(workerSource, /choice = \{ \.\.\.choice, volatility: 'high', risk: 'high', mineCount: 10, difficulty: 'hard', standAt: 20, dealerSoft17: 'hit' \}/, 'Backend dwe fòse pwofil difisil la.');
+assert.match(handlerSource, /choice = \{ \.\.\.choice, volatility: 'high', risk: 'high', mineCount: 10, difficulty: 'hard', standAt: 20, dealerSoft17: 'hit' \}/, 'Backend dwe fòse pwofil difisil la.');
 assert.match(playerSourceForDifficulty, /filter\(\(field\) => !\['volatility','risk','mineCount','difficulty','standAt','dealerSoft17'\]/, 'Entèfas la pa dwe kite jwè chwazi nivo difikilte.');
 
 
