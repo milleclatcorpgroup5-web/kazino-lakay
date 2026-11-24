@@ -812,6 +812,7 @@ async function animatePenaltySequence(stage) {
   const rotation = keeperPoint.x < .4 ? -68 : keeperPoint.x > .6 ? 68 : keeperPoint.y < .3 ? -18 : keeperPoint.y > .7 ? 18 : (keeperPoint.x < .5 ? -28 : 28);
   const power = clamp(Number(field.dataset.power || 65) / 100, .3, 1);
   const duration = Math.round(1050 - power * 250);
+  field.dispatchEvent(new CustomEvent('penalty-shot-start', { bubbles: true, detail: { shot, keeperZone, power, goal, shotX: shotPoint.x } }));
   stage.classList.add('phase-rolling');
   field.classList.add('is-shooting');
   const animations = [];
