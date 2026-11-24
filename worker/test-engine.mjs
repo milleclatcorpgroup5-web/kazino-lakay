@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import worker, { resolveGame } from './src/index.js';
+import worker, { resolveGame } from '../functions/_shared/handler.js';
 import { GAMES } from '../src/games/catalog.js';
 import { rouletteWheelSvg, renderRouletteScreen } from '../src/games/roulette.js';
 import { readFile } from 'node:fs/promises';
