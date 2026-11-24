@@ -58,7 +58,7 @@ const playerSource = await readFile(new URL('../src/main.js', import.meta.url), 
 const sceneSource = await readFile(new URL('../src/games/three-scenes.js', import.meta.url), 'utf8');
 const themeBlock = sceneSource.match(/const THEMES = \{([\s\S]*?)\n\};/)?.[1] || '';
 const labelBlock = sceneSource.match(/const LABELS = \{([\s\S]*?)\n\};/)?.[1] || '';
-const themeIds = [...themeBlock.matchAll(/(?:^|,)\s*([a-z]+):\\[/gm)].map((match) => match[1]);
+const themeIds = [...themeBlock.matchAll(/(?:^|,)\s*([a-z]+):\[/gm)].map((match) => match[1]);
 const labelIds = [...labelBlock.matchAll(/(?:^|,)\s*([a-z]+):'/gm)].map((match) => match[1]);
 assert.deepEqual(themeIds, GAMES.map((game) => game.id), 'Chak nan 22 jwèt dwe gen tèm 3D pa li.');
 assert.deepEqual(labelIds, GAMES.map((game) => game.id), 'Chak nan 22 jwèt dwe gen etikèt sèn 3D pa li.');
