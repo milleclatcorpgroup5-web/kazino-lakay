@@ -679,15 +679,39 @@ export function mountGame3D(container, gameId, options={}) {
     const onPenaltyShot=(event)=>{const detail=event.detail&&typeof event.detail==='object'?event.detail:{};const rawX=Number(detail.shotX??.5);shotDetail={...detail,shotX:Number.isFinite(rawX)?Math.max(.02,Math.min(.98,rawX)):.5};shotStartedAt=clock.getElapsedTime();};
     if(gameId==='penalty') {
       container.addEventListener('penalty-shot-start',onPenaltyShot);
-      // Load the shared skinned CC0 character once, then clone it for striker
-      // and goalkeeper. If the external asset is unreachable, keep the current
-      // procedural 3D athletes instead of blocking the penalty scene.
+      // Both separate, locally hosted realistic GLB models are required.
+      // The old procedural mannequins are hidden by attachPenaltyRig and are
+      // never presented as the finished player models.
       Promise.all([
         attachPenaltyRig(stage.striker,{isActive:()=>!disposed}),
         attachPenaltyRig(stage.keeper,{isActive:()=>!disposed})
       ]).then(([strikerReady,keeperReady])=>{
-        if(strikerReady||keeperReady) container.dataset.playerRig='skinned';
-      }).catch(error=>console.warn('[Penalty Lakay] Skinned player setup failed.',error));
+        if(disposed) return;
+        if(strikerReady && keeperReady) {
+          container.dataset.playerRig='realistic-glb';
+          return;
+        }
+        container.dataset.playerRig='missing';
+        const notice=document.createElement('div');
+        notice.className='penalty-model-error';
+        notice.setAttribute('role','status');
+        notice.textContent='Modèl foutbolè reyalis yo poko disponib. Verifye fichye /models/penalty-shooter.glb ak /models/penalty-keeper.glb, epi relanse build la.';
+        Object.assign(notice.style,{
+          position:'absolute',left:'12px',right:'12px',top:'12px',zIndex:'20',
+          padding:'10px 14px',borderRadius:'10px',background:'rgba(7,15,28,.92)',
+          color:'#fff',font:'600 13px/1.45 system-ui,sans-serif',textAlign:'center',
+          border:'1px solid rgba(255,255,255,.2)',pointerEvents:'none'
+        });
+        const position=getComputedStyle(container).position;
+        if(position==='static') container.style.position='relative';
+        container.appendChild(notice);
+        container.dataset.playerModelError=String(
+          stage.striker.userData.rigError || stage.keeper.userData.rigError || 'GLB unavailable'
+        );
+      }).catch(error=>{
+        console.error('[Penalty Lakay] Realistic GLB player setup failed.',error);
+        container.dataset.playerRig='error';
+      });
     }
     const resize=()=>{const w=Math.max(1,container.clientWidth),h=Math.max(1,container.clientHeight);camera.aspect=w/h;if(gameId==='penalty')setPenaltyCameraFov(camera,camera.aspect);else camera.updateProjectionMatrix();renderer.setSize(w,h,false);};
     const observer=typeof ResizeObserver!=='undefined'?new ResizeObserver(resize):null;observer?.observe(container);resize();
