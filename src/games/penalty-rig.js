@@ -2,51 +2,50 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
-// Quaternius "Animated Men" CC0 model, pinned to a source commit.
-// It is loaded lazily; the procedural Penalty Lakay players remain visible if
-// this public asset cannot be reached on a low-bandwidth connection.
-export const PENALTY_PLAYER_MODEL_URL =
-  'https://cdn.jsdelivr.net/gh/kendrekaran/striker-3d@57847f87ff3d924712a1bb37df9dae391aedc315/assets/player.glb';
+// Locally generated CC0 MakeHuman/Ara assets. Each role has its own skinned GLB.
+export const PENALTY_PLAYER_MODEL_URLS = Object.freeze({
+  shooter: '/models/penalty-shooter.glb',
+  keeper: '/models/penalty-keeper.glb'
+});
 
-let templatePromise = null;
+const templatePromises = new Map();
 
 function normalizedClipName(name) {
   return String(name || '')
-    .replace(/^HumanArmature\|Man_/, '')
     .split('|').pop()
-    .replace(/^Man_/, '')
     .replace(/[^a-z0-9]/gi, '')
     .toLowerCase();
 }
 
-function measureRig(scene) {
-  scene.updateMatrixWorld(true);
+function measureRig(root) {
+  root.updateMatrixWorld(true);
   const bounds = new THREE.Box3();
   const meshBounds = new THREE.Box3();
-  scene.traverse((object) => {
+  root.traverse((object) => {
     if (!object.isSkinnedMesh) return;
-    if (typeof object.computeBoundingBox === 'function') object.computeBoundingBox();
+    object.computeBoundingBox?.();
     if (object.boundingBox) {
       meshBounds.copy(object.boundingBox).applyMatrix4(object.matrixWorld);
       bounds.union(meshBounds);
     }
   });
-  if (bounds.isEmpty()) bounds.setFromObject(scene);
+  if (bounds.isEmpty()) bounds.setFromObject(root);
   const height = bounds.max.y - bounds.min.y;
   if (!Number.isFinite(height) || height < 0.2) {
-    throw new Error('The rigged footballer model has an invalid height.');
+    throw new Error('The generated humanoid GLB has an invalid height.');
   }
   return { height, minY: bounds.min.y };
 }
 
-export async function loadPenaltyRigTemplate() {
-  if (!templatePromise) {
-    templatePromise = (async () => {
+export async function loadPenaltyRigTemplate(keeper = false) {
+  const role = keeper ? 'keeper' : 'shooter';
+  if (!templatePromises.has(role)) {
+    const promise = (async () => {
       const loader = new GLTFLoader();
-      loader.setCrossOrigin('anonymous');
-      const gltf = await loader.loadAsync(PENALTY_PLAYER_MODEL_URL);
+      const url = PENALTY_PLAYER_MODEL_URLS[role];
+      const gltf = await loader.loadAsync(url);
       if (!gltf.scene || !gltf.animations?.length) {
-        throw new Error('The footballer model is missing its scene or animation clips.');
+        throw new Error(`The ${role} GLB is missing its scene or animation clips.`);
       }
       const clips = new Map();
       for (const clip of gltf.animations) {
@@ -54,115 +53,122 @@ export async function loadPenaltyRigTemplate() {
         if (key && !clips.has(key)) clips.set(key, clip);
       }
       const fit = measureRig(gltf.scene);
-      return { scene: gltf.scene, clips, fit };
+      const hasSkin = [];
+      gltf.scene.traverse((object) => { if (object.isSkinnedMesh) hasSkin.push(object); });
+      if (!hasSkin.length) throw new Error(`The ${role} GLB has no skinned humanoid mesh.`);
+      return { scene: gltf.scene, clips, fit, url };
     })().catch((error) => {
-      templatePromise = null;
+      templatePromises.delete(role);
       throw error;
     });
+    templatePromises.set(role, promise);
   }
-  return templatePromise;
+  return templatePromises.get(role);
 }
 
-function kitMaterial(source, { shirt, shorts, keeper }) {
+function recolorMaterial(source, objectName, kit, keeper) {
   const target = source.clone();
-  const name = String(source.name || '').toLowerCase();
-  if (name.includes('shirt')) {
-    target.color.set(shirt);
-    if (name.includes('shirt2')) target.color.multiplyScalar(0.78);
-  } else if (name.includes('pants')) {
-    target.color.set(shorts);
-  } else if (name.includes('socks')) {
-    target.color.set(keeper ? '#eaf1f7' : '#f0f0e9');
-  } else if (name.includes('shoes')) {
-    target.color.set(keeper ? '#f0f4f8' : '#111820');
+  const label = `${source.name || ''} ${objectName || ''}`.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+  const set = (value) => { if (value && target.color) target.color.set(value); };
+
+  if (/football_shirt|uniform_shirt|shirt|jersey|top/.test(label)) {
+    set(kit.shirt || (keeper ? '#2a63cf' : '#b3122c'));
+  } else if (/short|bottom|trouser/.test(label)) {
+    set(kit.shorts || (keeper ? '#1b46a0' : '#b3122c'));
+  } else if (/sock/.test(label)) {
+    set(kit.socks || (keeper ? '#2a63cf' : '#b3122c'));
+  } else if (/shoe|boot/.test(label)) {
+    set(kit.boots || (keeper ? '#15181d' : '#19d3e6'));
+  } else if (/glove/.test(label)) {
+    set(kit.gloves || '#e8e8e8');
   }
-  if ('roughness' in target) target.roughness = Math.max(target.roughness || 0, 0.68);
+
+  if ('roughness' in target) target.roughness = Math.max(Number(target.roughness) || 0, 0.68);
+  if ('metalness' in target) target.metalness = Math.min(Number(target.metalness) || 0, 0.04);
   return target;
 }
 
-function makeShirtDecal(name, number, mirrored = false) {
+function makeBackDecal(name, number) {
   const canvas = document.createElement('canvas');
   canvas.width = 512;
   canvas.height = 512;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
-  if (mirrored) {
-    ctx.translate(canvas.width, 0);
-    ctx.scale(-1, 1);
-  }
+  ctx.clearRect(0, 0, 512, 512);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillStyle = '#fff4d4';
-  ctx.shadowColor = 'rgba(0,0,0,.5)';
-  ctx.shadowBlur = 9;
-  ctx.font = '800 42px Arial';
-  ctx.fillText(String(name || 'PLAYER').toUpperCase().slice(0, 18), 256, 86);
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowColor = 'rgba(0,0,0,.42)';
+  ctx.shadowBlur = 8;
+
+  const surname = String(name || 'PLAYER').toUpperCase().slice(0, 18);
+  const radius = 152;
+  const spacing = surname.length > 11 ? 0.085 : 0.105;
+  const start = -Math.PI / 2 - ((surname.length - 1) * spacing) / 2;
+  ctx.font = '800 36px Arial';
+  for (let i = 0; i < surname.length; i++) {
+    const angle = start + i * spacing;
+    ctx.save();
+    ctx.translate(256 + Math.cos(angle) * radius, 118 + Math.sin(angle) * radius);
+    ctx.rotate(angle + Math.PI / 2);
+    ctx.fillText(surname[i], 0, 0);
+    ctx.restore();
+  }
   ctx.font = '900 250px Arial';
-  ctx.fillText(String(number || 10).slice(0, 2), 256, 310);
+  ctx.fillText(String(number ?? 10).slice(0, 2), 256, 326);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 4;
   return texture;
 }
 
-function addShirtDecals(actor, options) {
-  const makePlane = (z, rotationY, mirrored) => {
-    const map = makeShirtDecal(options.name, options.number, mirrored);
-    if (!map) return;
-    const material = new THREE.MeshBasicMaterial({
-      map, transparent: true, depthWrite: false, side: THREE.DoubleSide,
-      polygonOffset: true, polygonOffsetFactor: -2
-    });
-    const decal = new THREE.Mesh(new THREE.PlaneGeometry(0.38, 0.43), material);
-    decal.position.set(0, 1.28, z);
-    decal.rotation.y = rotationY;
-    decal.renderOrder = 5;
-    actor.add(decal);
-  };
-  // The model faces local +Z. Attach one decal to the chest and one to the back.
-  makePlane(0.145, 0, false);
-  makePlane(-0.145, Math.PI, true);
+function addBackDecal(rig, actor) {
+  const map = makeBackDecal(actor.userData.name, actor.userData.number);
+  if (!map) return;
+  const material = new THREE.MeshBasicMaterial({
+    map, transparent: true, depthWrite: false, side: THREE.DoubleSide,
+    polygonOffset: true, polygonOffsetFactor: -2
+  });
+  const decal = new THREE.Mesh(new THREE.PlaneGeometry(0.39, 0.43), material);
+  decal.name = 'PenaltyPlayerBackNameAndNumber';
+  decal.position.set(0, 1.30, -0.151);
+  decal.rotation.y = Math.PI;
+  decal.renderOrder = 5;
+  rig.add(decal);
+}
+
+function hideProceduralBody(actor) {
+  for (const child of actor.children) child.visible = false;
 }
 
 export async function attachPenaltyRig(actor, { isActive = () => true } = {}) {
   if (!actor?.userData || actor.userData.rigRoot) return false;
+  const keeper = Boolean(actor.userData.keeper);
   try {
-    const template = await loadPenaltyRigTemplate();
+    const template = await loadPenaltyRigTemplate(keeper);
     if (!isActive() || actor.userData.rigRoot) return false;
 
-    const keeper = Boolean(actor.userData.keeper);
     const rig = SkeletonUtils.clone(template.scene);
-    rig.name = keeper ? 'PenaltyGoalkeeperRig' : 'PenaltyStrikerRig';
-    const targetHeight=Number(actor.userData.targetHeight)||(keeper?1.90:1.70);
-    // Account for the procedural actor's outer scale so the final world-space
-    // skinned model height is exactly 1.70 m (shooter) or 1.90 m (keeper).
-    const rigScale=targetHeight/(template.fit.height*Math.max(.0001,actor.scale.y));
+    rig.name = keeper ? 'PenaltyGoalkeeperGLB' : 'PenaltyShooterGLB';
+    const targetHeight = Number(actor.userData.targetHeight) || (keeper ? 1.90 : 1.70);
+    const outerScale = Math.max(0.0001, Number(actor.scale.y) || 1);
+    const rigScale = targetHeight / (template.fit.height * outerScale);
     rig.scale.setScalar(rigScale);
-    rig.position.y=-template.fit.minY*rigScale;
-    actor.position.y=0;
-    actor.userData.groundOffset=0;
+    rig.position.y = -template.fit.minY * rigScale;
+
     rig.traverse((object) => {
       if (!object.isMesh) return;
-      // Give each player its own disposable geometry while skeleton data stays cloned.
-      if (object.geometry) object.geometry = object.geometry.clone();
       object.castShadow = true;
       object.receiveShadow = true;
       if (object.isSkinnedMesh) object.frustumCulled = false;
+      const kit = actor.userData.kit || {};
       object.material = Array.isArray(object.material)
-        ? object.material.map((material) => kitMaterial(material, {
-          shirt: actor.userData.shirtColor || (keeper ? '#2772c8' : '#123b89'),
-          shorts: actor.userData.shortColor || '#172d4d',
-          keeper
-        }))
-        : kitMaterial(object.material, {
-          shirt: actor.userData.shirtColor || (keeper ? '#2772c8' : '#123b89'),
-          shorts: actor.userData.shortColor || '#172d4d',
-          keeper
-        });
+        ? object.material.map((entry) => recolorMaterial(entry, object.name, kit, keeper))
+        : recolorMaterial(object.material, object.name, kit, keeper);
     });
 
-    // Keep the procedural athlete in memory as a reliable no-network fallback,
-    // but hide its primitive body once the skinned character is ready.
-    for (const child of [...actor.children]) child.visible = false;
+    // Do not silently display the old primitive mannequin if a realistic GLB is missing.
+    hideProceduralBody(actor);
     actor.add(rig);
 
     const mixer = new THREE.AnimationMixer(rig);
@@ -172,31 +178,33 @@ export async function attachPenaltyRig(actor, { isActive = () => true } = {}) {
     actor.userData.rigActions = new Map();
     actor.userData.rigActiveAction = null;
     actor.userData.rigActiveMode = null;
-    addShirtDecals(actor, {
-      name: actor.userData.name,
-      number: actor.userData.number
-    });
+    actor.userData.rigModelUrl = template.url;
+    addBackDecal(rig, actor);
     return true;
   } catch (error) {
-    console.warn('[Penalty Lakay] Rigged model unavailable; keeping the procedural 3D player.', error);
+    hideProceduralBody(actor);
+    actor.userData.rigUnavailable = true;
+    actor.userData.rigError = error?.message || 'Unknown GLB loading error';
+    console.error(`[Penalty Lakay] Required realistic ${keeper ? 'goalkeeper' : 'shooter'} GLB could not load.`, error);
     return false;
   }
 }
 
-export function getPenaltyRigMode({ run = 0, kick = 0, dive = 0 } = {}) {
-  if (dive > 0.2) return 'dive';
+export function getPenaltyRigMode({ run = 0, kick = 0, dive = 0, side = 0, keeper = false } = {}) {
+  if (dive > 0.2) return side < 0 ? 'diveLeft' : 'diveRight';
   if (kick > 0.32) return 'kick';
   if (run > 0.12) return 'run';
-  return 'idle';
+  return keeper ? 'keeperReady' : 'idle';
 }
 
 const RIG_CLIP_PREFERENCES = Object.freeze({
-  idle: ['idle', 'idleloop'],
-  run: ['run', 'sprint', 'jog', 'walk'],
-  // Prefer the actual soccer mocap names when they are added to the rig GLB.
-  // Current Quaternius character only contains general-purpose Punch/Jump clips.
-  kick: ['penaltykick01', 'penaltykick02', 'powerkick', 'sidefootkick', 'kick', 'punch'],
-  dive: ['goalkeepersave01', 'goalkeepersave02', 'goalkeepersave03', 'goalkeeperdive', 'dive', 'roll', 'jump', 'fall']
+  idle: ['idle'],
+  keeperReady: ['goalkeeperready', 'idle'],
+  run: ['run', 'walk'],
+  kick: ['shootfootball'],
+  diveLeft: ['goalkeeperdiveleft', 'goalkeeperlowdiveleft', 'goalkeepercatch'],
+  diveRight: ['goalkeeperdiveright', 'goalkeeperlowdiveright', 'goalkeepercatch'],
+  celebrate: ['siucelebration', 'cheer']
 });
 
 export function resolvePenaltyRigClip(clips, mode) {
@@ -208,36 +216,47 @@ export function resolvePenaltyRigClip(clips, mode) {
   return null;
 }
 
-function findClip(clips, mode) {
-  return resolvePenaltyRigClip(clips, mode);
+export function playPenaltyRigClip(actor, clipName, { loop = false, fade = 0.14 } = {}) {
+  const data = actor?.userData;
+  if (!data?.rigMixer || !data?.rigClips) return false;
+  const key = normalizedClipName(clipName);
+  const clip = data.rigClips.get(key);
+  if (!clip) return false;
+  const action = data.rigMixer.clipAction(clip);
+  action.reset();
+  action.enabled = true;
+  action.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, loop ? Infinity : 1);
+  action.clampWhenFinished = !loop;
+  if (data.rigActiveAction && data.rigActiveAction !== action) data.rigActiveAction.fadeOut(fade);
+  action.fadeIn(fade).play();
+  data.rigActiveAction = action;
+  data.rigActiveMode = key;
+  return true;
 }
 
 export function updatePenaltyRigAnimation(actor, delta, pose = {}) {
-  const userData = actor?.userData;
-  if (!userData?.rigMixer || !userData.rigClips) return;
-  const mode = getPenaltyRigMode(pose);
-  const clip = findClip(userData.rigClips, mode);
+  const data = actor?.userData;
+  if (!data?.rigMixer || !data?.rigClips) return;
+  const mode = getPenaltyRigMode({ ...pose, keeper: Boolean(data.keeper) });
+  const clip = resolvePenaltyRigClip(data.rigClips, mode);
   if (clip) {
-    let action = userData.rigActions.get(clip.name);
+    let action = data.rigActions.get(clip.name);
     if (!action) {
-      action = userData.rigMixer.clipAction(clip);
-      userData.rigActions.set(clip.name, action);
+      action = data.rigMixer.clipAction(clip);
+      data.rigActions.set(clip.name, action);
     }
-    if (userData.rigActiveAction !== action || userData.rigActiveMode !== mode) {
-      const oneShot = mode === 'kick' || mode === 'dive';
+    if (data.rigActiveAction !== action || data.rigActiveMode !== mode) {
+      const oneShot = mode === 'kick' || mode === 'diveLeft' || mode === 'diveRight';
       action.reset();
       action.enabled = true;
       action.setLoop(oneShot ? THREE.LoopOnce : THREE.LoopRepeat, oneShot ? 1 : Infinity);
       action.clampWhenFinished = oneShot;
-      if (userData.rigActiveAction && userData.rigActiveAction !== action) {
-        userData.rigActiveAction.fadeOut(0.12);
-      }
-      action.fadeIn(0.14).play();
-      userData.rigActiveAction = action;
-      userData.rigActiveMode = mode;
+      if (data.rigActiveAction && data.rigActiveAction !== action) data.rigActiveAction.fadeOut(0.14);
+      action.fadeIn(0.16).play();
+      data.rigActiveAction = action;
+      data.rigActiveMode = mode;
     }
-    if (mode === 'run') userData.rigActiveAction.timeScale = 1.08;
-    else userData.rigActiveAction.timeScale = 1;
+    action.timeScale = mode === 'run' ? 1.04 : 1;
   }
-  userData.rigMixer.update(Math.max(0, Math.min(0.05, Number(delta) || 0)));
+  data.rigMixer.update(Math.max(0, Math.min(0.05, Number(delta) || 0)));
 }
