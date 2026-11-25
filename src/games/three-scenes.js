@@ -317,10 +317,11 @@ export function mountGame3D(container, gameId, options={}) {
     scene.fog=new THREE.Fog(bg,9,24);
     const camera=new THREE.PerspectiveCamera(gameId==='penalty'?42:42,1,.1,100);
     if(gameId==='penalty'){camera.position.set(2.7,3.05,8.9);camera.lookAt(0,1.0,-3.25);}else{camera.position.set(0,4.8,9.6);camera.lookAt(0,.45,0);}
-    renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:'low-power'});
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5));
+    renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:'high-performance'});
+    // Crisp mobile rendering while keeping device-pixel-ratio bounded for GPU stability.
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.75));
     renderer.outputColorSpace=THREE.SRGBColorSpace;
-    renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.12;
+    renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.16;
     renderer.domElement.className='three-scene-canvas';renderer.domElement.setAttribute('aria-hidden','true');
     container.appendChild(renderer.domElement);
     addLights(scene,accent);
@@ -357,17 +358,14 @@ export function mountGame3D(container, gameId, options={}) {
     return dispose;
   } catch(error) {
     console.error('[Kazino Lakay 3D]',gameId,error);
-    renderer?.dispose?.();container.querySelector('.three-scene-canvas')?.remove();
+    renderer?.dispose?.();
+    container.querySelector('.three-scene-canvas')?.remove();
+    // Penalty Lakay is a native 3D experience only: never substitute a 2D imitation.
     if(gameId==='penalty') {
-      container.querySelector('.penalty-webgl-fallback')?.remove();
-      const fallback=document.createElement('div');
-      fallback.className='penalty-webgl-fallback';
-      fallback.setAttribute('role','img');
-      fallback.setAttribute('aria-label','Teren foutbòl Penalty Lakay');
-      fallback.innerHTML='<div class="fallback-stands">KAZINO LAKAY · NATIONAL STADIUM</div><div class="fallback-pitch"><i class="fallback-midline"></i><i class="fallback-box"></i><i class="fallback-goal"></i><i class="fallback-spot"></i><i class="fallback-ball"></i><i class="fallback-player"><b></b></i><i class="fallback-keeper"><b></b></i></div><div class="fallback-note">MÒD VIZYÈL SEKOU · 3D AP RETOUNEN</div>';
-      container.appendChild(fallback);
+      container.dataset.sceneError='webgl-unavailable';
+      container.dispatchEvent(new CustomEvent('penalty-scene-error',{detail:{message:String(error?.message||error)}}));
     }
-    return () => { container.querySelector('.penalty-webgl-fallback')?.remove(); };
+    return () => {};
   }
 }
 export function disposeGame3D() { if(active) active.dispose(); }
