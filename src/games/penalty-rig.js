@@ -78,13 +78,15 @@ function recolorMaterial(source, objectName, kit, keeper) {
   } else if (/sock/.test(label)) {
     set(kit.socks || (keeper ? '#2a63cf' : '#b3122c'));
   } else if (/shoe|boot/.test(label)) {
-    set(kit.boots || (keeper ? '#15181d' : '#19d3e6'));
+    set(kit.boots || '#15181d');
   } else if (/glove/.test(label)) {
     set(kit.gloves || '#e8e8e8');
   }
 
-  if ('roughness' in target) target.roughness = Math.max(Number(target.roughness) || 0, 0.68);
-  if ('metalness' in target) target.metalness = Math.min(Number(target.metalness) || 0, 0.04);
+  // Preserve Ara's photo-based skin and fabric maps. Only adjust roughness enough
+  // to avoid a wet/plastic specular response on skin and cloth.
+  if ('roughness' in target) target.roughness = Math.max(Number(target.roughness) || 0, 0.78);
+  if ('metalness' in target) target.metalness = Math.min(Number(target.metalness) || 0, 0.02);
   return target;
 }
 
@@ -167,7 +169,6 @@ export async function attachPenaltyRig(actor, { isActive = () => true } = {}) {
         : recolorMaterial(object.material, object.name, kit, keeper);
     });
 
-    // Do not silently display the old primitive mannequin if a realistic GLB is missing.
     hideProceduralBody(actor);
     actor.add(rig);
 
@@ -182,9 +183,6 @@ export async function attachPenaltyRig(actor, { isActive = () => true } = {}) {
     addBackDecal(rig, actor);
     return true;
   } catch (error) {
-    // Keep the detailed animated Three.js athlete visible while the realistic
-    // skinned GLB is unavailable. The scene displays an explicit status notice;
-    // this is a deliberate fallback, never a silent claim that the GLB loaded.
     actor.userData.rigUnavailable = true;
     actor.userData.rigError = error?.message || 'Unknown GLB loading error';
     console.error(`[Penalty Lakay] Required realistic ${keeper ? 'goalkeeper' : 'shooter'} GLB could not load.`, error);
@@ -202,14 +200,11 @@ export function getPenaltyRigMode({ run = 0, kick = 0, dive = 0, side = 0, keepe
 const RIG_CLIP_PREFERENCES = Object.freeze({
   idle: ['idle'],
   walk: ['walk', 'idle'],
-  keeperReady: ['goalkeeperready', 'crouch', 'idle'],
+  keeperReady: ['keeperready', 'goalkeeperready', 'crouch', 'idle'],
   run: ['run', 'walk'],
-  // Ara 3D Gen currently exposes no football-specific strike or keeper-dive
-  // clips. Use valid shipped humanoid clips rather than asking for nonexistent
-  // names, so the exported GLBs still animate on every gameplay state.
-  kick: ['shootfootball', 'kickfront', 'run'],
-  diveLeft: ['goalkeeperdiveleft', 'goalkeeperlowdiveleft', 'dodgeleft', 'rollforward', 'fall'],
-  diveRight: ['goalkeeperdiveright', 'goalkeeperlowdiveright', 'dodgeright', 'rollforward', 'fall'],
+  kick: ['soccershoot', 'shootfootball', 'kickfront', 'run'],
+  diveLeft: ['keeperdiveleft', 'keeperlowdiveleft', 'goalkeeperdiveleft', 'dodgeleft', 'rollforward', 'fall'],
+  diveRight: ['keeperdiveright', 'keeperlowdiveright', 'goalkeeperdiveright', 'dodgeright', 'rollforward', 'fall'],
   celebrate: ['siucelebration', 'cheer']
 });
 

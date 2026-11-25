@@ -3,32 +3,31 @@
   "kind": "ara-character",
   "version": 1,
   "params": {
-    "name": "Penalty Lakay — Messi reference striker",
+    "name": "Penalty Lakay — Striker No. 10",
     "seed": 10010,
     "gender": 1,
-    "ageYears": 37,
-    "muscle": 0.72,
-    "weight": 0.36,
-    "height": 0.52,
-    "proportions": 0.72,
+    "ageYears": 27,
+    "muscle": 0.68,
+    "weight": 0.40,
+    "height": 0.54,
+    "proportions": 0.52,
     "african": 0,
     "asian": 0,
     "caucasian": 1,
     "skin": "young_caucasian_male",
-    "skinTint": "#f1e7dc",
+    "skinTint": "#ffffff",
     "eyes": "darkbrown",
     "hair": "short02",
     "hairColor": "#2b1d14",
+    "facialHair": "none",
     "outfit": "none",
     "top": "football_shirt",
     "bottom": "cargo_shorts",
     "shoes": "shoes03",
-    "accessories": [
-      "sport_socks"
-    ],
+    "accessories": ["sport_socks"],
     "garmentStyles": {
       "football_shirt": {
-        "pattern": "solid",
+        "pattern": "jersey",
         "color": "#b3122c",
         "color2": "#8f0f23",
         "number": 10
@@ -43,10 +42,10 @@
       },
       "shoes03": {
         "pattern": "solid",
-        "color": "#19d3e6"
+        "color": "#15181d"
       }
     },
-    "detail": "medium",
+    "detail": "high",
     "rig": "game",
     "faceBones": true,
     "restPose": "T",
