@@ -21,8 +21,16 @@ function decalTexture(name,number,keeper=false) {
   ctx.textAlign='center';ctx.textBaseline='middle';
   ctx.fillStyle=keeper?'#eaf5ff':'#fff3cc';
   ctx.shadowColor='rgba(0,0,0,.45)';ctx.shadowBlur=10;
-  ctx.font='800 40px Arial';ctx.fillText(String(name||'PLAYER').toUpperCase().slice(0,18),256,78);
-  ctx.font='900 250px Arial';ctx.fillText(String(number||10).slice(0,2),256,302);
+  ctx.font='800 34px Arial';
+  const surname=String(name||'PLAYER').toUpperCase().slice(0,18);
+  ctx.save();ctx.translate(256,104);
+  const radius=155,start=-Math.PI/2-(surname.length-1)*.055;
+  for(let i=0;i<surname.length;i++){
+    const a=start+i*.11;ctx.save();ctx.translate(Math.cos(a)*radius,Math.sin(a)*radius);
+    ctx.rotate(a+Math.PI/2);ctx.fillText(surname[i],0,0);ctx.restore();
+  }
+  ctx.restore();
+  ctx.font='900 250px Arial';ctx.fillText(String(number||10).slice(0,2),256,318);
   ctx.shadowBlur=0;
   return new THREE.CanvasTexture(canvas);
 }
@@ -64,7 +72,7 @@ function limb(parent,upperMat,lowerMat,skin,bootMat,bootAccent,side,sockStripe='
   }
   return {hip,knee,ankle};
 }
-function arm(parent,shirtMat,skin,gloveMat,keeper,side) {
+function arm(parent,shirtMat,skin,gloveMat,keeper,side,kit={}) {
   const shoulder=new THREE.Group(); shoulder.position.set(side*.285,.48,0); parent.add(shoulder);
   ellipsoid(shoulder,shirtMat,[0,0,0],[.13,.145,.14]);
   capsule(shoulder,.085,.27,shirtMat,[side*.015,-.22,0],[0,0,side*-.055],22);
@@ -72,6 +80,15 @@ function arm(parent,shirtMat,skin,gloveMat,keeper,side) {
   const elbow=new THREE.Group(); elbow.position.set(side*.025,-.39,0); shoulder.add(elbow);
   ellipsoid(elbow,skin,[0,0,0],[.075,.075,.075]);
   capsule(elbow,.064,.23,skin,[side*.012,-.16,.005],[0,0,side*-.025],20);
+  if(!keeper && side===1 && kit.tattooSleeve) {
+    const ink=mat(kit.tattooColor||'#202329',.95,0);
+    for(let i=0;i<9;i++){
+      const y=-.10-i*.025;
+      const mark=part(elbow,new THREE.TorusGeometry(.052-i*.0015,.0045,4,18),ink,[0,y,.004],[Math.PI/2,0,(i%2)*.35]);
+      mark.scale.set(1,.82,1);
+    }
+    for(let i=0;i<6;i++) part(elbow,new THREE.BoxGeometry(.012,.065,.008),ink,[-.035+i*.014,-.15,.057],[0,0,(i-2.5)*.13]);
+  }
   const wrist=new THREE.Group(); wrist.position.set(side*.015,-.34,0); elbow.add(wrist);
   ellipsoid(wrist,skin,[0,-.045,0],[.066,.09,.052]);
   if(keeper) {
@@ -144,7 +161,7 @@ function addShirtDetails(torso,shirt,shorts,number,name,keeper) {
   makeKitBadge(torso);
   const texture=decalTexture(name,number,keeper);
   const decalMat=new THREE.MeshStandardMaterial({map:texture,transparent:true,roughness:.9,metalness:0,side:THREE.DoubleSide,depthWrite:false});
-  const back=part(torso,new THREE.PlaneGeometry(.35,.43),decalMat,[0,.31,-.253],[0,Math.PI,0]);
+  const back=part(torso,new THREE.PlaneGeometry(.35,.43),decalMat,[0,.31,-.253]);
   back.renderOrder=3;
   const chestMat=new THREE.MeshStandardMaterial({map:chestNumberTexture(number,keeper),transparent:true,roughness:.9,metalness:0,side:THREE.DoubleSide,depthWrite:false});
   part(torso,new THREE.PlaneGeometry(.105,.13),chestMat,[-.02,.2,.253]);
@@ -186,7 +203,7 @@ export function createPenaltyAthlete({x,z,shirt,keeper=false,name='PLAYER',numbe
     part(group,new THREE.BoxGeometry(.15,.025,.018),mat('#f5f0e2',.88),[side*.17,.755,.17]);
   }
   const head=face(torso,skin,hair,keeper,kit.beardColor||'#352b28',kit.beard||'stubble');
-  const armL=arm(torso,fabric,skin,glove,keeper,-1), armR=arm(torso,fabric,skin,glove,keeper,1);
+  const armL=arm(torso,fabric,skin,glove,keeper,-1,kit), armR=arm(torso,fabric,skin,glove,keeper,1,kit);
   const legL=limb(group,shorts,sock,skin,boot,bootAccent,-1,sockStripe), legR=limb(group,shorts,sock,skin,boot,bootAccent,1,sockStripe);
   // Small boot studs and layered body geometry stay local to this athlete only.
   // Fit the procedural fallback to the exact requested real-world player height.
@@ -211,15 +228,15 @@ export function animatePenaltyAthlete(actor,time,{run=0,runPhase=0,kick=0,follow
   // Shoulder/torso mechanics: forward lean during acceleration, then a counter-rotation through contact.
   u.torso.rotation.x=(u.keeper?-.26:-.11)-run*.13+kick*.09+follow*.045-dive*.12;
   u.torso.rotation.z=side*dive*.22+Math.sin(time*1.25+u.breathPhase)*.012*idle;
-  u.torso.rotation.y=(u.keeper?0:.43)+Math.sin(time*.7+u.breathPhase)*.018*idle;
+  u.torso.rotation.y=(u.keeper?0:.30)+Math.sin(time*.7+u.breathPhase)*.018*idle;
   u.torso.scale.y=1+breath*.004;
   // Opposing arm swing during the approach; arms open and reach during a keeper dive.
-  u.armL.shoulder.rotation.x=(u.keeper?-.12:-.34)-runWave*.52-run*.02+kick*.12-follow*.08;
-  u.armR.shoulder.rotation.x=(u.keeper?-.12:.42)-runCounter*.52+run*.02-kick*.12+follow*.08;
+  u.armL.shoulder.rotation.x=(u.keeper?-.12:-.16)-runWave*.30-run*.02+kick*.12-follow*.08;
+  u.armR.shoulder.rotation.x=(u.keeper?-.12:.28)-runCounter*.30+run*.02-kick*.12+follow*.08;
   u.armL.shoulder.rotation.z=(u.keeper?-.42:-.20)+run*.12+dive*(-.48-side*.18);
   u.armR.shoulder.rotation.z=(u.keeper?.42:.20)-run*.12+dive*(.48-side*.18);
-  u.armL.elbow.rotation.x=-.58*run-dive*.22+(u.keeper?idle*-.18:0);
-  u.armR.elbow.rotation.x=-.58*run-dive*.22+(u.keeper?idle*-.18:0);
+  u.armL.elbow.rotation.x=-.22*run-dive*.22+(u.keeper?idle*-.42:0);
+  u.armR.elbow.rotation.x=-.58*run-dive*.22+(u.keeper?idle*-.42:0);
   u.armL.wrist.rotation.x=-kick*.12;
   u.armR.wrist.rotation.x=-kick*.12;
   // The left boot strikes through the ball; the planted right leg stabilises the hips.

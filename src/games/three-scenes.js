@@ -505,12 +505,12 @@ function addStadium(scene,accent,options={}) {
   // Backdrop and LED board are added before this net so all net strands remain behind the goal.
 
   // Players are positioned exactly as specified; each visual is fitted to real height.
-  const KEEPER_KIT={shirt:'#3a3d42',sleeves:'#4a4e55',shorts:'#1b1d21',socks:'#2a2d31',gloves:'#2a2d31',glovesStrap:'#8a8f98',boots:'#111111',bootsAccent:'#19d3e6',skin:'#d9a37a',hair:'#3b2a1a',socksStripe:'#8a8f98',beard:'stubble'};
-  const SHOOTER_KIT={shirt:'#c8102e',shirtTrim:'#ffffff',shorts:'#c8102e',shortsStripe:'#ffffff',socks:'#c8102e',socksStripe:'#ffffff',boots:'#f3ead2',bootsAccent:'#d4a82a',skin:'#8a5a3c',hair:'#111111',beard:'stubble',number:8,name:'FERNANDES'};
-  const keeper=addFootballer(scene,.4,-10.8,KEEPER_KIT.shirt,true,options.keeperName||'ANGELO PERUZZI',1,KEEPER_KIT.shorts,1.90,KEEPER_KIT);
+  const KEEPER_KIT={shirt:'#2a63cf',sleeves:'#2a63cf',sidePanels:'#1b46a0',shorts:'#1b46a0',socks:'#2a63cf',gloves:'#e8e8e8',glovesBack:'#19d3e6',glovesStrap:'#1b46a0',boots:'#15181d',bootsAccent:'#19d3e6',skin:'#d9a37a',hair:'#241810',socksStripe:'#dce8ff',beard:'stubble',number:1,name:'PERUZZI',height:1.90};
+  const SHOOTER_KIT={shirt:'#b3122c',shirtTrim:'#8f0f23',shorts:'#b3122c',shortsStripe:'#ffffff',socks:'#b3122c',socksStripe:'#ffffff',boots:'#19d3e6',bootsAccent:'#ffffff',skin:'#c9976e',hair:'#2b1d14',beard:'short',tattooSleeve:true,number:10,name:'MESSI',height:1.70};
+  const keeper=addFootballer(scene,0,-10.7,KEEPER_KIT.shirt,true,options.keeperName||'ANGELO PERUZZI',1,KEEPER_KIT.shorts,1.90,KEEPER_KIT);
   keeper.rotation.y=0;
-  const striker=addFootballer(scene,-1.3,1.3,SHOOTER_KIT.shirt,false,options.playerName||team.player?.name||SHOOTER_KIT.name,numberForTeam(team)||SHOOTER_KIT.number,SHOOTER_KIT.shorts,1.70,SHOOTER_KIT);
-  striker.rotation.y=.45;
+  const striker=addFootballer(scene,2.2,1.5,SHOOTER_KIT.shirt,false,options.playerName||team.player?.name||'Lionel Messi',SHOOTER_KIT.number,SHOOTER_KIT.shorts,1.70,SHOOTER_KIT);
+  striker.rotation.y=-.5;
 
   // 22 cm ball, centred on the origin with its bottom touching the turf.
   const ballGroup=new THREE.Group(); ballGroup.position.set(...BALL.position); scene.add(ballGroup);
@@ -711,7 +711,7 @@ export function mountGame3D(container, gameId, options={}) {
           stage.ball.position.x=((Number(shotDetail?.shotX??.5)-.5)*3.2)*flight;
         }else if(penaltyElapsed>=2.1){
           stage.ball.position.set(0,.11,stage.penaltySpotZ);
-          if(stage.keeper){stage.keeper.position.set(0,stage.keeper.userData.groundOffset||0,-11);stage.keeper.rotation.set(0,0,0);}
+          if(stage.keeper){stage.keeper.position.set(0,stage.keeper.userData.groundOffset||0,-10.7);stage.keeper.rotation.set(0,0,0);}
           shotStartedAt=null;
         }
       }else{stage.ball.position.x=-.72+Math.sin(t*.7)*.035;stage.ball.rotation.x+=.018;stage.ball.rotation.z+=.025;}}
@@ -722,7 +722,7 @@ export function mountGame3D(container, gameId, options={}) {
         const runPhase=elapsed<0?0:elapsed*Math.PI*2*2.45;
         const kick=elapsed<0?0:smooth01((elapsed-.37)/.21)*(1-smooth01((elapsed-1.05)/.38));
         const follow=elapsed<0?0:smooth01((elapsed-.60)/.24)*(1-smooth01((elapsed-1.45)/.4));
-        stage.striker.position.x=2*(1-approach);
+        stage.striker.position.x=2.2*(1-approach);
         stage.striker.position.z=1.5*(1-approach);
         stage.striker.rotation.x=-run*.09-kick*.1+follow*.04;
         stage.striker.rotation.z=Math.sin(runPhase)*-.045*run;
