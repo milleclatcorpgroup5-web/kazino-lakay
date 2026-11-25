@@ -320,7 +320,8 @@ function addStadium(scene,accent,options={}) {
   // Keeper at the centre of the goal; shooter is framed from behind on the lower-right.
   const keeper=addFootballer(scene,0,-4.35,'#2772c8',true,options.keeperName||'ANGELO PERUZZI',1,'#18253a');
   keeper.rotation.y=0;
-  const striker=addFootballer(scene,0,1.05,shirt,false,options.playerName||team.player?.name||'LIONEL MESSI',numberForTeam(team),shorts);
+  const strikerStartZ=2.15; // Keep the shooter clearly behind the ball, about 2.2 m from the spot.
+  const striker=addFootballer(scene,0,strikerStartZ,shirt,false,options.playerName||team.player?.name||'LIONEL MESSI',numberForTeam(team),shorts);
   striker.rotation.y=Math.PI;
   // Regulation-size 22 cm ball, centred exactly on the penalty mark and resting on the turf.
   const ballRadius=.11;
@@ -460,7 +461,7 @@ export function mountGame3D(container, gameId, options={}) {
     const scene=new THREE.Scene();scene.background=new THREE.Color(bg);
     scene.fog=new THREE.Fog(bg,9,24);
     const camera=new THREE.PerspectiveCamera(gameId==='penalty'?42:42,1,.1,100);
-    if(gameId==='penalty'){camera.position.set(1.7,2.55,6.8);camera.lookAt(0,.95,-3.35);}else{camera.position.set(0,4.8,9.6);camera.lookAt(0,.45,0);}
+    if(gameId==='penalty'){camera.position.set(2.35,3.55,10.4);camera.lookAt(0,.55,-1.15);}else{camera.position.set(0,4.8,9.6);camera.lookAt(0,.45,0);}
     // Android tablets can reject a high-performance/antialiased context even when
     // WebGL2 is available. Start with a conservative mobile context and retry once
     // with the browser's default GPU selection if the first context cannot be made.
@@ -535,7 +536,7 @@ export function mountGame3D(container, gameId, options={}) {
         const kick=elapsed<0?0:smooth01((elapsed-.37)/.21)*(1-smooth01((elapsed-1.05)/.38));
         const follow=elapsed<0?0:smooth01((elapsed-.60)/.24)*(1-smooth01((elapsed-1.45)/.4));
         stage.striker.position.x=-Math.sin(approach*Math.PI)*.08;
-        stage.striker.position.z=1.05-2.6*approach;
+        stage.striker.position.z=2.15-1.10*approach;
         stage.striker.rotation.x=-run*.09-kick*.1+follow*.04;
         stage.striker.rotation.z=Math.sin(runPhase)*-.045*run;
         animatePenaltyAthlete(stage.striker,t,{run,runPhase,kick,follow,delta});
