@@ -209,26 +209,26 @@ export function animatePenaltyAthlete(actor,time,{run=0,runPhase=0,kick=0,follow
   const idle=1-Math.max(run,dive);
   actor.position.y=(u.groundOffset||0)+Math.abs(breath)*.009*idle+Math.sin(runPhase*2)*.035*run+Math.sin(dive*Math.PI)*.24*dive;
   // Shoulder/torso mechanics: forward lean during acceleration, then a counter-rotation through contact.
-  u.torso.rotation.x=-run*.13+kick*.09+follow*.045-dive*.12;
+  u.torso.rotation.x=(u.keeper?-.26:-.11)-run*.13+kick*.09+follow*.045-dive*.12;
   u.torso.rotation.z=side*dive*.22+Math.sin(time*1.25+u.breathPhase)*.012*idle;
-  u.torso.rotation.y=Math.sin(time*.7+u.breathPhase)*.018*idle;
+  u.torso.rotation.y=(u.keeper?0:.43)+Math.sin(time*.7+u.breathPhase)*.018*idle;
   u.torso.scale.y=1+breath*.004;
   // Opposing arm swing during the approach; arms open and reach during a keeper dive.
-  u.armL.shoulder.rotation.x=-runWave*.52-run*.02+kick*.12-follow*.08;
-  u.armR.shoulder.rotation.x=-runCounter*.52+run*.02-kick*.12+follow*.08;
-  u.armL.shoulder.rotation.z=(u.keeper?-.16:-.07)+run*.12+dive*(-.48-side*.18);
-  u.armR.shoulder.rotation.z=(u.keeper?.16:.07)-run*.12+dive*(.48-side*.18);
+  u.armL.shoulder.rotation.x=(u.keeper?-.12:-.34)-runWave*.52-run*.02+kick*.12-follow*.08;
+  u.armR.shoulder.rotation.x=(u.keeper?-.12:.42)-runCounter*.52+run*.02-kick*.12+follow*.08;
+  u.armL.shoulder.rotation.z=(u.keeper?-.42:-.20)+run*.12+dive*(-.48-side*.18);
+  u.armR.shoulder.rotation.z=(u.keeper?.42:.20)-run*.12+dive*(.48-side*.18);
   u.armL.elbow.rotation.x=-.58*run-dive*.22+(u.keeper?idle*-.18:0);
   u.armR.elbow.rotation.x=-.58*run-dive*.22+(u.keeper?idle*-.18:0);
   u.armL.wrist.rotation.x=-kick*.12;
   u.armR.wrist.rotation.x=-kick*.12;
   // The left boot strikes through the ball; the planted right leg stabilises the hips.
   u.legL.hip.rotation.x=-runWave*.48-kick*1.02+follow*.19-dive*.35;
-  u.legR.hip.rotation.x=-runCounter*.48+kick*.28-follow*.12-dive*.2;
+  u.legR.hip.rotation.x=(u.keeper?0:.24)-runCounter*.48+kick*.28-follow*.12-dive*.2;
   u.legL.hip.rotation.z=-side*dive*.12;
   u.legR.hip.rotation.z=side*dive*.12;
-  u.legL.knee.rotation.x=Math.max(0,runWave)*.58+kick*.12+follow*.2+dive*.65+(u.keeper?idle*.16:0);
-  u.legR.knee.rotation.x=Math.max(0,runCounter)*.58+kick*.24+follow*.08+dive*.52+(u.keeper?idle*.16:0);
+  u.legL.knee.rotation.x=Math.max(0,runWave)*.58+kick*.12+follow*.2+dive*.65+(u.keeper?idle*.34:.22*idle);
+  u.legR.knee.rotation.x=Math.max(0,runCounter)*.58+kick*.24+follow*.08+dive*.52+(u.keeper?idle*.34:0);
   u.legL.ankle.rotation.x=kick*.18-run*.08;
   u.legR.ankle.rotation.x=-kick*.12-run*.08;
   if(u.head) {
