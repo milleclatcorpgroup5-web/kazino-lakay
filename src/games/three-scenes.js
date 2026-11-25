@@ -111,10 +111,42 @@ function makePitchGrassTexture() {
   ctx.fillStyle='#1b713d'; ctx.fillRect(0,0,size,size);
 
   // Broad alternating mowing lanes run lengthwise down the pitch.
-  const lanes=14, laneWidth=size/lanes;
+  // Soft edge gradients keep the stripes readable without looking like flat bands.
+  const lanes=16, laneWidth=size/lanes;
   for(let i=0;i<lanes;i++) {
-    ctx.fillStyle=i%2?'rgba(115,190,105,.105)':'rgba(3,42,20,.075)';
-    ctx.fillRect(i*laneWidth,0,laneWidth+1,size);
+    const x=i*laneWidth;
+    const grad=ctx.createLinearGradient(x,0,x+laneWidth,0);
+    if(i%2) {
+      grad.addColorStop(0,'rgba(115,190,105,.025)');
+      grad.addColorStop(.18,'rgba(135,205,119,.105)');
+      grad.addColorStop(.5,'rgba(125,198,111,.12)');
+      grad.addColorStop(.82,'rgba(135,205,119,.105)');
+      grad.addColorStop(1,'rgba(115,190,105,.025)');
+    } else {
+      grad.addColorStop(0,'rgba(3,42,20,.025)');
+      grad.addColorStop(.2,'rgba(3,42,20,.075)');
+      grad.addColorStop(.5,'rgba(3,42,20,.09)');
+      grad.addColorStop(.8,'rgba(3,42,20,.075)');
+      grad.addColorStop(1,'rgba(3,42,20,.025)');
+    }
+    ctx.fillStyle=grad;
+    ctx.fillRect(x,0,laneWidth+1,size);
+  }
+
+  // Subtle irregular turf patches break up the repeated stripe pattern.
+  let patchSeed=481516;
+  const patchRand=()=>{patchSeed=(patchSeed*1664525+1013904223)>>>0;return patchSeed/4294967296;};
+  for(let i=0;i<950;i++) {
+    const x=patchRand()*size, y=patchRand()*size;
+    const radius=5+patchRand()*24;
+    const shade=patchRand()>.5?'rgba(166,205,116,.035)':'rgba(0,35,16,.045)';
+    const grad=ctx.createRadialGradient(x,y,0,x,y,radius);
+    grad.addColorStop(0,shade);
+    grad.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=grad;
+    ctx.beginPath();
+    ctx.arc(x,y,radius,0,Math.PI*2);
+    ctx.fill();
   }
 
   // Fine grass fibres and natural colour variation use a seeded generator,
