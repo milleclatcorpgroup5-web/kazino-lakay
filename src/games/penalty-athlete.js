@@ -36,17 +36,17 @@ function chestNumberTexture(number,keeper=false) {
   ctx.fillText(String(number||10).slice(0,2),64,66);
   const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;return texture;
 }
-function limb(parent,upperMat,lowerMat,skin,bootMat,side) {
+function limb(parent,upperMat,lowerMat,skin,bootMat,bootAccent,side,sockStripe='#ffffff') {
   const hip=new THREE.Group(); hip.position.set(side*.145,.82,0); parent.add(hip);
-  ellipsoid(hip,upperMat,[0,-.11,0],[.135,.22,.14]);
-  capsule(hip,.105,.31,upperMat,[0,-.32,0],[0,0,side*.025],24);
+  ellipsoid(hip,skin,[0,-.11,0],[.125,.22,.13]);
+  capsule(hip,.098,.29,skin,[0,-.32,0],[0,0,side*.025],24);
   const knee=new THREE.Group(); knee.position.set(0,-.48,.005); hip.add(knee);
   ellipsoid(knee,skin,[0,0,0],[.09,.09,.09]);
   capsule(knee,.074,.29,lowerMat,[0,-.19,0],[0,0,0],20);
   ellipsoid(knee,lowerMat,[0,-.37,0],[.082,.105,.09]);
   // Subtle sock bands and a shin-guard ridge add a recognisable football kit.
   for(const y of [-.13,-.19]) {
-    const band=part(knee,new THREE.TorusGeometry(.071,.012,7,24),mat('#f7f7ee',.92),[0,y,0],[Math.PI/2,0,0]);
+    const band=part(knee,new THREE.TorusGeometry(.071,.012,7,24),mat(sockStripe,.92),[0,y,0],[Math.PI/2,0,0]);
     band.scale.set(1,1,.94);
   }
   part(knee,new THREE.BoxGeometry(.085,.19,.022),mat('#c8d5df',.82),[0,-.22,.071]);
@@ -54,6 +54,7 @@ function limb(parent,upperMat,lowerMat,skin,bootMat,side) {
   capsule(ankle,.075,.14,lowerMat,[0,-.025,0]);
   // Boots point toward the player's local forward (+Z) direction.
   ellipsoid(ankle,bootMat,[0,-.065,.105],[.095,.075,.19],24);
+  ellipsoid(ankle,bootAccent,[0,-.022,.125],[.061,.018,.105],20);
   part(ankle,new THREE.BoxGeometry(.13,.022,.17),mat('#252e38',.48,.12),[0,-.12,.105]);
   for(let lace=0;lace<4;lace++) {
     part(ankle,new THREE.BoxGeometry(.07,.009,.012),mat('#dce5ed',.5),[0,-.078,.035+lace*.033]);
@@ -83,7 +84,7 @@ function arm(parent,shirtMat,skin,gloveMat,keeper,side) {
   }
   return {shoulder,elbow,wrist,cuff};
 }
-function face(parent,skin,hairMat,keeper) {
+function face(parent,skin,hairMat,keeper,beardColor='#352b28',beardStyle='stubble') {
   const head=new THREE.Group(); head.position.set(0,.91,.012); parent.add(head);
   ellipsoid(head,skin,[0,0,0],[.158,.19,.145],36);
   ellipsoid(head,skin,[0,-.105,.055],[.125,.105,.11],28);
@@ -101,6 +102,14 @@ function face(parent,skin,hairMat,keeper) {
   ellipsoid(head,skin,[0,-.09,.12],[.045,.035,.035],18);
   part(head,new THREE.BoxGeometry(.052,.009,.012),mat('#713d38'),[0,-.062,.139]);
   ellipsoid(head,skin,[0,-.132,.075],[.078,.045,.08],20);
+  if(beardStyle && beardStyle!=='none') {
+    const beard=mat(beardColor,.98,0);
+    ellipsoid(head,beard,[0,-.105,.105],[.103,.055,.055],24);
+    if(beardStyle==='stubble') {
+      ellipsoid(head,beard,[0,-.055,.13],[.092,.027,.025],20);
+      for(let i=0;i<7;i++) for(const side of [-1,1]) ellipsoid(head,beard,[side*(.045+i*.006),-.075,.139],[.004,.006,.003],8);
+    }
+  }
   const cap=part(head,new THREE.SphereGeometry(1,32,18,0,Math.PI*2,0,Math.PI*.58),hairMat,[0,.105,-.005]);
   cap.scale.set(.163,.14,.15);
   // Short, layered hairline rather than a smooth featureless helmet.
@@ -143,17 +152,19 @@ function addShirtDetails(torso,shirt,shorts,number,name,keeper) {
   part(torso,new THREE.BoxGeometry(.22,.018,.012),mat('#e6ddc8',.88),[0,.035,.12]);
   return collar;
 }
-export function createPenaltyAthlete({x,z,shirt,keeper=false,name='PLAYER',number=10,shortColor='#172d4d',targetHeight=keeper?1.90:1.70}) {
+export function createPenaltyAthlete({x,z,shirt,keeper=false,name='PLAYER',number=10,shortColor='#172d4d',targetHeight=keeper?1.90:1.70,kit={}}) {
   const group=new THREE.Group(); group.position.set(x,0,z);
   const tonePalette=['#956449','#b77c58','#754b39','#c18a65'];
   const hairPalette=['#211b19','#30251f','#17191c','#493629'];
   const seed=Math.abs(Number(number)||10);
-  const skin=mat(tonePalette[seed%tonePalette.length],.86,.005);
-  const fabric=mat(shirt,.79,.01), shorts=mat(shortColor,.84,.01);
-  const sockColor=keeper?'#e6edf4':'#f1f0e8';
-  const sock=mat(sockColor,.92), boot=mat(keeper?'#f3f5f7':'#101820',.38,.12);
-  const hair=mat(hairPalette[(seed+1)%hairPalette.length],.95);
-  const glove=mat('#f3f6f8',.48,.025);
+  const skin=mat(kit.skin||tonePalette[seed%tonePalette.length],.82,.005);
+  const fabric=mat(shirt,.78,.01), shorts=mat(shortColor,.84,.01);
+  const sock=mat(kit.socks|| (keeper?'#2a2d31':'#c8102e'),.91);
+  const boot=mat(kit.boots||(keeper?'#111820':'#f3ead2'),.34,.12);
+  const bootAccent=mat(kit.bootsAccent||(keeper?'#19d3e6':'#d4a82a'),.38,.16);
+  const hair=mat(kit.hair||hairPalette[(seed+1)%hairPalette.length],.9);
+  const glove=mat(kit.gloves||(keeper?'#2a2d31':'#f3f6f8'),.48,.025);
+  const sockStripe=kit.socksStripe||'#ffffff';
   const undershirt=mat(keeper?'#1b5c9d':shirt,.84);
   // The upper body is a separate pivot: lean and twist now move shoulders and head together.
   const torso=new THREE.Group();torso.position.set(0,1.02,0);group.add(torso);
@@ -163,6 +174,10 @@ export function createPenaltyAthlete({x,z,shirt,keeper=false,name='PLAYER',numbe
   ellipsoid(torso,undershirt,[0,.49,-.005],[.242,.145,.145],28);
   for(const side of [-1,1]) ellipsoid(torso,fabric,[side*.275,.44,0],[.105,.12,.12]);
   addShirtDetails(torso,shirt,shorts,number,name,keeper);
+  // A separate fitted collar and contrasting sleeve piping keep the shirt trim configurable.
+  const trim=mat(kit.shirtTrim||'#ffffff',.78,.01);
+  const collarTrim=part(torso,new THREE.TorusGeometry(.108,.012,8,32),trim,[0,.655,0],[Math.PI/2,0,0]);
+  collarTrim.scale.set(1,.82,1);
   // Shorts, side panels and belt sit over the hip pivot.
   capsule(group,.235,.15,shorts,[0,.88,0],[0,0,0],24);
   part(group,new THREE.TorusGeometry(.205,.018,8,32),mat('#e8dfc9',.82),[0,.96,0],[Math.PI/2,0,0]);
@@ -170,9 +185,9 @@ export function createPenaltyAthlete({x,z,shirt,keeper=false,name='PLAYER',numbe
     part(group,new THREE.BoxGeometry(.022,.25,.012),mat('#f5f0e2',.88),[side*.2,.84,.14]);
     part(group,new THREE.BoxGeometry(.15,.025,.018),mat('#f5f0e2',.88),[side*.17,.755,.17]);
   }
-  const head=face(torso,skin,hair,keeper);
+  const head=face(torso,skin,hair,keeper,kit.beardColor||'#352b28',kit.beard||'stubble');
   const armL=arm(torso,fabric,skin,glove,keeper,-1), armR=arm(torso,fabric,skin,glove,keeper,1);
-  const legL=limb(group,shorts,sock,skin,boot,-1), legR=limb(group,shorts,sock,skin,boot,1);
+  const legL=limb(group,shorts,sock,skin,boot,bootAccent,-1,sockStripe), legR=limb(group,shorts,sock,skin,boot,bootAccent,1,sockStripe);
   // Small boot studs and layered body geometry stay local to this athlete only.
   // Fit the procedural fallback to the exact requested real-world player height.
   group.updateMatrixWorld(true);
@@ -182,7 +197,7 @@ export function createPenaltyAthlete({x,z,shirt,keeper=false,name='PLAYER',numbe
   const groundOffset=-bounds.min.y*visualScale;
   group.scale.setScalar(visualScale);
   group.position.y=groundOffset;
-  group.userData={torso,armL,armR,legL,legR,head,keeper,breathPhase:(seed%9)*.31,number,name,shirtColor:shirt,shortColor,targetHeight,groundOffset};
+  group.userData={torso,armL,armR,legL,legR,head,keeper,breathPhase:(seed%9)*.31,number,name,shirtColor:shirt,shortColor,targetHeight,groundOffset,kit};
   return group;
 }
 export function animatePenaltyAthlete(actor,time,{run=0,runPhase=0,kick=0,follow=0,dive=0,side=0,delta=1/60}={}) {
@@ -194,26 +209,26 @@ export function animatePenaltyAthlete(actor,time,{run=0,runPhase=0,kick=0,follow
   const idle=1-Math.max(run,dive);
   actor.position.y=(u.groundOffset||0)+Math.abs(breath)*.009*idle+Math.sin(runPhase*2)*.035*run+Math.sin(dive*Math.PI)*.24*dive;
   // Shoulder/torso mechanics: forward lean during acceleration, then a counter-rotation through contact.
-  u.torso.rotation.x=-run*.13+kick*.09+follow*.045-dive*.12;
+  u.torso.rotation.x=(u.keeper?-.26:-.11)-run*.13+kick*.09+follow*.045-dive*.12;
   u.torso.rotation.z=side*dive*.22+Math.sin(time*1.25+u.breathPhase)*.012*idle;
-  u.torso.rotation.y=Math.sin(time*.7+u.breathPhase)*.018*idle;
+  u.torso.rotation.y=(u.keeper?0:.43)+Math.sin(time*.7+u.breathPhase)*.018*idle;
   u.torso.scale.y=1+breath*.004;
   // Opposing arm swing during the approach; arms open and reach during a keeper dive.
-  u.armL.shoulder.rotation.x=-runWave*.52-run*.02+kick*.12-follow*.08;
-  u.armR.shoulder.rotation.x=-runCounter*.52+run*.02-kick*.12+follow*.08;
-  u.armL.shoulder.rotation.z=(u.keeper?-.16:-.07)+run*.12+dive*(-.48-side*.18);
-  u.armR.shoulder.rotation.z=(u.keeper?.16:.07)-run*.12+dive*(.48-side*.18);
+  u.armL.shoulder.rotation.x=(u.keeper?-.12:-.34)-runWave*.52-run*.02+kick*.12-follow*.08;
+  u.armR.shoulder.rotation.x=(u.keeper?-.12:.42)-runCounter*.52+run*.02-kick*.12+follow*.08;
+  u.armL.shoulder.rotation.z=(u.keeper?-.42:-.20)+run*.12+dive*(-.48-side*.18);
+  u.armR.shoulder.rotation.z=(u.keeper?.42:.20)-run*.12+dive*(.48-side*.18);
   u.armL.elbow.rotation.x=-.58*run-dive*.22+(u.keeper?idle*-.18:0);
   u.armR.elbow.rotation.x=-.58*run-dive*.22+(u.keeper?idle*-.18:0);
   u.armL.wrist.rotation.x=-kick*.12;
   u.armR.wrist.rotation.x=-kick*.12;
   // The left boot strikes through the ball; the planted right leg stabilises the hips.
   u.legL.hip.rotation.x=-runWave*.48-kick*1.02+follow*.19-dive*.35;
-  u.legR.hip.rotation.x=-runCounter*.48+kick*.28-follow*.12-dive*.2;
+  u.legR.hip.rotation.x=(u.keeper?0:.24)-runCounter*.48+kick*.28-follow*.12-dive*.2;
   u.legL.hip.rotation.z=-side*dive*.12;
   u.legR.hip.rotation.z=side*dive*.12;
-  u.legL.knee.rotation.x=Math.max(0,runWave)*.58+kick*.12+follow*.2+dive*.65+(u.keeper?idle*.16:0);
-  u.legR.knee.rotation.x=Math.max(0,runCounter)*.58+kick*.24+follow*.08+dive*.52+(u.keeper?idle*.16:0);
+  u.legL.knee.rotation.x=Math.max(0,runWave)*.58+kick*.12+follow*.2+dive*.65+(u.keeper?idle*.34:.22*idle);
+  u.legR.knee.rotation.x=Math.max(0,runCounter)*.58+kick*.24+follow*.08+dive*.52+(u.keeper?idle*.34:0);
   u.legL.ankle.rotation.x=kick*.18-run*.08;
   u.legR.ankle.rotation.x=-kick*.12-run*.08;
   if(u.head) {
