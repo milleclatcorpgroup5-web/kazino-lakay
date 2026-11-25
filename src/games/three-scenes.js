@@ -70,39 +70,50 @@ function addFootballer(scene,x,z,shirt,keeper=false,name='PLAYER',number=10,shor
   return athlete;
 }
 function addCrowd(scene,accent) {
-  const crowdGeo=new THREE.SphereGeometry(.045,6,5);
+  // Dense, low-poly spectators begin directly behind the advertising strip.
+  const crowdGeo=new THREE.SphereGeometry(.055,7,6);
   const palette=['#d9e1ea','#b8c5d4','#e7c9a3','#4c78a8','#d84d59','#e2c65e','#f2f4f5','#17253a'];
-  const crowdMat=palette.map(c=>material(c,.92,.01));
-  const inst=crowdMat.map(m=>new THREE.InstancedMesh(crowdGeo,m,320));
-  inst.forEach(mesh=>{mesh.castShadow=false;mesh.receiveShadow=false;mesh.count=0;scene.add(mesh);});
-  let n=0;
-  for(let tier=0;tier<12;tier++) for(let seat=0;seat<180;seat++) {
-    const angle=(seat/179)*Math.PI;
-    const x=Math.cos(angle)*(5.1+tier*.38);
-    const z=-4.8+Math.sin(angle)*(2.2+tier*.2);
-    const y=1.35+tier*.23+(seat%5)*.018;
-    const idx=(seat*7+tier*13)%palette.length, mesh=inst[idx], k=mesh.count;
-    const obj=new THREE.Object3D(); obj.position.set(x,y,z); obj.scale.set(.85,1.15,.85); obj.rotation.y=(seat%9)*.12; obj.updateMatrix();
-    mesh.setMatrixAt(k,obj.matrix); mesh.count++; n++;
+  const mats=palette.map(color=>material(color,.94,.01));
+  const batches=mats.map(mat=>new THREE.InstancedMesh(crowdGeo,mat,420));
+  batches.forEach(mesh=>{mesh.count=0;mesh.castShadow=false;mesh.receiveShadow=false;scene.add(mesh);});
+  for(let tier=0;tier<14;tier++) for(let seat=0;seat<300;seat++) {
+    const across=(seat/299-.5)*47;
+    const x=across+(tier%2)*.035;
+    const z=-15.5-tier*.34;
+    const y=1.05+tier*.24+(seat%4)*.012;
+    const idx=(seat*7+tier*11)%palette.length, mesh=batches[idx], index=mesh.count;
+    const person=new THREE.Object3D();
+    person.position.set(x,y,z);
+    person.scale.set(.78,1.22,.82);
+    person.rotation.y=((seat%7)-3)*.035;
+    person.updateMatrix();
+    mesh.setMatrixAt(index,person.matrix); mesh.count++;
   }
-  inst.forEach(mesh=>{mesh.instanceMatrix.needsUpdate=true;});
-  // Two waving black supporter flags.
-  for(let i=0;i<3;i++) {
-    const pole=box(scene,-4.8+i*4.8,2.5,-5.05,.025,1.8,.025,'#aeb9c8');
-    const flag=box(scene,-4.5+i*4.8,3.05,-5.05,.62,.34,.025,'#10131b'); flag.userData.wave=i*.8; scene.userData.penaltyFlags ||= []; scene.userData.penaltyFlags.push(flag);
+  batches.forEach(mesh=>{mesh.instanceMatrix.needsUpdate=true;});
+  scene.userData.penaltyFlags=[];
+  for(let i=0;i<5;i++) {
+    const x=-18+i*9;
+    box(scene,x,2.5,-15.2,.035,2.0,.035,'#aeb9c8');
+    const flag=box(scene,x+.45,3.15,-15.2,.9,.55,.035,'#10131b');
+    flag.userData.wave=i*.8; scene.userData.penaltyFlags.push(flag);
   }
 }
+
 function addAdBoard(scene) {
-  const canvas=document.createElement('canvas'); canvas.width=1024; canvas.height=128;
+  const canvas=document.createElement('canvas'); canvas.width=2048; canvas.height=256;
   const ctx=canvas.getContext('2d');
-  const grad=ctx.createLinearGradient(0,0,1024,0); grad.addColorStop(0,'#713b89'); grad.addColorStop(.5,'#d84e9d'); grad.addColorStop(1,'#47246e');
-  ctx.fillStyle=grad; ctx.fillRect(0,0,1024,128);
-  ctx.fillStyle='#ffffff'; ctx.font='900 48px Arial'; ctx.textAlign='center'; ctx.fillText('KAZINO LAKAY  •  PENALTY LAKAY',512,57);
-  ctx.fillStyle='#76f0bd'; ctx.font='800 24px Arial'; ctx.fillText('JWE AK PASYON  •  JWE AK RESPÈ',512,96);
+  const grad=ctx.createLinearGradient(0,0,2048,0);
+  grad.addColorStop(0,'#713b89'); grad.addColorStop(.5,'#d84e9d'); grad.addColorStop(1,'#47246e');
+  ctx.fillStyle=grad; ctx.fillRect(0,0,2048,256);
+  ctx.fillStyle='#ffffff'; ctx.font='900 88px Arial'; ctx.textAlign='center';
+  ctx.fillText('KAZINO LAKAY  •  PENALTY LAKAY',1024,112);
+  ctx.fillStyle='#76f0bd'; ctx.font='800 48px Arial';
+  ctx.fillText('JWE AK PASYON  •  JWE AK RESPÈ',1024,194);
   const tex=new THREE.CanvasTexture(canvas); tex.colorSpace=THREE.SRGBColorSpace;
-  const board=new THREE.Mesh(new THREE.PlaneGeometry(9.2,1.15),new THREE.MeshBasicMaterial({map:tex}));
-  board.position.set(0,1.1,-5.65); scene.add(board);
+  const board=new THREE.Mesh(new THREE.PlaneGeometry(45.32,.9),new THREE.MeshBasicMaterial({map:tex,side:THREE.DoubleSide}));
+  board.position.set(0,.45,-14.5); scene.add(board);
 }
+
 function makePitchGrassTexture() {
   // Deterministic, texture-only turf detail: no external image or network request.
   const size=1024;
@@ -110,12 +121,11 @@ function makePitchGrassTexture() {
   const ctx=canvas.getContext('2d');
   ctx.fillStyle='#1b713d'; ctx.fillRect(0,0,size,size);
 
-  // Broad alternating mowing lanes run lengthwise down the pitch.
-  // Soft edge gradients keep the stripes readable without looking like flat bands.
-  const lanes=16, laneWidth=size/lanes;
+  // Mowing bands vary along local texture Y, so every stripe runs parallel to the goal line.
+  const lanes=16, laneHeight=size/lanes;
   for(let i=0;i<lanes;i++) {
-    const x=i*laneWidth;
-    const grad=ctx.createLinearGradient(x,0,x+laneWidth,0);
+    const y=i*laneHeight;
+    const grad=ctx.createLinearGradient(0,y,0,y+laneHeight);
     if(i%2) {
       grad.addColorStop(0,'rgba(115,190,105,.025)');
       grad.addColorStop(.18,'rgba(135,205,119,.105)');
@@ -129,8 +139,7 @@ function makePitchGrassTexture() {
       grad.addColorStop(.8,'rgba(3,42,20,.075)');
       grad.addColorStop(1,'rgba(3,42,20,.025)');
     }
-    ctx.fillStyle=grad;
-    ctx.fillRect(x,0,laneWidth+1,size);
+    ctx.fillStyle=grad; ctx.fillRect(0,y,size,laneHeight+1);
   }
 
   // Subtle irregular turf patches break up the repeated stripe pattern.
@@ -186,157 +195,137 @@ function rendererAnisotropyLimit() {
 function addStadium(scene,accent,options={}) {
   const team=options.team||{};
   const shirt=team.primary||'#d52d45', shorts=team.secondary||'#143b7b';
-  // Penalty-only field crop. Keep FIFA dimensions exact while showing only
-  // the goal, penalty area, six-yard box, penalty spot and D-arc.
-  // Scale: 1 world unit = 56/105 metres; goal width remains 7.32 m.
-  const pitchScale = 56 / 105;
-  const farGoalLine = -4.9;
-  const penaltyWidth = 40.32 * pitchScale;
-  const sixWidth = 18.32 * pitchScale;
-  const penaltyDepth = 16.5 * pitchScale;
-  const sixDepth = 5.5 * pitchScale;
-  const spotDistance = 11 * pitchScale;
-  const arcRadius = 9.15 * pitchScale;
-  const sideMargin = 2.5 * pitchScale;
-  const pitchWidth = penaltyWidth + sideMargin * 2;
-  const cropDepth = 20.5 * pitchScale;
-  const nearCropEdge = farGoalLine + cropDepth;
 
-  const pitch = new THREE.Mesh(
-    new THREE.PlaneGeometry(pitchWidth, cropDepth),
+  // All coordinates in this scene are metres. The penalty spot is the origin.
+  const GOAL={width:7.32,height:2.44,depth:1.8,lineZ:-11,post:0.12};
+  const PENALTY={width:40.32,depth:16.5,sixWidth:18.32,sixDepth:5.5,arcRadius:9.15};
+  const BALL={radius:.11,position:[0,.11,0]};
+  const ADS={height:.9,z:-14.5};
+  const goalLineZ=GOAL.lineZ, spotZ=0;
+  const pitchWidth=PENALTY.width+5;
+  const cropNearZ=9.5, cropDepth=cropNearZ-goalLineZ, pitchCenterZ=(cropNearZ+goalLineZ)/2;
+
+  const pitch=new THREE.Mesh(
+    new THREE.PlaneGeometry(pitchWidth,cropDepth),
     new THREE.MeshStandardMaterial({map:makePitchGrassTexture(),roughness:.96,metalness:0})
   );
-  pitch.rotation.x = -Math.PI/2;
-  pitch.position.set(0,-.165,(farGoalLine+nearCropEdge)/2);
-  pitch.receiveShadow = true;
-  scene.add(pitch);
-  box(scene,0,-.34,(farGoalLine+nearCropEdge)/2,pitchWidth,.32,cropDepth,'#14552f');
+  pitch.rotation.x=-Math.PI/2;
+  pitch.position.set(0,0,pitchCenterZ);
+  pitch.receiveShadow=true; scene.add(pitch);
+  box(scene,0,-.16,pitchCenterZ,pitchWidth,.32,cropDepth,'#14552f');
 
-  const lineY=-.135, lineColor='#f1f4eb';
-  // Flat, high-contrast marking strips sit just above the turf to avoid z-fighting.
+  const lineColor='#f1f4eb';
   const markingMat=new THREE.MeshBasicMaterial({color:'#ffffff',toneMapped:false,depthWrite:false});
-  const paintX=(x1,x2,z,thickness=.032)=>{
-    const m=new THREE.Mesh(new THREE.BoxGeometry(x2-x1,.012,thickness),markingMat);
-    m.position.set((x1+x2)/2,-.145,z); scene.add(m); return m;
+  const paintX=(x1,x2,z,thickness=.12)=>{
+    const mesh=new THREE.Mesh(new THREE.BoxGeometry(x2-x1,.012,thickness),markingMat);
+    mesh.position.set((x1+x2)/2,.008,z); scene.add(mesh); return mesh;
   };
-  const paintZ=(x,z1,z2,thickness=.032)=>{
-    const m=new THREE.Mesh(new THREE.BoxGeometry(thickness,.012,Math.abs(z2-z1)),markingMat);
-    m.position.set(x,-.145,(z1+z2)/2); scene.add(m); return m;
+  const paintZ=(x,z1,z2,thickness=.12)=>{
+    const mesh=new THREE.Mesh(new THREE.BoxGeometry(thickness,.012,Math.abs(z2-z1)),markingMat);
+    mesh.position.set(x,.008,(z1+z2)/2); scene.add(mesh); return mesh;
   };
 
-  // Only the visible goal-end markings are drawn; there is no full-pitch
-  // boundary, halfway line, centre circle, far penalty area or corner arc.
-  paintX(-pitchWidth/2,pitchWidth/2,farGoalLine,.035);
+  // Only the penalty-end crop is drawn; no centre circle or halfway line.
+  paintX(-PENALTY.width/2,PENALTY.width/2,goalLineZ);
+  const areaEndZ=goalLineZ+PENALTY.depth;
+  const sixEndZ=goalLineZ+PENALTY.sixDepth;
+  paintX(-PENALTY.width/2,PENALTY.width/2,areaEndZ);
+  paintZ(-PENALTY.width/2,goalLineZ,areaEndZ);
+  paintZ(PENALTY.width/2,goalLineZ,areaEndZ);
+  paintX(-PENALTY.sixWidth/2,PENALTY.sixWidth/2,sixEndZ);
+  paintZ(-PENALTY.sixWidth/2,goalLineZ,sixEndZ);
+  paintZ(PENALTY.sixWidth/2,goalLineZ,sixEndZ);
 
-  const areaEndZ=farGoalLine+penaltyDepth;
-  const sixEndZ=farGoalLine+sixDepth;
-  const spotZ=farGoalLine+spotDistance;
-  paintX(-penaltyWidth/2,penaltyWidth/2,areaEndZ,.035);
-  paintZ(-penaltyWidth/2,farGoalLine,areaEndZ,.035);
-  paintZ(penaltyWidth/2,farGoalLine,areaEndZ,.035);
-  paintX(-sixWidth/2,sixWidth/2,sixEndZ,.03);
-  paintZ(-sixWidth/2,farGoalLine,sixEndZ,.03);
-  paintZ(sixWidth/2,farGoalLine,sixEndZ,.03);
-
-  // Correct FIFA D-arc: radius 9.15 m, excluding the part inside the box.
-  const arcHalfAngle=Math.acos((5.5*pitchScale)/arcRadius);
+  // FIFA penalty arc: 9.15 m radius, only the part outside the penalty area.
+  const arcHalfAngle=Math.acos(5.5/PENALTY.arcRadius);
   const arcPoints=[];
-  for(let i=0;i<=72;i++){
-    const angle=-arcHalfAngle+(2*arcHalfAngle*i/72);
-    arcPoints.push(new THREE.Vector3(
-      Math.sin(angle)*arcRadius,
-      -.126,
-      spotZ+Math.cos(angle)*arcRadius
-    ));
+  for(let i=0;i<=96;i++) {
+    const angle=-arcHalfAngle+(2*arcHalfAngle*i/96);
+    arcPoints.push(new THREE.Vector3(Math.sin(angle)*PENALTY.arcRadius,.014,Math.cos(angle)*PENALTY.arcRadius));
   }
   scene.add(new THREE.Line(
     new THREE.BufferGeometry().setFromPoints(arcPoints),
     new THREE.LineBasicMaterial({color:lineColor})
   ));
 
-  // The penalty mark is a small flat inlaid disc, not a raised sphere.
-  const spotHalo=new THREE.Mesh(
-    new THREE.CircleGeometry(.135,40),
-    new THREE.MeshBasicMaterial({color:'#0b3d22',transparent:true,opacity:.72,depthWrite:false})
-  );
-  spotHalo.rotation.x=-Math.PI/2; spotHalo.position.set(0,-.151,spotZ); scene.add(spotHalo);
-  const spot=new THREE.Mesh(
-    new THREE.CircleGeometry(.10,40),
-    new THREE.MeshBasicMaterial({color:'#ffffff',side:THREE.DoubleSide,toneMapped:false,depthWrite:false})
-  );
-  spot.rotation.x=-Math.PI/2;
-  spot.position.set(0,-.143,spotZ);
-  scene.add(spot);
-  // Stadium bowl, distant stands and roof.
+  const spot=new THREE.Mesh(new THREE.CircleGeometry(.075,40),
+    new THREE.MeshBasicMaterial({color:'#ffffff',side:THREE.DoubleSide,toneMapped:false,depthWrite:false}));
+  spot.rotation.x=-Math.PI/2; spot.position.set(0,.012,spotZ); scene.add(spot);
+
+  // Advertising strip is 0.9 m high and 3.5 m behind the goal line.
+  addAdBoard(scene);
+  addCrowd(scene,accent);
   for(const side of [-1,1]) {
-    for(let tier=0;tier<8;tier++) {
-      const x=side*(6.5+tier*.35), y=1.25+tier*.28;
-      box(scene,x,y,-.1,.3,.18,11.6,'#33465d');
-    }
-    box(scene,side*8.1,3.25,-.1,.12,6.4,12,'#9caabd');
-    box(scene,side*6.4,4.25,-.1,3.8,.13,12.4,'#26364b');
-    for(let z=-5;z<=5;z+=2.5) {
-      const beam=box(scene,side*6.9,3.85,z,.08,1.0,.08,'#b8c5d4'); beam.rotation.z=side*.3;
-      const lamp=box(scene,side*6.7,4.75,z,.72,.18,.34,'#fff2c5');
+    const roof=box(scene,side*23,7,-18,.35,.35,20,'#26364b');
+    roof.rotation.z=side*.06;
+    for(let i=0;i<8;i++) {
+      const x=side*(12+i*1.45);
+      const lamp=box(scene,x,6.3,-17,.72,.18,.34,'#fff2c5');
       lamp.material.emissive=new THREE.Color('#fff0bd'); lamp.material.emissiveIntensity=.8;
-      const light=new THREE.PointLight(0xffedc2,11,9); light.position.set(side*6.7,4.8,z); scene.add(light);
+      const light=new THREE.PointLight(0xffedc2,18,22);
+      light.position.set(x,6.2,-16.8); scene.add(light);
     }
   }
-  addCrowd(scene,accent); addAdBoard(scene);
-  // 3D goal frame and fine tensioned white net.
-  // FIFA regulation goal dimensions expressed in the same pitch scale.
-  const goalZ=farGoalLine, goalW=7.32*pitchScale, goalH=2.44*pitchScale;
-  const postMat=new THREE.MeshStandardMaterial({
-    color:'#ffffff',roughness:.24,metalness:.08,
-    emissive:'#dce9df',emissiveIntensity:.16
-  });
-  const post=(x,y,z,sx,sy,sz)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),postMat);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;scene.add(m);};
-  const postThickness=.07;
-  post(0,goalH,goalZ,goalW,postThickness,postThickness);
-  post(-goalW/2,goalH/2,goalZ,postThickness,goalH,postThickness);
-  post(goalW/2,goalH/2,goalZ,postThickness,goalH,postThickness);
-  post(0,.04,goalZ+.95,goalW,.055,.055);
-  // Recessed net roof, back and side panels: visible depth from the broadcast camera.
-  // A dark, unobtrusive backing makes the fine white net readable against the stands.
+
+  // Regulation goal: 7.32 m clear inside width, 2.44 m clear height, 0.12 m frame.
+  const goalW=GOAL.width, goalH=GOAL.height, goalZ=GOAL.lineZ, depth=GOAL.depth;
+  const frameMat=new THREE.MeshStandardMaterial({color:'#ffffff',roughness:.22,metalness:.05,emissive:'#dce9df',emissiveIntensity:.12});
+  const addFramePart=(x,y,z,w,h,d)=>{
+    const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),frameMat);
+    mesh.position.set(x,y,z); mesh.castShadow=true; mesh.receiveShadow=true; scene.add(mesh); return mesh;
+  };
+  const postX=goalW/2+GOAL.post/2, crossbarY=goalH+GOAL.post/2;
+  addFramePart(-postX,goalH/2,goalZ,GOAL.post,goalH,GOAL.post);
+  addFramePart(postX,goalH/2,goalZ,GOAL.post,goalH,GOAL.post);
+  addFramePart(0,crossbarY,goalZ,goalW,GOAL.post,GOAL.post);
+
+  // Net has 1.8 m depth and slopes down from the crossbar to its rear floor.
+  const backZ=goalZ-depth, backHeight=.42;
+  const netMat=new THREE.LineBasicMaterial({color:'#eaf2f5',transparent:true,opacity:.88});
+  const line=(points)=>scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points),netMat));
+  for(let i=0;i<=30;i++) {
+    const x=-goalW/2+(goalW*i/30);
+    line([new THREE.Vector3(x,goalH,goalZ),new THREE.Vector3(x,backHeight,backZ)]);
+    line([new THREE.Vector3(x,0,goalZ),new THREE.Vector3(x,backHeight,backZ)]);
+  }
+  for(let y=.25;y<goalH;y+=.22) {
+    const t=y/goalH;
+    const backY=backHeight+(goalH-backHeight)*t;
+    line([new THREE.Vector3(-goalW/2,y,goalZ),new THREE.Vector3(goalW/2,y,goalZ)]);
+    line([new THREE.Vector3(-goalW/2,backY,backZ),new THREE.Vector3(goalW/2,backY,backZ)]);
+  }
+  for(const side of [-1,1]) {
+    line([new THREE.Vector3(side*goalW/2,goalH,goalZ),new THREE.Vector3(side*goalW/2,backHeight,backZ)]);
+    line([new THREE.Vector3(side*goalW/2,0,goalZ),new THREE.Vector3(side*goalW/2,backHeight,backZ)]);
+  }
   const netBackdrop=new THREE.Mesh(
-    new THREE.PlaneGeometry(goalW+.08,goalH+.08),
-    new THREE.MeshBasicMaterial({color:'#071b19',transparent:true,opacity:.88,side:THREE.DoubleSide,depthWrite:false})
+    new THREE.PlaneGeometry(goalW,goalH),
+    new THREE.MeshBasicMaterial({color:'#071b2b',transparent:true,opacity:.72,side:THREE.DoubleSide,depthWrite:false})
   );
-  netBackdrop.position.set(0,goalH/2,goalZ+.965); scene.add(netBackdrop);
-  const netMat=new THREE.LineBasicMaterial({color:'#ffffff',transparent:true,opacity:.82});
-  for(let x=-goalW/2;x<=goalW/2;x+=.24) {
-    const back=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x,.08,goalZ+.95),new THREE.Vector3(x,goalH-.05,goalZ+.95)]),netMat); scene.add(back);
-    const roof=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x,goalH,goalZ),new THREE.Vector3(x,goalH,goalZ+.95)]),netMat); scene.add(roof);
-  }
-  for(const side of [-1,1]) for(let y=.12;y<=goalH;y+=.16) {
-    const sideNet=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(side*goalW/2,y,goalZ),new THREE.Vector3(side*goalW/2,y,goalZ+.95)]),netMat); scene.add(sideNet);
-  }
-  for(let x=-goalW/2;x<=goalW/2;x+=.16) {
-    const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x,.08,goalZ+.04),new THREE.Vector3(x,goalH-.05,goalZ+.04)]),new THREE.LineBasicMaterial({color:'#e8f0ec'})); scene.add(line);
-  }
-  for(let y=.08;y<=goalH;y+=.13) {
-    const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-goalW/2,y,goalZ+.04),new THREE.Vector3(goalW/2,y,goalZ+.04)]),new THREE.LineBasicMaterial({color:'#e8f0ec'})); scene.add(line);
-  }
-  // Keeper at the centre of the goal; shooter is framed from behind on the lower-right.
-  const keeper=addFootballer(scene,0,-4.35,'#2772c8',true,options.keeperName||'ANGELO PERUZZI',1,'#18253a');
+  netBackdrop.position.set(0,goalH/2,backZ+.015); scene.add(netBackdrop);
+
+  // Players are positioned exactly as specified; each visual is fitted to real height.
+  const keeper=addFootballer(scene,0,goalLineZ,'#2772c8',true,options.keeperName||'ANGELO PERUZZI',1,'#18253a',1.90);
   keeper.rotation.y=0;
-  const strikerStartZ=2.15; // Keep the shooter clearly behind the ball, about 2.2 m from the spot.
-  const striker=addFootballer(scene,0,strikerStartZ,shirt,false,options.playerName||team.player?.name||'LIONEL MESSI',numberForTeam(team),shorts);
+  const striker=addFootballer(scene,2,1.5,shirt,false,options.playerName||team.player?.name||'LIONEL MESSI',numberForTeam(team),shorts,1.70);
   striker.rotation.y=Math.PI;
-  // Regulation-size 22 cm ball, centred exactly on the penalty mark and resting on the turf.
-  const ballRadius=.11;
-  const ballRestY=-.165+ballRadius;
-  const ballGroup=new THREE.Group(); ballGroup.position.set(0,ballRestY,spotZ); scene.add(ballGroup);
+
+  // 22 cm ball, centred on the origin with its bottom touching the turf.
+  const ballGroup=new THREE.Group(); ballGroup.position.set(...BALL.position); scene.add(ballGroup);
   const ballMat=material('#f8f8f2',.3,.02);
-  makeBodyPart(ballGroup,new THREE.SphereGeometry(ballRadius,32,24),ballMat,[0,0,0]);
+  makeBodyPart(ballGroup,new THREE.SphereGeometry(BALL.radius,32,24),ballMat,[0,0,0]);
   for(let i=0;i<5;i++) {
-    const a=i*Math.PI*2/5, patch=new THREE.Mesh(new THREE.CircleGeometry(.047,5),material('#17212a',.68,.01));
+    const a=i*Math.PI*2/5;
+    const patch=new THREE.Mesh(new THREE.CircleGeometry(.047,5),material('#17212a',.68,.01));
     patch.position.set(Math.cos(a)*.145,Math.sin(a)*.145,.095); ballGroup.add(patch);
   }
-  const shadow=new THREE.Mesh(new THREE.CircleGeometry(.17,24),new THREE.MeshBasicMaterial({color:'#06130b',transparent:true,opacity:.38}));
-  shadow.rotation.x=-Math.PI/2; shadow.position.set(0,0,-ballRadius-.002); ballGroup.add(shadow);
-  return {ball:ballGroup,striker,keeper,penaltySpotZ:spotZ,goalLineZ:farGoalLine};
+  const shadow=new THREE.Mesh(new THREE.CircleGeometry(.17,24),
+    new THREE.MeshBasicMaterial({color:'#06130b',transparent:true,opacity:.38}));
+  shadow.rotation.x=-Math.PI/2; shadow.position.set(0,-.102,0); scene.add(shadow);
+
+  return {ball:ballGroup,striker,keeper,penaltySpotZ:spotZ,goalLineZ};
 }
+
 function numberForTeam(team) { return Number(team.player?.shirtNumber||10); }
 
 function buildScene(scene,id,accent,secondary,options={}) {
