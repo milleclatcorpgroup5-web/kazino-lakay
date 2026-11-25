@@ -64,8 +64,8 @@ function makeBodyPart(parent,geometry,mat,pos,rot=[0,0,0]) {
   const mesh=new THREE.Mesh(geometry,mat); mesh.position.set(...pos); mesh.rotation.set(...rot);
   mesh.castShadow=true; mesh.receiveShadow=true; parent.add(mesh); return mesh;
 }
-function addFootballer(scene,x,z,shirt,keeper=false,name='PLAYER',number=10,shortColor='#172d4d',targetHeight=keeper?1.90:1.70) {
-  const athlete=createPenaltyAthlete({x,z,shirt,keeper,name,number,shortColor,targetHeight});
+function addFootballer(scene,x,z,shirt,keeper=false,name='PLAYER',number=10,shortColor='#172d4d',targetHeight=keeper?1.90:1.70,kit={}) {
+  const athlete=createPenaltyAthlete({x,z,shirt,keeper,name,number,shortColor,targetHeight,kit});
   scene.add(athlete);
   return athlete;
 }
@@ -109,11 +109,13 @@ function addCrowd(scene) {
     const zBase=upper?-26.2:-19.0;
     const rowZ=zBase-localRow*(upper?.66:.55);
     const rowY=(upper?4.45:2.05)+localRow*(upper?.27:.20);
-    for(let seat=0;seat<160;seat++) {
-      const x=(seat/159-.5)*58;
-      const curve=Math.pow(Math.abs(x)/29,2)*3.2;
+    for(let seat=0;seat<220;seat++) {
+      const x=(seat/219-.5)*118;
+      const edge=Math.min(1,Math.abs(x)/59);
+      const curve=Math.pow(edge,2.15)*7.5;
       const z=rowZ+curve;
-      const y=rowY+Math.sin(seat*1.73+row*.7)*.035;
+      const sideRise=Math.pow(edge,2.2)*1.15;
+      const y=rowY+sideRise+Math.sin(seat*1.73+row*.7)*.035;
       const scale=.82+(seat%5)*.035;
       const raised=(seat*13+row*7)%31===0;
       addPerson(x,y,z,scale,raised?1:0,(seat*7+row*11)%palette.length);
@@ -122,12 +124,12 @@ function addCrowd(scene) {
   for(const batch of batches) for(const mesh of Object.values(batch)) mesh.instanceMatrix.needsUpdate=true;
 
   // A dark separator rail/walkway divides the two seating tiers.
-  box(scene,0,4.02,-24.9,64,.16,.42,'#111a28');
-  box(scene,0,4.15,-24.9,64,.055,.12,'#657181');
+  box(scene,0,4.02,-24.9,124,.16,.42,'#111a28');
+  box(scene,0,4.15,-24.9,124,.055,.12,'#657181');
 
   // Eight black KL flags in front of the stands, with lightweight sine-wave motion.
   scene.userData.penaltyFlags=[];
-  const flagXs=[-27,-19,-10,-4.3,4.3,10,19,27];
+  const flagXs=[-48,-34,-20,-7,7,20,34,48];
   for(let i=0;i<flagXs.length;i++) {
     const x=flagXs[i], poleH=3.5, poleZ=-14.15-(i%2)*.25;
     cylinder(scene,x,poleH/2,poleZ,.025,.025,poleH,'#171b22',10);
@@ -144,7 +146,8 @@ function addCrowd(scene) {
   }
 
   // A thick dark support cuts through the right-hand stand, as in a real stadium.
-  box(scene,31,7.1,-25,.34,15,.5,'#101720',0,0,-.035);
+  box(scene,59,7.1,-25,.34,15,.5,'#101720',0,0,-.035);
+  box(scene,-59,7.1,-25,.34,15,.5,'#101720',0,0,.035);
 }
 
 function addWalkwayPeople(scene) {
@@ -177,66 +180,72 @@ function addWalkwayPeople(scene) {
 }
 
 function addAdBoard(scene) {
-  const canvas=document.createElement('canvas'); canvas.width=4096; canvas.height=256;
+  // Seamless 16:1 LED tile repeats across the full 120 m board.
+  const canvas=document.createElement('canvas'); canvas.width=2048; canvas.height=128;
   const ctx=canvas.getContext('2d');
-  const grad=ctx.createLinearGradient(0,0,4096,0);
+  const grad=ctx.createLinearGradient(0,0,2048,0);
   grad.addColorStop(0,'#d4189a'); grad.addColorStop(.5,'#a51aaf'); grad.addColorStop(1,'#7a1fa2');
-  ctx.fillStyle=grad; ctx.fillRect(0,0,4096,256);
-  const drawLogo=(x)=>{
-    ctx.save(); ctx.translate(x,128);
-    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.moveTo(-92,-64); ctx.lineTo(0,-94); ctx.lineTo(92,-64); ctx.lineTo(75,52); ctx.lineTo(0,94); ctx.lineTo(-75,52); ctx.closePath(); ctx.fill();
-    ctx.fillStyle='#8c1a9b'; ctx.font='900 62px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('KL',0,0);
-    ctx.restore();
-  };
-  drawLogo(310); drawLogo(3786);
-  ctx.fillStyle='#ffffff'; ctx.font='900 78px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillText('KAZINO LAKAY',760,128); ctx.fillText('KAZINO LAKAY',3330,128);
-  ctx.fillStyle='#b6ff3d'; ctx.font='900 104px Arial'; ctx.letterSpacing='12px';
-  ctx.fillText('PENALTY LAKAY',2048,128);
+  ctx.fillStyle=grad; ctx.fillRect(0,0,2048,128);
+  ctx.fillStyle='#ffffff'; ctx.font='900 104px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('KAZINO LAKAY',500,64);
+  ctx.fillStyle='#b6ff3d'; ctx.font='900 104px Arial';
+  ctx.fillText('PENALTY LAKAY',1535,64);
   const tex=new THREE.CanvasTexture(canvas); tex.colorSpace=THREE.SRGBColorSpace;
+  tex.wrapS=THREE.RepeatWrapping; tex.wrapT=THREE.ClampToEdgeWrapping;
+  tex.repeat.set(7.5,1); tex.anisotropy=4;
   const boardMat=new THREE.MeshBasicMaterial({map:tex,side:THREE.DoubleSide,toneMapped:false});
-  const board=new THREE.Mesh(new THREE.PlaneGeometry(70,.95),boardMat);
-  board.position.set(0,.475,-14.5); scene.add(board);
-  // Side returns close the scene edges and carry the same LED artwork.
+  const board=new THREE.Mesh(new THREE.PlaneGeometry(120,.95),boardMat);
+  board.position.set(0,.475,-14.5); board.renderOrder=2; scene.add(board);
   for(const side of [-1,1]) {
     const ret=new THREE.Mesh(new THREE.PlaneGeometry(5,.95),boardMat);
-    ret.position.set(side*35,.475,-12.0);
-    ret.rotation.y=side*Math.PI/2; scene.add(ret);
+    ret.position.set(side*59.8,.475,-12.0);
+    ret.rotation.y=side*Math.PI/2; ret.renderOrder=2; scene.add(ret);
   }
-  // A subtle emissive wash makes the LED strip read brightly without expensive bloom.
-  const glow=new THREE.PointLight(0xd52aa7,7,24); glow.position.set(0,1.1,-13.7); scene.add(glow);
+  const edge=new THREE.Mesh(new THREE.BoxGeometry(120,.025,.035),
+    new THREE.MeshBasicMaterial({color:'#f5caff',toneMapped:false}));
+  edge.position.set(0,.965,-14.49); edge.renderOrder=3; scene.add(edge);
   return board;
 }
 
 function addStadiumBackdrop(scene) {
-  // Opaque navy wall directly behind the goal net; it prevents the crowd showing through.
-  const wall=new THREE.Mesh(new THREE.PlaneGeometry(70,2.4),
-    new THREE.MeshBasicMaterial({color:0x1b2a8f,side:THREE.DoubleSide,toneMapped:false}));
-  // Start the blue wall just above the LED board so both layers remain visible.
-  wall.position.set(0,2.15,-12.84); scene.add(wall);
-  const strip=new THREE.Mesh(new THREE.PlaneGeometry(70,.25),
+  const wall=new THREE.Mesh(new THREE.PlaneGeometry(120,2.4),
+    new THREE.MeshBasicMaterial({color:0x14206e,side:THREE.DoubleSide,toneMapped:false}));
+  wall.position.set(0,2.15,-12.84); wall.renderOrder=1; scene.add(wall);
+  const strip=new THREE.Mesh(new THREE.PlaneGeometry(120,.25),
     new THREE.MeshBasicMaterial({color:0xf5f7ff,side:THREE.DoubleSide,toneMapped:false}));
-  strip.position.set(0,3.475,-12.83); scene.add(strip);
-
-  // Small night-match stewards and photographers occupy the walkway behind the boards.
+  strip.position.set(0,3.475,-12.83); strip.renderOrder=1; scene.add(strip);
   addWalkwayPeople(scene);
 
-  // Stadium roof edge, diagonal steel beams and cool-white floodlights.
-  box(scene,0,14.2,-32,72,.65,2.2,'#090f19');
-  for(let i=0;i<2;i++) {
-    const beam=box(scene,-28+i*13,10.8,-28, .42,18,.55,'#202a36');
-    beam.rotation.z=i===0?-.48:.34;
+  // Dark roof canopy and structural beams fill the upper frame and both corners.
+  const roof=new THREE.Mesh(new THREE.PlaneGeometry(130,18),
+    new THREE.MeshStandardMaterial({color:'#101722',roughness:.92,metalness:.08,side:THREE.DoubleSide}));
+  roof.position.set(0,15.2,-34); roof.rotation.x=.12; scene.add(roof);
+  for(const [x,angle] of [[-54,-.42],[42,.34]]) {
+    const beam=box(scene,x,10.5,-30,.48,20,.62,'#252f3d'); beam.rotation.z=angle;
   }
-  for(let i=0;i<10;i++) {
-    const x=-29+i*6.45;
-    const bank=box(scene,x,11.6,-29,2.0,.24,.65,'#dce8f4');
-    bank.material.emissive=new THREE.Color('#dce8f4'); bank.material.emissiveIntensity=.9;
-    const light=new THREE.PointLight(0xdceaff,24,42);
-    light.position.set(x,10.9,-27.8); scene.add(light);
+
+  // Additive radial floodlight sprites replace the old solid rectangular banks.
+  const glowCanvas=document.createElement('canvas'); glowCanvas.width=256; glowCanvas.height=256;
+  const gctx=glowCanvas.getContext('2d');
+  const radial=gctx.createRadialGradient(128,128,4,128,128,124);
+  radial.addColorStop(0,'rgba(238,248,255,1)');
+  radial.addColorStop(.12,'rgba(225,241,255,.82)');
+  radial.addColorStop(.38,'rgba(190,220,255,.28)');
+  radial.addColorStop(1,'rgba(170,205,255,0)');
+  gctx.fillStyle=radial; gctx.fillRect(0,0,256,256);
+  const glowTexture=new THREE.CanvasTexture(glowCanvas);
+  const glowMaterial=new THREE.SpriteMaterial({map:glowTexture,color:0xdceaff,transparent:true,
+    opacity:.82,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false});
+  for(let i=0;i<8;i++) {
+    const x=-56+i*16;
+    const sprite=new THREE.Sprite(glowMaterial);
+    sprite.position.set(x,10.6,-28.8); sprite.scale.set(8.5,8.5,1);
+    sprite.renderOrder=4; scene.add(sprite);
+    const light=new THREE.PointLight(0xdceaff,13,34);
+    light.position.set(x,9.7,-27.5); scene.add(light);
   }
-  // Dark night sky; the scene background is deliberately not brightened.
   scene.background=new THREE.Color('#050a16');
-  scene.fog=new THREE.Fog('#050a16',55,125);
+  scene.fog=new THREE.Fog('#050a16',75,155);
 }
 
 function makePitchGrassTexture() {
@@ -317,6 +326,46 @@ function rendererAnisotropyLimit() {
   // A conservative cap works across mobile GPUs and desktop browsers.
   return 4;
 }
+function makePenaltyBallMaps() {
+  const canvas=document.createElement('canvas'); canvas.width=1024; canvas.height=512;
+  const ctx=canvas.getContext('2d');
+  ctx.fillStyle='#f4f3ed'; ctx.fillRect(0,0,1024,512);
+  // Repeating black pentagons and small seam lines give the ball a classic panel layout.
+  const pentagon=(cx,cy,r,fill)=>{
+    ctx.beginPath();
+    for(let i=0;i<5;i++){
+      const a=-Math.PI/2+i*Math.PI*2/5;
+      const x=cx+Math.cos(a)*r, y=cy+Math.sin(a)*r;
+      if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+    }
+    ctx.closePath(); ctx.fillStyle=fill; ctx.fill();
+  };
+  for(let y=-32,row=0;y<544;y+=128,row++){
+    for(let x=(row%2)*96-32;x<1088;x+=192){
+      pentagon(x,y,36,'#171b20');
+      ctx.strokeStyle='#c7c9c5';ctx.lineWidth=4;ctx.stroke();
+    }
+  }
+  ctx.strokeStyle='rgba(35,40,42,.34)';ctx.lineWidth=3;
+  for(let y=0;y<=512;y+=64){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(1024,y);ctx.stroke();}
+  const map=new THREE.CanvasTexture(canvas);map.colorSpace=THREE.SRGBColorSpace;
+  map.wrapS=map.wrapT=THREE.RepeatWrapping;map.anisotropy=8;map.generateMipmaps=true;map.minFilter=THREE.LinearMipmapLinearFilter;
+  const normalCanvas=document.createElement('canvas');normalCanvas.width=512;normalCanvas.height=256;
+  const nctx=normalCanvas.getContext('2d');nctx.fillStyle='rgb(128,128,255)';nctx.fillRect(0,0,512,256);
+  nctx.strokeStyle='rgb(128,128,245)';nctx.lineWidth=5;
+  for(let y=0;y<=256;y+=64){nctx.beginPath();nctx.moveTo(0,y);nctx.lineTo(512,y);nctx.stroke();}
+  const normalMap=new THREE.CanvasTexture(normalCanvas);normalMap.wrapS=normalMap.wrapT=THREE.RepeatWrapping;normalMap.anisotropy=8;
+  return {map,normalMap};
+}
+
+function setPenaltyCameraFov(camera,aspect) {
+  // Keep a constant 28-degree horizontal field of view on landscape and portrait.
+  const horizontalFov=THREE.MathUtils.degToRad(28);
+  const safeAspect=Math.max(.25,Number(aspect)||1);
+  camera.fov=THREE.MathUtils.radToDeg(2*Math.atan(Math.tan(horizontalFov/2)/safeAspect));
+  camera.updateProjectionMatrix();
+}
+
 function addStadium(scene,accent,options={}) {
   const team=options.team||{};
   const shirt=team.primary||'#d52d45', shorts=team.secondary||'#143b7b';
@@ -326,17 +375,17 @@ function addStadium(scene,accent,options={}) {
   const PENALTY={width:40.32,depth:16.5,sixWidth:18.32,sixDepth:5.5,arcRadius:9.15};
   const BALL={radius:.11,position:[0,.11,0]};
   const goalLineZ=GOAL.lineZ, spotZ=0;
-  const pitchWidth=PENALTY.width+5;
-  const cropNearZ=9.5, cropDepth=cropNearZ-goalLineZ, pitchCenterZ=(cropNearZ+goalLineZ)/2;
+  const pitchWidth=100;
+  const cropNearZ=24.0, pitchDepth=70, pitchCenterZ=(cropNearZ+goalLineZ)/2;
 
   const pitch=new THREE.Mesh(
-    new THREE.PlaneGeometry(pitchWidth,cropDepth),
+    new THREE.PlaneGeometry(pitchWidth,pitchDepth),
     new THREE.MeshStandardMaterial({map:makePitchGrassTexture(),roughness:.96,metalness:0})
   );
   pitch.rotation.x=-Math.PI/2;
   pitch.position.set(0,0,pitchCenterZ);
   pitch.receiveShadow=true; scene.add(pitch);
-  box(scene,0,-.16,pitchCenterZ,pitchWidth,.32,cropDepth,'#14552f');
+  box(scene,0,-.16,pitchCenterZ,pitchWidth,.32,pitchDepth,'#14552f');
 
   const lineColor='#f1f4eb';
   const markingMat=new THREE.MeshBasicMaterial({color:'#ffffff',toneMapped:false,depthWrite:false});
@@ -372,7 +421,7 @@ function addStadium(scene,accent,options={}) {
     new THREE.LineBasicMaterial({color:lineColor})
   ));
 
-  const spot=new THREE.Mesh(new THREE.CircleGeometry(.075,40),
+  const spot=new THREE.Mesh(new THREE.CircleGeometry(.11,48),
     new THREE.MeshBasicMaterial({color:'#ffffff',side:THREE.DoubleSide,toneMapped:false,depthWrite:false}));
   spot.rotation.x=-Math.PI/2; spot.position.set(0,.012,spotZ); scene.add(spot);
 
@@ -395,43 +444,79 @@ function addStadium(scene,accent,options={}) {
   addGoalTube(goalH, postX, goalH/2, goalZ);
   addGoalTube(goalW, 0, crossbarY, goalZ, true);
 
-  // Net has 1.8 m depth and slopes down from the crossbar to its rear floor.
+  // Entire net volume stays behind the goal line. No strands extend onto the pitch.
+  // The back mesh is at z=-12.8; side and roof meshes connect the posts to that plane.
   const backZ=goalZ-depth, backHeight=.42;
-  const netMat=new THREE.LineBasicMaterial({color:'#eaf2f5',transparent:true,opacity:.88});
-  const line=(points)=>scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points),netMat));
-  for(let i=0;i<=30;i++) {
-    const x=-goalW/2+(goalW*i/30);
-    line([new THREE.Vector3(x,goalH,goalZ),new THREE.Vector3(x,backHeight,backZ)]);
-    line([new THREE.Vector3(x,0,goalZ),new THREE.Vector3(x,backHeight,backZ)]);
+  const netPositions=[];
+  const addNetSegment=(a,b)=>netPositions.push(a.x,a.y,a.z,b.x,b.y,b.z);
+  const backPoint=(x,y)=>new THREE.Vector3(x,y,backZ);
+  const sidePoint=(side,t,y)=>new THREE.Vector3(side*goalW/2,y,goalZ-depth*t);
+  const topPoint=(x,t)=>new THREE.Vector3(x,goalH+(backHeight-goalH)*t,goalZ-depth*t);
+
+  // Back net: 12 cm nominal cell spacing.
+  const backCols=Math.ceil(goalW/.12), backRows=Math.ceil(goalH/.12);
+  for(let col=0;col<=backCols;col++) {
+    const x=-goalW/2+goalW*col/backCols;
+    addNetSegment(backPoint(x,0),backPoint(x,backHeight));
   }
-  for(let y=.25;y<goalH;y+=.22) {
-    const t=y/goalH;
-    const backY=backHeight+(goalH-backHeight)*t;
-    line([new THREE.Vector3(-goalW/2,y,goalZ),new THREE.Vector3(goalW/2,y,goalZ)]);
-    line([new THREE.Vector3(-goalW/2,backY,backZ),new THREE.Vector3(goalW/2,backY,backZ)]);
+  for(let row=0;row<=backRows;row++) {
+    const y=backHeight*row/backRows;
+    addNetSegment(backPoint(-goalW/2,y),backPoint(goalW/2,y));
   }
+
+  // Side nets: vertical and depthwise strands, all constrained to z <= goal line.
+  const sideDepthSteps=Math.ceil(depth/.12);
+  const sideHeightSteps=Math.ceil(goalH/.12);
   for(const side of [-1,1]) {
-    line([new THREE.Vector3(side*goalW/2,goalH,goalZ),new THREE.Vector3(side*goalW/2,backHeight,backZ)]);
-    line([new THREE.Vector3(side*goalW/2,0,goalZ),new THREE.Vector3(side*goalW/2,backHeight,backZ)]);
+    for(let col=0;col<=sideDepthSteps;col++) {
+      const t=col/sideDepthSteps;
+      const topY=goalH+(backHeight-goalH)*t;
+      addNetSegment(sidePoint(side,t,0),sidePoint(side,t,topY));
+    }
+    for(let row=0;row<=sideHeightSteps;row++) {
+      const v=row/sideHeightSteps;
+      const a=sidePoint(side,0,goalH*v);
+      const b=sidePoint(side,1,backHeight*v);
+      addNetSegment(a,b);
+    }
   }
-  // The opaque stadium navy wall behind the net is created by addStadiumBackdrop().
-  // Keep the wall behind the net, never transparent over the spectators.
+
+  // Roof net slopes from the crossbar to the rear top edge.
+  const roofDepthSteps=Math.ceil(depth/.12);
+  const roofWidthSteps=Math.ceil(goalW/.12);
+  for(let col=0;col<=roofWidthSteps;col++) {
+    const x=-goalW/2+goalW*col/roofWidthSteps;
+    addNetSegment(topPoint(x,0),topPoint(x,1));
+  }
+  for(let row=0;row<=roofDepthSteps;row++) {
+    const t=row/roofDepthSteps;
+    addNetSegment(topPoint(-goalW/2,t),topPoint(goalW/2,t));
+  }
+
+  const netGeometry=new THREE.BufferGeometry();
+  netGeometry.setAttribute('position',new THREE.Float32BufferAttribute(netPositions,3));
+  const netMat=new THREE.LineBasicMaterial({
+    color:'#eaf2f5',transparent:true,opacity:.60,depthWrite:false
+  });
+  const net=new THREE.LineSegments(netGeometry,netMat);
+  net.renderOrder=5;
+  net.frustumCulled=false;
+  scene.add(net);
+  // Backdrop and LED board are added before this net so all net strands remain behind the goal.
 
   // Players are positioned exactly as specified; each visual is fitted to real height.
-  const keeper=addFootballer(scene,0,goalLineZ,'#2772c8',true,options.keeperName||'ANGELO PERUZZI',1,'#18253a',1.90);
+  const KEEPER_KIT={shirt:'#2a63cf',sleeves:'#2a63cf',sidePanels:'#1b46a0',shorts:'#1b46a0',socks:'#2a63cf',gloves:'#e8e8e8',glovesBack:'#19d3e6',glovesStrap:'#1b46a0',boots:'#15181d',bootsAccent:'#19d3e6',skin:'#d9a37a',hair:'#241810',socksStripe:'#dce8ff',beard:'stubble',number:1,name:'PERUZZI',height:1.90};
+  const SHOOTER_KIT={shirt:'#b3122c',shirtTrim:'#8f0f23',shorts:'#b3122c',shortsStripe:'#ffffff',socks:'#b3122c',socksStripe:'#ffffff',boots:'#19d3e6',bootsAccent:'#ffffff',skin:'#c9976e',hair:'#2b1d14',beard:'short',tattooSleeve:true,number:10,name:'MESSI',height:1.70};
+  const keeper=addFootballer(scene,0,-10.7,KEEPER_KIT.shirt,true,options.keeperName||'ANGELO PERUZZI',1,KEEPER_KIT.shorts,1.90,KEEPER_KIT);
   keeper.rotation.y=0;
-  const striker=addFootballer(scene,2,1.5,shirt,false,options.playerName||team.player?.name||'LIONEL MESSI',numberForTeam(team),shorts,1.70);
-  striker.rotation.y=Math.PI;
+  const striker=addFootballer(scene,2.2,1.5,SHOOTER_KIT.shirt,false,options.playerName||team.player?.name||'Lionel Messi',SHOOTER_KIT.number,SHOOTER_KIT.shorts,1.70,SHOOTER_KIT);
+  striker.rotation.y=-.5;
 
   // 22 cm ball, centred on the origin with its bottom touching the turf.
   const ballGroup=new THREE.Group(); ballGroup.position.set(...BALL.position); scene.add(ballGroup);
-  const ballMat=material('#f8f8f2',.3,.02);
-  makeBodyPart(ballGroup,new THREE.SphereGeometry(BALL.radius,32,24),ballMat,[0,0,0]);
-  for(let i=0;i<5;i++) {
-    const a=i*Math.PI*2/5;
-    const patch=new THREE.Mesh(new THREE.CircleGeometry(.047,5),material('#17212a',.68,.01));
-    patch.position.set(Math.cos(a)*.145,Math.sin(a)*.145,.095); ballGroup.add(patch);
-  }
+  const ballMaps=makePenaltyBallMaps();
+  const ballMat=new THREE.MeshStandardMaterial({map:ballMaps.map,normalMap:ballMaps.normalMap,roughness:.48,metalness:0});
+  makeBodyPart(ballGroup,new THREE.SphereGeometry(BALL.radius,48,32),ballMat,[0,0,0]);
   const shadow=new THREE.Mesh(new THREE.CircleGeometry(.17,24),
     new THREE.MeshBasicMaterial({color:'#06130b',transparent:true,opacity:.38}));
   shadow.rotation.x=-Math.PI/2; shadow.position.set(0,-.102,0); scene.add(shadow);
@@ -562,7 +647,7 @@ export function mountGame3D(container, gameId, options={}) {
     const [bg,accent,secondary]=THEMES[gameId];
     const scene=new THREE.Scene();scene.background=new THREE.Color(bg);
     scene.fog=new THREE.Fog(bg,gameId==='penalty'?48:9,gameId==='penalty'?105:24);
-    const camera=new THREE.PerspectiveCamera(gameId==='penalty'?28:42,1,.1,160);
+    const camera=new THREE.PerspectiveCamera(gameId==='penalty'?28:42,1,.1,180);
     if(gameId==='penalty'){camera.position.set(.3,2.2,12);camera.lookAt(0,1.2,-11);}else{camera.position.set(0,4.8,9.6);camera.lookAt(0,.45,0);}
     // Android tablets can reject a high-performance/antialiased context even when
     // WebGL2 is available. Start with a conservative mobile context and retry once
@@ -586,7 +671,7 @@ export function mountGame3D(container, gameId, options={}) {
     renderer.domElement.className='three-scene-canvas';renderer.domElement.setAttribute('aria-hidden','true');
     container.appendChild(renderer.domElement);
     addLights(scene,accent);
-    const floor= new THREE.Mesh(new THREE.PlaneGeometry(gameId==='penalty'?70:22,gameId==='penalty'?70:22),material(bg,.92,0));floor.rotation.x=-Math.PI/2;floor.position.y=gameId==='penalty'?-.22:-.42;floor.receiveShadow=true;scene.add(floor);
+    const floor= new THREE.Mesh(new THREE.PlaneGeometry(gameId==='penalty'?100:22,gameId==='penalty'?70:22),material(bg,.92,0));floor.rotation.x=-Math.PI/2;floor.position.y=gameId==='penalty'?-.22:-.42;floor.receiveShadow=true;scene.add(floor);
     const stage=buildScene(scene,gameId,accent,secondary,options);
     const ring=gameId==='penalty'?null:torus(scene,0,-.29,0,4.1,.025,accent);if(ring){ring.material.transparent=true;ring.material.opacity=.45;}
     const labelGroup=new THREE.Group();scene.add(labelGroup);
@@ -594,17 +679,41 @@ export function mountGame3D(container, gameId, options={}) {
     const onPenaltyShot=(event)=>{const detail=event.detail&&typeof event.detail==='object'?event.detail:{};const rawX=Number(detail.shotX??.5);shotDetail={...detail,shotX:Number.isFinite(rawX)?Math.max(.02,Math.min(.98,rawX)):.5};shotStartedAt=clock.getElapsedTime();};
     if(gameId==='penalty') {
       container.addEventListener('penalty-shot-start',onPenaltyShot);
-      // Load the shared skinned CC0 character once, then clone it for striker
-      // and goalkeeper. If the external asset is unreachable, keep the current
-      // procedural 3D athletes instead of blocking the penalty scene.
+      // Both separate, locally hosted realistic GLB models are required.
+      // The old procedural mannequins are hidden by attachPenaltyRig and are
+      // never presented as the finished player models.
       Promise.all([
         attachPenaltyRig(stage.striker,{isActive:()=>!disposed}),
         attachPenaltyRig(stage.keeper,{isActive:()=>!disposed})
       ]).then(([strikerReady,keeperReady])=>{
-        if(strikerReady||keeperReady) container.dataset.playerRig='skinned';
-      }).catch(error=>console.warn('[Penalty Lakay] Skinned player setup failed.',error));
+        if(disposed) return;
+        if(strikerReady && keeperReady) {
+          container.dataset.playerRig='realistic-glb';
+          return;
+        }
+        container.dataset.playerRig='missing';
+        const notice=document.createElement('div');
+        notice.className='penalty-model-error';
+        notice.setAttribute('role','status');
+        notice.textContent='Modèl foutbolè reyalis yo poko disponib. Verifye fichye /models/penalty-shooter.glb ak /models/penalty-keeper.glb, epi relanse build la.';
+        Object.assign(notice.style,{
+          position:'absolute',left:'12px',right:'12px',top:'12px',zIndex:'20',
+          padding:'10px 14px',borderRadius:'10px',background:'rgba(7,15,28,.92)',
+          color:'#fff',font:'600 13px/1.45 system-ui,sans-serif',textAlign:'center',
+          border:'1px solid rgba(255,255,255,.2)',pointerEvents:'none'
+        });
+        const position=getComputedStyle(container).position;
+        if(position==='static') container.style.position='relative';
+        container.appendChild(notice);
+        container.dataset.playerModelError=String(
+          stage.striker.userData.rigError || stage.keeper.userData.rigError || 'GLB unavailable'
+        );
+      }).catch(error=>{
+        console.error('[Penalty Lakay] Realistic GLB player setup failed.',error);
+        container.dataset.playerRig='error';
+      });
     }
-    const resize=()=>{const w=Math.max(1,container.clientWidth),h=Math.max(1,container.clientHeight);camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false);};
+    const resize=()=>{const w=Math.max(1,container.clientWidth),h=Math.max(1,container.clientHeight);camera.aspect=w/h;if(gameId==='penalty')setPenaltyCameraFov(camera,camera.aspect);else camera.updateProjectionMatrix();renderer.setSize(w,h,false);};
     const observer=typeof ResizeObserver!=='undefined'?new ResizeObserver(resize):null;observer?.observe(container);resize();
     const animate=()=>{if(disposed)return;raf=requestAnimationFrame(animate);const delta=clock.getDelta();const t=clock.elapsedTime;frame++;
       stage.animated.forEach((obj,i)=>{
@@ -626,7 +735,7 @@ export function mountGame3D(container, gameId, options={}) {
           stage.ball.position.x=((Number(shotDetail?.shotX??.5)-.5)*3.2)*flight;
         }else if(penaltyElapsed>=2.1){
           stage.ball.position.set(0,.11,stage.penaltySpotZ);
-          if(stage.keeper){stage.keeper.position.set(0,stage.keeper.userData.groundOffset||0,-11);stage.keeper.rotation.set(0,0,0);}
+          if(stage.keeper){stage.keeper.position.set(0,stage.keeper.userData.groundOffset||0,-10.7);stage.keeper.rotation.set(0,0,0);}
           shotStartedAt=null;
         }
       }else{stage.ball.position.x=-.72+Math.sin(t*.7)*.035;stage.ball.rotation.x+=.018;stage.ball.rotation.z+=.025;}}
@@ -637,7 +746,7 @@ export function mountGame3D(container, gameId, options={}) {
         const runPhase=elapsed<0?0:elapsed*Math.PI*2*2.45;
         const kick=elapsed<0?0:smooth01((elapsed-.37)/.21)*(1-smooth01((elapsed-1.05)/.38));
         const follow=elapsed<0?0:smooth01((elapsed-.60)/.24)*(1-smooth01((elapsed-1.45)/.4));
-        stage.striker.position.x=2*(1-approach);
+        stage.striker.position.x=2.2*(1-approach);
         stage.striker.position.z=1.5*(1-approach);
         stage.striker.rotation.x=-run*.09-kick*.1+follow*.04;
         stage.striker.rotation.z=Math.sin(runPhase)*-.045*run;
