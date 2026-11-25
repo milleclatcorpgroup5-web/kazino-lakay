@@ -1,11 +1,19 @@
 import assert from 'node:assert/strict';
 import { animatePenaltyAthlete } from '../src/games/penalty-athlete.js';
-import { getPenaltyRigMode } from '../src/games/penalty-rig.js';
+import { getPenaltyRigMode, resolvePenaltyRigClip } from '../src/games/penalty-rig.js';
 
 assert.equal(getPenaltyRigMode(), 'idle', 'The skinned player must idle before a shot.');
 assert.equal(getPenaltyRigMode({run:1}), 'run', 'The skinned player must play a run clip during the approach.');
 assert.equal(getPenaltyRigMode({kick:.8}), 'kick', 'The strike must select a one-shot action.');
 assert.equal(getPenaltyRigMode({dive:.9,run:1}), 'dive', 'A goalkeeper dive must take priority over locomotion.');
+const penaltyKick={name:'Penalty_Kick_01'};
+const sideFootKick={name:'Side_Foot_Kick'};
+const goalkeeperSave={name:'Goalkeeper_Save_02'};
+const genericPunch={name:'Punch'};
+assert.equal(resolvePenaltyRigClip(new Map([['penaltykick01',penaltyKick],['punch',genericPunch]]),'kick'),penaltyKick,'Prefer the real penalty mocap clip over a generic punch.');
+assert.equal(resolvePenaltyRigClip(new Map([['sidefootkick',sideFootKick]]),'kick'),sideFootKick,'Recognize the side-foot soccer strike clip.');
+assert.equal(resolvePenaltyRigClip(new Map([['goalkeepersave02',goalkeeperSave]]),'dive'),goalkeeperSave,'Recognize a dedicated goalkeeper save mocap clip.');
+assert.equal(resolvePenaltyRigClip(new Map([['punch',genericPunch]]),'kick'),genericPunch,'Retain a generic one-shot fallback until soccer mocap is installed.');
 const joint=()=>({rotation:{x:0,y:0,z:0}});
 function athlete(keeper=false) {
   return {
