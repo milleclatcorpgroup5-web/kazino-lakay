@@ -182,7 +182,7 @@ function addStadium(scene,accent,options={}) {
   const striker=addFootballer(scene,0,1.05,shirt,false,options.playerName||team.player?.name||'LIONEL MESSI',numberForTeam(team),shorts);
   striker.rotation.y=Math.PI;
   // Match ball on the penalty spot with panel geometry and a soft contact shadow.
-  const ballGroup=new THREE.Group(); ballGroup.position.set(0,.18,-2.2); scene.add(ballGroup);
+  const ballGroup=new THREE.Group(); ballGroup.position.set(0,.015,-2.2); scene.add(ballGroup);
   const ballMat=material('#f8f8f2',.3,.02);
   makeBodyPart(ballGroup,new THREE.SphereGeometry(.17,32,24),ballMat,[0,0,0]);
   for(let i=0;i<5;i++) {
@@ -351,11 +351,11 @@ export function mountGame3D(container, gameId, options={}) {
         stage.ball.rotation.x+=.035;stage.ball.rotation.y+=.012;stage.ball.rotation.z+=.022;
         if(penaltyElapsed>=0&&penaltyElapsed<2.1){
           const flight=smooth01((penaltyElapsed-.48)/.78);
-          stage.ball.position.y=.18+Math.sin(flight*Math.PI)*.85;
+          stage.ball.position.y=.015+Math.sin(flight*Math.PI)*.85;
           stage.ball.position.z=-2.2-flight*2.9;
           stage.ball.position.x=((Number(shotDetail?.shotX??.5)-.5)*3.2)*flight;
         }else if(penaltyElapsed>=2.1){
-          stage.ball.position.set(0,.18,-2.2);
+          stage.ball.position.set(0,.015,-2.2);
           if(stage.keeper){stage.keeper.position.set(0,0,-4.35);stage.keeper.rotation.set(0,0,0);}
           shotStartedAt=null;
         }
