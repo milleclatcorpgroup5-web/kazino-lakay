@@ -143,7 +143,7 @@ function addShirtDetails(torso,shirt,shorts,number,name,keeper) {
   part(torso,new THREE.BoxGeometry(.22,.018,.012),mat('#e6ddc8',.88),[0,.035,.12]);
   return collar;
 }
-export function createPenaltyAthlete({x,z,shirt,keeper=false,name='PLAYER',number=10,shortColor='#172d4d'}) {
+export function createPenaltyAthlete({x,z,shirt,keeper=false,name='PLAYER',number=10,shortColor='#172d4d',targetHeight=keeper?1.90:1.70}) {
   const group=new THREE.Group(); group.position.set(x,0,z);
   const tonePalette=['#956449','#b77c58','#754b39','#c18a65'];
   const hairPalette=['#211b19','#30251f','#17191c','#493629'];
@@ -174,7 +174,15 @@ export function createPenaltyAthlete({x,z,shirt,keeper=false,name='PLAYER',numbe
   const armL=arm(torso,fabric,skin,glove,keeper,-1), armR=arm(torso,fabric,skin,glove,keeper,1);
   const legL=limb(group,shorts,sock,skin,boot,-1), legR=limb(group,shorts,sock,skin,boot,1);
   // Small boot studs and layered body geometry stay local to this athlete only.
-  group.userData={torso,armL,armR,legL,legR,head,keeper,breathPhase:(seed%9)*.31,number,name,shirtColor:shirt,shortColor};
+  // Fit the procedural fallback to the exact requested real-world player height.
+  group.updateMatrixWorld(true);
+  const bounds=new THREE.Box3().setFromObject(group);
+  const rawHeight=Math.max(.1,bounds.max.y-bounds.min.y);
+  const visualScale=targetHeight/rawHeight;
+  const groundOffset=-bounds.min.y*visualScale;
+  group.scale.setScalar(visualScale);
+  group.position.y=groundOffset;
+  group.userData={torso,armL,armR,legL,legR,head,keeper,breathPhase:(seed%9)*.31,number,name,shirtColor:shirt,shortColor,targetHeight,groundOffset};
   return group;
 }
 export function animatePenaltyAthlete(actor,time,{run=0,runPhase=0,kick=0,follow=0,dive=0,side=0,delta=1/60}={}) {
@@ -184,7 +192,7 @@ export function animatePenaltyAthlete(actor,time,{run=0,runPhase=0,kick=0,follow
   const runWave=Math.sin(runPhase);
   const runCounter=Math.sin(runPhase+Math.PI);
   const idle=1-Math.max(run,dive);
-  actor.position.y=Math.max(0,Math.abs(breath)*.009*idle+Math.sin(runPhase*2)*.035*run+Math.sin(dive*Math.PI)*.24*dive);
+  actor.position.y=(u.groundOffset||0)+Math.abs(breath)*.009*idle+Math.sin(runPhase*2)*.035*run+Math.sin(dive*Math.PI)*.24*dive;
   // Shoulder/torso mechanics: forward lean during acceleration, then a counter-rotation through contact.
   u.torso.rotation.x=-run*.13+kick*.09+follow*.045-dive*.12;
   u.torso.rotation.z=side*dive*.22+Math.sin(time*1.25+u.breathPhase)*.012*idle;
