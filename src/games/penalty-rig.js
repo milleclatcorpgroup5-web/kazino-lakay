@@ -200,11 +200,14 @@ export function getPenaltyRigMode({ run = 0, kick = 0, dive = 0, side = 0, keepe
 const RIG_CLIP_PREFERENCES = Object.freeze({
   idle: ['idle'],
   walk: ['walk', 'idle'],
-  keeperReady: ['goalkeeperready', 'idle'],
+  keeperReady: ['goalkeeperready', 'crouch', 'idle'],
   run: ['run', 'walk'],
-  kick: ['shootfootball'],
-  diveLeft: ['goalkeeperdiveleft', 'goalkeeperlowdiveleft', 'goalkeepercatch'],
-  diveRight: ['goalkeeperdiveright', 'goalkeeperlowdiveright', 'goalkeepercatch'],
+  // Ara 3D Gen currently exposes no football-specific strike or keeper-dive
+  // clips. Use valid shipped humanoid clips rather than asking for nonexistent
+  // names, so the exported GLBs still animate on every gameplay state.
+  kick: ['shootfootball', 'kickfront', 'run'],
+  diveLeft: ['goalkeeperdiveleft', 'goalkeeperlowdiveleft', 'dodgeleft', 'rollforward', 'fall'],
+  diveRight: ['goalkeeperdiveright', 'goalkeeperlowdiveright', 'dodgeright', 'rollforward', 'fall'],
   celebrate: ['siucelebration', 'cheer']
 });
 
