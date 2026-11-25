@@ -194,11 +194,12 @@ export function getPenaltyRigMode({ run = 0, kick = 0, dive = 0, side = 0, keepe
   if (dive > 0.2) return side < 0 ? 'diveLeft' : 'diveRight';
   if (kick > 0.32) return 'kick';
   if (run > 0.12) return 'run';
-  return keeper ? 'keeperReady' : 'idle';
+  return keeper ? 'keeperReady' : 'walk';
 }
 
 const RIG_CLIP_PREFERENCES = Object.freeze({
   idle: ['idle'],
+  walk: ['walk', 'idle'],
   keeperReady: ['goalkeeperready', 'idle'],
   run: ['run', 'walk'],
   kick: ['shootfootball'],
