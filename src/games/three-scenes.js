@@ -270,14 +270,16 @@ function addStadium(scene,accent,options={}) {
   // Regulation goal: 7.32 m clear inside width, 2.44 m clear height, 0.12 m frame.
   const goalW=GOAL.width, goalH=GOAL.height, goalZ=GOAL.lineZ, depth=GOAL.depth;
   const frameMat=new THREE.MeshStandardMaterial({color:'#ffffff',roughness:.22,metalness:.05,emissive:'#dce9df',emissiveIntensity:.12});
-  const addFramePart=(x,y,z,w,h,d)=>{
-    const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),frameMat);
-    mesh.position.set(x,y,z); mesh.castShadow=true; mesh.receiveShadow=true; scene.add(mesh); return mesh;
+  const addGoalTube=(length,x,y,z,horizontal=false)=>{
+    const mesh=new THREE.Mesh(new THREE.CylinderGeometry(GOAL.post/2,GOAL.post/2,length,20),frameMat);
+    mesh.position.set(x,y,z);
+    if(horizontal) mesh.rotation.z=Math.PI/2;
+    mesh.castShadow=true; mesh.receiveShadow=true; scene.add(mesh); return mesh;
   };
   const postX=goalW/2+GOAL.post/2, crossbarY=goalH+GOAL.post/2;
-  addFramePart(-postX,goalH/2,goalZ,GOAL.post,goalH,GOAL.post);
-  addFramePart(postX,goalH/2,goalZ,GOAL.post,goalH,GOAL.post);
-  addFramePart(0,crossbarY,goalZ,goalW,GOAL.post,GOAL.post);
+  addGoalTube(goalH, -postX, goalH/2, goalZ);
+  addGoalTube(goalH, postX, goalH/2, goalZ);
+  addGoalTube(goalW, 0, crossbarY, goalZ, true);
 
   // Net has 1.8 m depth and slopes down from the crossbar to its rear floor.
   const backZ=goalZ-depth, backHeight=.42;
