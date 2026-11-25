@@ -19,9 +19,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     env:
-      ARA3D_VERSION: "0.9.0"
+      ARA3D_VERSION: "0.16.0"
       ARA3D_CACHE: ${{ github.workspace }}/.ara3d-cache
     steps:
       - name: Checkout
@@ -38,15 +38,41 @@ jobs:
           path: .ara3d-cache
           key: ara3d-data-${{ runner.os }}-${{ env.ARA3D_VERSION }}
 
-      - name: Verify Ara 3D CLI and animation catalogue
+      - name: Verify Ara 3D version, clothing IDs and football animation catalogue
         run: |
           npx --yes "ara3d@$ARA3D_VERSION" --version
           npx --yes "ara3d@$ARA3D_VERSION" schema character > /tmp/ara-character-schema.json
           npx --yes "ara3d@$ARA3D_VERSION" animations
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const schema = JSON.parse(fs.readFileSync('/tmp/ara-character-schema.json', 'utf8'));
+          const params = schema.properties?.params?.properties;
+          const required = {
+            top: ['football_shirt', 'uniform_shirt_long'],
+            bottom: ['cargo_shorts'],
+            shoes: ['shoes03'],
+            accessories: ['keeper_gloves', 'sport_socks']
+          };
+          for (const [field, ids] of Object.entries(required)) {
+            const allowed = field === 'accessories'
+              ? params?.[field]?.items?.enum
+              : params?.[field]?.enum;
+            for (const id of ids) {
+              if (!allowed?.includes(id)) {
+                throw new Error('Ara 3D ' + process.env.ARA3D_VERSION + ' does not support ' + field + ' ID "' + id + '". Supported IDs: ' + (allowed || []).join(', '));
+              }
+            }
+          }
+          const garmentIds = params?.garmentStyles?.propertyNames?.enum || [];
+          for (const id of ['football_shirt', 'uniform_shirt_long', 'cargo_shorts', 'shoes03', 'keeper_gloves', 'sport_socks']) {
+            if (!garmentIds.includes(id)) throw new Error('Invalid garmentStyles ID: ' + id);
+          }
+          console.log('Ara 3D schema confirms every Penalty Lakay clothing/accessory ID.');
+          NODE
 
-      - name: Generate rigged striker GLB
+      - name: Generate high-detail rigged striker GLB
         run: |
-          npx --yes "ara3d@$ARA3D_VERSION" export --params characters/penalty-shooter.json --detail medium --animations idle,walk,run,kick_front,cheer --out /tmp/penalty-shooter --debug
+          npx --yes "ara3d@$ARA3D_VERSION" export --params characters/penalty-shooter.json --detail high --animations idle,walk,run,soccer_shoot,cheer --out /tmp/penalty-shooter --debug
           mkdir -p public/models
           MODEL="$(find /tmp/penalty-shooter -type f -name '*.glb' -print -quit)"
           if [ -z "$MODEL" ]; then
@@ -57,9 +83,9 @@ jobs:
           cp "$MODEL" public/models/penalty-shooter.glb
           test -s public/models/penalty-shooter.glb
 
-      - name: Generate rigged goalkeeper GLB
+      - name: Generate high-detail rigged goalkeeper GLB
         run: |
-          npx --yes "ara3d@$ARA3D_VERSION" export --params characters/penalty-keeper.json --detail medium --animations idle,walk,run,dodge_left,dodge_right,fall --out /tmp/penalty-keeper --debug
+          npx --yes "ara3d@$ARA3D_VERSION" export --params characters/penalty-keeper.json --detail high --animations idle,walk,run,keeper_ready,keeper_catch,keeper_dive_left,keeper_dive_right,keeper_low_dive_left,keeper_low_dive_right --out /tmp/penalty-keeper --debug
           MODEL="$(find /tmp/penalty-keeper -type f -name '*.glb' -print -quit)"
           if [ -z "$MODEL" ]; then
             echo "::error::Ara 3D completed without producing a goalkeeper GLB."
@@ -94,9 +120,7 @@ jobs:
               const length = data.readUInt32LE(offset);
               const type = data.readUInt32LE(offset + 4);
               offset += 8;
-              if (offset + length > data.length) {
-                throw new Error(file + ' contains a truncated GLB chunk');
-              }
+              if (offset + length > data.length) throw new Error(file + ' contains a truncated GLB chunk');
               if (type === 0x4E4F534A) {
                 document = JSON.parse(data.toString('utf8', offset, offset + length).replace(/\\0+$/g, '').trim());
                 break;
@@ -107,25 +131,32 @@ jobs:
             if (!document) throw new Error(file + ' has no JSON glTF chunk');
             const skins = document.skins ?? [];
             const animations = document.animations ?? [];
-            const primitives = (document.meshes ?? []).flatMap(mesh => mesh.primitives ?? []);
+            const meshes = document.meshes ?? [];
+            const primitives = meshes.flatMap(mesh => mesh.primitives ?? []);
             const skinnedPrimitives = primitives.filter(primitive =>
               primitive.attributes?.JOINTS_0 !== undefined &&
               primitive.attributes?.WEIGHTS_0 !== undefined
             );
+            const materials = document.materials ?? [];
+            const textures = document.textures ?? [];
+            const images = document.images ?? [];
+            const nodes = document.nodes ?? [];
+            const named = nodes.map(node => node.name || '').filter(Boolean);
+            const faceNodes = named.filter(name => /head|eye|jaw|teeth|tongue/i.test(name));
 
             if (!skins.length || !skinnedPrimitives.length) {
               throw new Error(file + ' is not a genuinely rigged/skinned character (skin=' + skins.length + ', skinned primitives=' + skinnedPrimitives.length + ')');
             }
-            if (!animations.length) {
-              throw new Error(file + ' contains no animation clips');
+            if (!animations.length) throw new Error(file + ' contains no animation clips');
+            if (!materials.length || !textures.length || !images.length) {
+              throw new Error(file + ' is missing textured human materials (materials=' + materials.length + ', textures=' + textures.length + ', images=' + images.length + ')');
             }
+            if (!faceNodes.length) console.warn('Face node names not explicit in ' + file + '; visual inspection remains required.');
 
             const sizeMb = (data.length / 1048576).toFixed(2);
-            console.log(file + ': verified skinned human GLB; ' + skins.length + ' skin(s), ' + animations.length + ' animation(s), ' + sizeMb + ' MB');
+            console.log(file + ': verified skinned GLB; ' + skins.length + ' skin(s), ' + skinnedPrimitives.length + ' skinned mesh primitive(s), ' + animations.length + ' animation(s), ' + materials.length + ' materials, ' + textures.length + ' textures, ' + sizeMb + ' MB');
             console.log('Animation clips: ' + animations.map(clip => clip.name || '(unnamed)').join(', '));
-            if (data.length > 3 * 1048576) {
-              console.warn('NOTICE: ' + file + ' exceeds the 3 MB mobile target');
-            }
+            if (data.length > 3 * 1048576) console.warn('NOTICE: ' + file + ' exceeds the 3 MB mobile target; high detail is intentionally prioritized for visual quality.');
           }
           NODE
 
@@ -138,5 +169,5 @@ jobs:
             echo "Generated models are unchanged."
             exit 0
           fi
-          git commit -m "chore: generate realistic penalty player GLBs"
+          git commit -m "chore: generate high-detail penalty player GLBs"
           git push
