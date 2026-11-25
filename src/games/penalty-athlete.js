@@ -25,6 +25,16 @@ function decalTexture(name,number,keeper=false) {
   ctx.shadowBlur=0;
   return new THREE.CanvasTexture(canvas);
 }
+function chestNumberTexture(number,keeper=false) {
+  const canvas=document.createElement('canvas');canvas.width=128;canvas.height=128;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,128,128);
+  ctx.fillStyle=keeper?'#eaf5ff':'#fff3cc';
+  ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='900 104px Arial';
+  ctx.shadowColor='rgba(0,0,0,.48)';ctx.shadowBlur=6;
+  ctx.fillText(String(number||10).slice(0,2),64,66);
+  const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;return texture;
+}
 function limb(parent,upperMat,lowerMat,skin,bootMat,side) {
   const hip=new THREE.Group(); hip.position.set(side*.145,.82,0); parent.add(hip);
   ellipsoid(hip,upperMat,[0,-.11,0],[.135,.22,.14]);
@@ -126,8 +136,8 @@ function addShirtDetails(torso,shirt,shorts,number,name,keeper) {
   const decalMat=new THREE.MeshStandardMaterial({map:texture,transparent:true,roughness:.9,metalness:0,side:THREE.DoubleSide,depthWrite:false});
   const back=part(torso,new THREE.PlaneGeometry(.35,.43),decalMat,[0,.31,-.253],[0,Math.PI,0]);
   back.renderOrder=3;
-  const frontMat=mat(keeper?'#eaf5ff':'#fff3cc',.9);
-  part(torso,new THREE.PlaneGeometry(.12,.16),frontMat,[-.02,.2,.253]);
+  const chestMat=new THREE.MeshStandardMaterial({map:chestNumberTexture(number,keeper),transparent:true,roughness:.9,metalness:0,side:THREE.DoubleSide,depthWrite:false});
+  part(torso,new THREE.PlaneGeometry(.105,.13),chestMat,[-.02,.2,.253]);
   // The shorts receive a waistband, side piping and a subtle hem.
   part(torso,new THREE.BoxGeometry(.22,.018,.012),mat('#e6ddc8',.88),[0,.035,.12]);
   return collar;
@@ -156,8 +166,8 @@ export function createPenaltyAthlete({x,z,shirt,keeper=false,name='PLAYER',numbe
   capsule(group,.235,.15,shorts,[0,.88,0],[0,0,0],24);
   part(group,new THREE.TorusGeometry(.205,.018,8,32),mat('#e8dfc9',.82),[0,.96,0],[Math.PI/2,0,0]);
   for(const side of [-1,1]) {
-    part(group,new THREE.BoxGeometry(.022,.25,.012),mat('#f5f0e2',.88),[side*.2,.84,.115]);
-    part(group,new THREE.BoxGeometry(.15,.025,.018),mat('#f5f0e2',.88),[side*.17,.755,.02]);
+    part(group,new THREE.BoxGeometry(.022,.25,.012),mat('#f5f0e2',.88),[side*.2,.84,.14]);
+    part(group,new THREE.BoxGeometry(.15,.025,.018),mat('#f5f0e2',.88),[side*.17,.755,.17]);
   }
   const head=face(torso,skin,hair,keeper);
   const armL=arm(torso,fabric,skin,glove,keeper,-1), armR=arm(torso,fabric,skin,glove,keeper,1);
