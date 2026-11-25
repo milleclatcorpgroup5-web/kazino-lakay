@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { updatePenaltyRigAnimation } from './penalty-rig.js';
 
 const mat=(color,roughness=.72,metalness=.02)=>new THREE.MeshStandardMaterial({color,roughness,metalness});
 function part(parent,geometry,material,position=[0,0,0],rotation=[0,0,0]) {
@@ -173,10 +174,10 @@ export function createPenaltyAthlete({x,z,shirt,keeper=false,name='PLAYER',numbe
   const armL=arm(torso,fabric,skin,glove,keeper,-1), armR=arm(torso,fabric,skin,glove,keeper,1);
   const legL=limb(group,shorts,sock,skin,boot,-1), legR=limb(group,shorts,sock,skin,boot,1);
   // Small boot studs and layered body geometry stay local to this athlete only.
-  group.userData={torso,armL,armR,legL,legR,head,keeper,breathPhase:(seed%9)*.31,number,name};
+  group.userData={torso,armL,armR,legL,legR,head,keeper,breathPhase:(seed%9)*.31,number,name,shirtColor:shirt,shortColor};
   return group;
 }
-export function animatePenaltyAthlete(actor,time,{run=0,runPhase=0,kick=0,follow=0,dive=0,side=0}={}) {
+export function animatePenaltyAthlete(actor,time,{run=0,runPhase=0,kick=0,follow=0,dive=0,side=0,delta=1/60}={}) {
   if(!actor)return;
   const u=actor.userData;
   const breath=Math.sin(time*2.05+u.breathPhase);
@@ -211,4 +212,7 @@ export function animatePenaltyAthlete(actor,time,{run=0,runPhase=0,kick=0,follow
     u.head.rotation.y=Math.sin(time*.55+u.breathPhase)*.028;
     u.head.rotation.x=-run*.06+kick*.045+dive*.06;
   }
+  // Once the CC0 skinned model is attached, its AnimationMixer drives the
+  // full humanoid rig; these procedural joint poses remain the offline fallback.
+  updatePenaltyRigAnimation(actor,delta,{run,kick,follow,dive,side});
 }
