@@ -64,8 +64,8 @@ function makeBodyPart(parent,geometry,mat,pos,rot=[0,0,0]) {
   const mesh=new THREE.Mesh(geometry,mat); mesh.position.set(...pos); mesh.rotation.set(...rot);
   mesh.castShadow=true; mesh.receiveShadow=true; parent.add(mesh); return mesh;
 }
-function addFootballer(scene,x,z,shirt,keeper=false,name='PLAYER',number=10,shortColor='#172d4d') {
-  const athlete=createPenaltyAthlete({x,z,shirt,keeper,name,number,shortColor});
+function addFootballer(scene,x,z,shirt,keeper=false,name='PLAYER',number=10,shortColor='#172d4d',targetHeight=keeper?1.90:1.70) {
+  const athlete=createPenaltyAthlete({x,z,shirt,keeper,name,number,shortColor,targetHeight});
   scene.add(athlete);
   return athlete;
 }
@@ -448,9 +448,9 @@ export function mountGame3D(container, gameId, options={}) {
   try {
     const [bg,accent,secondary]=THEMES[gameId];
     const scene=new THREE.Scene();scene.background=new THREE.Color(bg);
-    scene.fog=new THREE.Fog(bg,9,24);
-    const camera=new THREE.PerspectiveCamera(gameId==='penalty'?42:42,1,.1,100);
-    if(gameId==='penalty'){camera.position.set(2.35,3.55,10.4);camera.lookAt(0,.55,-1.15);}else{camera.position.set(0,4.8,9.6);camera.lookAt(0,.45,0);}
+    scene.fog=new THREE.Fog(bg,gameId==='penalty'?48:9,gameId==='penalty'?105:24);
+    const camera=new THREE.PerspectiveCamera(gameId==='penalty'?28:42,1,.1,160);
+    if(gameId==='penalty'){camera.position.set(.3,2.2,12);camera.lookAt(0,1.2,-11);}else{camera.position.set(0,4.8,9.6);camera.lookAt(0,.45,0);}
     // Android tablets can reject a high-performance/antialiased context even when
     // WebGL2 is available. Start with a conservative mobile context and retry once
     // with the browser's default GPU selection if the first context cannot be made.
@@ -473,9 +473,9 @@ export function mountGame3D(container, gameId, options={}) {
     renderer.domElement.className='three-scene-canvas';renderer.domElement.setAttribute('aria-hidden','true');
     container.appendChild(renderer.domElement);
     addLights(scene,accent);
-    const floor= new THREE.Mesh(new THREE.PlaneGeometry(22,22),material(bg,.92,0));floor.rotation.x=-Math.PI/2;floor.position.y=-.42;floor.receiveShadow=true;scene.add(floor);
+    const floor= new THREE.Mesh(new THREE.PlaneGeometry(gameId==='penalty'?70:22,gameId==='penalty'?70:22),material(bg,.92,0));floor.rotation.x=-Math.PI/2;floor.position.y=gameId==='penalty'?-.22:-.42;floor.receiveShadow=true;scene.add(floor);
     const stage=buildScene(scene,gameId,accent,secondary,options);
-    const ring=torus(scene,0,-.29,0,4.1,.025,accent);ring.material.transparent=true;ring.material.opacity=.45;
+    const ring=gameId==='penalty'?null:torus(scene,0,-.29,0,4.1,.025,accent);if(ring){ring.material.transparent=true;ring.material.opacity=.45;}
     const labelGroup=new THREE.Group();scene.add(labelGroup);
     const clock=new THREE.Clock();let frame=0;let disposed=false;let raf=0;let shotStartedAt=null;let shotDetail=options.shot?{shot:options.shot,shotX:options.shotX??.5}:null;
     const onPenaltyShot=(event)=>{const detail=event.detail&&typeof event.detail==='object'?event.detail:{};const rawX=Number(detail.shotX??.5);shotDetail={...detail,shotX:Number.isFinite(rawX)?Math.max(.02,Math.min(.98,rawX)):.5};shotStartedAt=clock.getElapsedTime();};
@@ -508,12 +508,12 @@ export function mountGame3D(container, gameId, options={}) {
         stage.ball.rotation.x+=.035;stage.ball.rotation.y+=.012;stage.ball.rotation.z+=.022;
         if(penaltyElapsed>=0&&penaltyElapsed<2.1){
           const flight=smooth01((penaltyElapsed-.48)/.78);
-          stage.ball.position.y=-.055+Math.sin(flight*Math.PI)*.85;
-          stage.ball.position.z=stage.penaltySpotZ-flight*(stage.penaltySpotZ-(stage.goalLineZ-.12));
+          stage.ball.position.y=.11+Math.sin(flight*Math.PI)*.85;
+          stage.ball.position.z=stage.penaltySpotZ-flight*(stage.penaltySpotZ-(stage.goalLineZ+.12));
           stage.ball.position.x=((Number(shotDetail?.shotX??.5)-.5)*3.2)*flight;
         }else if(penaltyElapsed>=2.1){
-          stage.ball.position.set(0,-.055,stage.penaltySpotZ);
-          if(stage.keeper){stage.keeper.position.set(0,0,-4.35);stage.keeper.rotation.set(0,0,0);}
+          stage.ball.position.set(0,.11,stage.penaltySpotZ);
+          if(stage.keeper){stage.keeper.position.set(0,stage.keeper.userData.groundOffset||0,-11);stage.keeper.rotation.set(0,0,0);}
           shotStartedAt=null;
         }
       }else{stage.ball.position.x=-.72+Math.sin(t*.7)*.035;stage.ball.rotation.x+=.018;stage.ball.rotation.z+=.025;}}
@@ -524,8 +524,8 @@ export function mountGame3D(container, gameId, options={}) {
         const runPhase=elapsed<0?0:elapsed*Math.PI*2*2.45;
         const kick=elapsed<0?0:smooth01((elapsed-.37)/.21)*(1-smooth01((elapsed-1.05)/.38));
         const follow=elapsed<0?0:smooth01((elapsed-.60)/.24)*(1-smooth01((elapsed-1.45)/.4));
-        stage.striker.position.x=-Math.sin(approach*Math.PI)*.08;
-        stage.striker.position.z=2.15-1.10*approach;
+        stage.striker.position.x=2*(1-approach);
+        stage.striker.position.z=1.5*(1-approach);
         stage.striker.rotation.x=-run*.09-kick*.1+follow*.04;
         stage.striker.rotation.z=Math.sin(runPhase)*-.045*run;
         animatePenaltyAthlete(stage.striker,t,{run,runPhase,kick,follow,delta});
@@ -541,7 +541,7 @@ export function mountGame3D(container, gameId, options={}) {
         animatePenaltyAthlete(stage.keeper,t,{dive,side,delta});
       }
       if(gameId==='penalty') scene.userData.penaltyFlags?.forEach(flag=>{flag.rotation.z=Math.sin(t*2.1+flag.userData.wave)*.14;});
-      ring.rotation.z+=.0015;
+      if(ring) ring.rotation.z+=.0015;
       if(gameId!=='penalty'){camera.position.x=Math.sin(t*.12)*.14;camera.lookAt(0,.45,0);}
       renderer.render(scene,camera);
     };
