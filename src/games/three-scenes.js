@@ -69,49 +69,173 @@ function addFootballer(scene,x,z,shirt,keeper=false,name='PLAYER',number=10,shor
   scene.add(athlete);
   return athlete;
 }
-function addCrowd(scene,accent) {
-  // Dense, low-poly spectators begin directly behind the advertising strip.
-  const crowdGeo=new THREE.SphereGeometry(.055,7,6);
-  const palette=['#d9e1ea','#b8c5d4','#e7c9a3','#4c78a8','#d84d59','#e2c65e','#f2f4f5','#17253a'];
-  const mats=palette.map(color=>material(color,.94,.01));
-  const batches=mats.map(mat=>new THREE.InstancedMesh(crowdGeo,mat,600));
-  batches.forEach(mesh=>{mesh.count=0;mesh.castShadow=false;mesh.receiveShadow=false;scene.add(mesh);});
-  for(let tier=0;tier<14;tier++) for(let seat=0;seat<300;seat++) {
-    const across=(seat/299-.5)*47;
-    const x=across+(tier%2)*.035;
-    const z=-15.5-tier*.34;
-    const y=1.05+tier*.24+(seat%4)*.012;
-    const idx=(seat*7+tier*11)%palette.length, mesh=batches[idx], index=mesh.count;
-    const person=new THREE.Object3D();
-    person.position.set(x,y,z);
-    person.scale.set(.78,1.22,.82);
-    person.rotation.y=((seat%7)-3)*.035;
-    person.updateMatrix();
-    mesh.setMatrixAt(index,person.matrix); mesh.count++;
+function addCrowd(scene) {
+  // Two curved grandstand tiers built from instanced low-poly human silhouettes.
+  // Each spectator uses a torso, head and paired arms; no floating-dot/balloon crowd.
+  const palette=['#e8edf0','#c8d0d8','#f1f0e8','#343b49','#202a38','#aeb8c2','#9d5548','#416b91','#bd754b','#d4a64e'];
+  const bodyGeo=new THREE.CapsuleGeometry(.105,.31,3,7);
+  const headGeo=new THREE.SphereGeometry(.075,8,6);
+  const armGeo=new THREE.CapsuleGeometry(.035,.22,2,6);
+  const batches=palette.map(color=>({
+    body:new THREE.InstancedMesh(bodyGeo,material(color,.96,.0),240),
+    head:new THREE.InstancedMesh(headGeo,material(color,.9,.0),240),
+    arms:new THREE.InstancedMesh(armGeo,material(color,.96,.0),480)
+  }));
+  for(const batch of batches) for(const mesh of Object.values(batch)) {
+    mesh.count=0; mesh.castShadow=false; mesh.receiveShadow=false;
+    mesh.frustumCulled=false; scene.add(mesh);
   }
-  batches.forEach(mesh=>{mesh.instanceMatrix.needsUpdate=true;});
+  const dummy=new THREE.Object3D();
+  let personIndex=0;
+  const addPerson=(x,y,z,scale,pose,colorIndex)=>{
+    const batch=batches[colorIndex%palette.length];
+    dummy.position.set(x,y,z); dummy.scale.set(scale,scale,scale);
+    dummy.rotation.set(0,((personIndex%9)-4)*.035,0); dummy.updateMatrix();
+    batch.body.setMatrixAt(batch.body.count++,dummy.matrix);
+    dummy.position.set(x,y+.255*scale,z);
+    dummy.scale.setScalar(scale); dummy.updateMatrix();
+    batch.head.setMatrixAt(batch.head.count++,dummy.matrix);
+    for(const side of [-1,1]) {
+      dummy.position.set(x+side*.145*scale,y+.02*scale,z);
+      dummy.rotation.set(0,0,side*(pose===1?.72:.12));
+      dummy.scale.setScalar(scale); dummy.updateMatrix();
+      batch.arms.setMatrixAt(batch.arms.count++,dummy.matrix);
+    }
+    personIndex++;
+  };
+  // 16 rows total, split across a lower and a steeper upper tier.
+  for(let row=0;row<16;row++) {
+    const upper=row>=8, localRow=row%8;
+    const zBase=upper?-26.2:-19.0;
+    const rowZ=zBase-localRow*(upper?.66:.55);
+    const rowY=(upper?4.45:2.05)+localRow*(upper?.27:.20);
+    for(let seat=0;seat<160;seat++) {
+      const x=(seat/159-.5)*58;
+      const curve=Math.pow(Math.abs(x)/29,2)*3.2;
+      const z=rowZ+curve;
+      const y=rowY+Math.sin(seat*1.73+row*.7)*.035;
+      const scale=.82+(seat%5)*.035;
+      const raised=(seat*13+row*7)%31===0;
+      addPerson(x,y,z,scale,raised?1:0,(seat*7+row*11)%palette.length);
+    }
+  }
+  for(const batch of batches) for(const mesh of Object.values(batch)) mesh.instanceMatrix.needsUpdate=true;
+
+  // A dark separator rail/walkway divides the two seating tiers.
+  box(scene,0,4.02,-24.9,64,.16,.42,'#111a28');
+  box(scene,0,4.15,-24.9,64,.055,.12,'#657181');
+
+  // Eight black KL flags in front of the stands, with lightweight sine-wave motion.
   scene.userData.penaltyFlags=[];
-  for(let i=0;i<5;i++) {
-    const x=-18+i*9;
-    box(scene,x,2.5,-15.2,.035,2.0,.035,'#aeb9c8');
-    const flag=box(scene,x+.45,3.15,-15.2,.9,.55,.035,'#10131b');
-    flag.userData.wave=i*.8; scene.userData.penaltyFlags.push(flag);
+  const flagXs=[-27,-19,-10,-4.3,4.3,10,19,27];
+  for(let i=0;i<flagXs.length;i++) {
+    const x=flagXs[i], poleH=3.5, poleZ=-14.15-(i%2)*.25;
+    cylinder(scene,x,poleH/2,poleZ,.025,.025,poleH,'#171b22',10);
+    const canvas=document.createElement('canvas'); canvas.width=256; canvas.height=160;
+    const ctx=canvas.getContext('2d');
+    ctx.fillStyle='#080a0e'; ctx.fillRect(0,0,256,160);
+    ctx.strokeStyle='#dfe5ed'; ctx.lineWidth=7; ctx.strokeRect(14,12,228,136);
+    ctx.fillStyle='#ffffff'; ctx.font='900 76px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('KL',128,82);
+    const tex=new THREE.CanvasTexture(canvas); tex.colorSpace=THREE.SRGBColorSpace;
+    const flag=new THREE.Mesh(new THREE.PlaneGeometry(1.5,1),new THREE.MeshBasicMaterial({map:tex,side:THREE.DoubleSide}));
+    flag.position.set(x+.76,poleH-.65,poleZ); flag.userData.wave=i*.71;
+    scene.add(flag); scene.userData.penaltyFlags.push(flag);
+  }
+
+  // A thick dark support cuts through the right-hand stand, as in a real stadium.
+  box(scene,31,7.1,-25,.34,15,.5,'#101720',0,0,-.035);
+}
+
+function addWalkwayPeople(scene) {
+  const looks=[
+    {shirt:'#d9ed42',vest:'#f4ff59'},
+    {shirt:'#d94c32',vest:'#e76a38'},
+    {shirt:'#202733',vest:'#343e4c'},
+    {shirt:'#e6e7e4',vest:'#c4cbd0'},
+    {shirt:'#b84d37',vest:'#d8a34a'}
+  ];
+  const positions=[[-13,-16.2],[-8,-17.1],[0,-16.8],[8,-17.2],[14,-16.1],[22,-17.5]];
+  for(let i=0;i<positions.length;i++) {
+    const [x,z]=positions[i], look=looks[i%looks.length];
+    const person=new THREE.Group();
+    const torso=box(person,0,.48,0,.34,.62,.2,look.shirt);
+    const vest=box(person,0,.5,.108,.22,.48,.025,look.vest);
+    sphere(person,0,.91,0,.14,'#9c7058',12);
+    for(const side of [-1,1]) {
+      const arm=box(person,side*.23,.48,0,.11,.48,.12,look.shirt);
+      arm.rotation.z=side*.12;
+    }
+    person.position.set(x,.04,z); person.scale.setScalar(i===4?.88:.76);
+    scene.add(person);
+    if(i===2||i===5) {
+      const cameraBody=box(scene,x+.35,.42,z-.1,.22,.14,.12,'#151b23');
+      const lens=cylinder(scene,x+.35,.42,z-.2,.055,.055,.13,'#0b1119',12);
+      if(i===5) { person.position.y=.02; person.rotation.x=.22; }
+    }
   }
 }
 
 function addAdBoard(scene) {
-  const canvas=document.createElement('canvas'); canvas.width=2048; canvas.height=256;
+  const canvas=document.createElement('canvas'); canvas.width=4096; canvas.height=256;
   const ctx=canvas.getContext('2d');
-  const grad=ctx.createLinearGradient(0,0,2048,0);
-  grad.addColorStop(0,'#713b89'); grad.addColorStop(.5,'#d84e9d'); grad.addColorStop(1,'#47246e');
-  ctx.fillStyle=grad; ctx.fillRect(0,0,2048,256);
-  ctx.fillStyle='#ffffff'; ctx.font='900 88px Arial'; ctx.textAlign='center';
-  ctx.fillText('KAZINO LAKAY  •  PENALTY LAKAY',1024,112);
-  ctx.fillStyle='#76f0bd'; ctx.font='800 48px Arial';
-  ctx.fillText('JWE AK PASYON  •  JWE AK RESPÈ',1024,194);
+  const grad=ctx.createLinearGradient(0,0,4096,0);
+  grad.addColorStop(0,'#d4189a'); grad.addColorStop(.5,'#a51aaf'); grad.addColorStop(1,'#7a1fa2');
+  ctx.fillStyle=grad; ctx.fillRect(0,0,4096,256);
+  const drawLogo=(x)=>{
+    ctx.save(); ctx.translate(x,128);
+    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.moveTo(-92,-64); ctx.lineTo(0,-94); ctx.lineTo(92,-64); ctx.lineTo(75,52); ctx.lineTo(0,94); ctx.lineTo(-75,52); ctx.closePath(); ctx.fill();
+    ctx.fillStyle='#8c1a9b'; ctx.font='900 62px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('KL',0,0);
+    ctx.restore();
+  };
+  drawLogo(310); drawLogo(3786);
+  ctx.fillStyle='#ffffff'; ctx.font='900 78px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('KAZINO LAKAY',760,128); ctx.fillText('KAZINO LAKAY',3330,128);
+  ctx.fillStyle='#b6ff3d'; ctx.font='900 104px Arial'; ctx.letterSpacing='12px';
+  ctx.fillText('PENALTY LAKAY',2048,128);
   const tex=new THREE.CanvasTexture(canvas); tex.colorSpace=THREE.SRGBColorSpace;
-  const board=new THREE.Mesh(new THREE.PlaneGeometry(45.32,.9),new THREE.MeshBasicMaterial({map:tex,side:THREE.DoubleSide}));
-  board.position.set(0,.45,-14.5); scene.add(board);
+  const boardMat=new THREE.MeshBasicMaterial({map:tex,side:THREE.DoubleSide,toneMapped:false});
+  const board=new THREE.Mesh(new THREE.PlaneGeometry(70,.95),boardMat);
+  board.position.set(0,.475,-14.5); scene.add(board);
+  // Side returns close the scene edges and carry the same LED artwork.
+  for(const side of [-1,1]) {
+    const ret=new THREE.Mesh(new THREE.PlaneGeometry(5,.95),boardMat);
+    ret.position.set(side*35,.475,-12.0);
+    ret.rotation.y=side*Math.PI/2; scene.add(ret);
+  }
+  // A subtle emissive wash makes the LED strip read brightly without expensive bloom.
+  const glow=new THREE.PointLight(0xd52aa7,7,24); glow.position.set(0,1.1,-13.7); scene.add(glow);
+  return board;
+}
+
+function addStadiumBackdrop(scene) {
+  // Opaque navy wall directly behind the goal net; it prevents the crowd showing through.
+  const wall=new THREE.Mesh(new THREE.PlaneGeometry(70,2.4),
+    new THREE.MeshBasicMaterial({color:0x1b2a8f,side:THREE.DoubleSide,toneMapped:false}));
+  wall.position.set(0,1.2,-12.8); scene.add(wall);
+  const strip=new THREE.Mesh(new THREE.PlaneGeometry(70,.25),
+    new THREE.MeshBasicMaterial({color:0xf5f7ff,side:THREE.DoubleSide,toneMapped:false}));
+  strip.position.set(0,2.525,-12.79); scene.add(strip);
+
+  // Small night-match stewards and photographers occupy the walkway behind the boards.
+  addWalkwayPeople(scene);
+
+  // Stadium roof edge, diagonal steel beams and cool-white floodlights.
+  box(scene,0,14.2,-32,72,.65,2.2,'#090f19');
+  for(let i=0;i<2;i++) {
+    const beam=box(scene,-28+i*13,10.8,-28, .42,18,.55,'#202a36');
+    beam.rotation.z=i===0?-.48:.34;
+  }
+  for(let i=0;i<10;i++) {
+    const x=-29+i*6.45;
+    const bank=box(scene,x,11.6,-29,2.0,.24,.65,'#dce8f4');
+    bank.material.emissive=new THREE.Color('#dce8f4'); bank.material.emissiveIntensity=.9;
+    const light=new THREE.PointLight(0xdceaff,24,42);
+    light.position.set(x,10.9,-27.8); scene.add(light);
+  }
+  // Dark night sky; the scene background is deliberately not brightened.
+  scene.background=new THREE.Color('#050a16');
+  scene.fog=new THREE.Fog('#050a16',55,125);
 }
 
 function makePitchGrassTexture() {
@@ -251,20 +375,10 @@ function addStadium(scene,accent,options={}) {
     new THREE.MeshBasicMaterial({color:'#ffffff',side:THREE.DoubleSide,toneMapped:false,depthWrite:false}));
   spot.rotation.x=-Math.PI/2; spot.position.set(0,.012,spotZ); scene.add(spot);
 
-  // Advertising strip is 0.9 m high and 3.5 m behind the goal line.
+  // Stadium background layers: opaque goal backdrop, LED boards, walkway, stands and roof.
+  addStadiumBackdrop(scene);
   addAdBoard(scene);
-  addCrowd(scene,accent);
-  for(const side of [-1,1]) {
-    const roof=box(scene,side*23,7,-18,.35,.35,20,'#26364b');
-    roof.rotation.z=side*.06;
-    for(let i=0;i<8;i++) {
-      const x=side*(12+i*1.45);
-      const lamp=box(scene,x,6.3,-17,.72,.18,.34,'#fff2c5');
-      lamp.material.emissive=new THREE.Color('#fff0bd'); lamp.material.emissiveIntensity=.8;
-      const light=new THREE.PointLight(0xffedc2,18,22);
-      light.position.set(x,6.2,-16.8); scene.add(light);
-    }
-  }
+  addCrowd(scene);
 
   // Regulation goal: 7.32 m clear inside width, 2.44 m clear height, 0.12 m frame.
   const goalW=GOAL.width, goalH=GOAL.height, goalZ=GOAL.lineZ, depth=GOAL.depth;
@@ -299,11 +413,8 @@ function addStadium(scene,accent,options={}) {
     line([new THREE.Vector3(side*goalW/2,goalH,goalZ),new THREE.Vector3(side*goalW/2,backHeight,backZ)]);
     line([new THREE.Vector3(side*goalW/2,0,goalZ),new THREE.Vector3(side*goalW/2,backHeight,backZ)]);
   }
-  const netBackdrop=new THREE.Mesh(
-    new THREE.PlaneGeometry(goalW,goalH),
-    new THREE.MeshBasicMaterial({color:'#071b2b',transparent:true,opacity:.72,side:THREE.DoubleSide,depthWrite:false})
-  );
-  netBackdrop.position.set(0,goalH/2,backZ+.015); scene.add(netBackdrop);
+  // The opaque stadium navy wall behind the net is created by addStadiumBackdrop().
+  // Keep the wall behind the net, never transparent over the spectators.
 
   // Players are positioned exactly as specified; each visual is fitted to real height.
   const keeper=addFootballer(scene,0,goalLineZ,'#2772c8',true,options.keeperName||'ANGELO PERUZZI',1,'#18253a',1.90);
