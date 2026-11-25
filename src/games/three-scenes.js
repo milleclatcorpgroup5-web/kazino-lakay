@@ -104,40 +104,132 @@ function addAdBoard(scene) {
   board.position.set(0,1.1,-5.65); scene.add(board);
 }
 function makePitchGrassTexture() {
-  const canvas=document.createElement('canvas'); canvas.width=512; canvas.height=512;
-  const ctx=canvas.getContext('2d'); ctx.fillStyle='#176b38'; ctx.fillRect(0,0,512,512);
-  for(let i=0;i<14;i++){ctx.fillStyle=i%2?'rgba(104,177,87,.12)':'rgba(3,45,20,.10)';ctx.fillRect(0,i*512/14,512,512/14);}
-  let seed=90210; const rand=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};
-  for(let i=0;i<18000;i++){const x=rand()*512,y=rand()*512;ctx.strokeStyle=rand()>.5?'rgba(145,194,104,.22)':'rgba(3,39,18,.2)';ctx.lineWidth=.5+rand();ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+(rand()-.5)*3,y-2-rand()*5);ctx.stroke();}
-  const tex=new THREE.CanvasTexture(canvas); tex.colorSpace=THREE.SRGBColorSpace; tex.wrapS=tex.wrapT=THREE.RepeatWrapping; tex.repeat.set(2,2); tex.anisotropy=4; return tex;
+  // Deterministic, texture-only turf detail: no external image or network request.
+  const size=1024;
+  const canvas=document.createElement('canvas'); canvas.width=size; canvas.height=size;
+  const ctx=canvas.getContext('2d');
+  ctx.fillStyle='#1b713d'; ctx.fillRect(0,0,size,size);
+
+  // Broad alternating mowing lanes run lengthwise down the pitch.
+  const lanes=14, laneWidth=size/lanes;
+  for(let i=0;i<lanes;i++) {
+    ctx.fillStyle=i%2?'rgba(115,190,105,.105)':'rgba(3,42,20,.075)';
+    ctx.fillRect(i*laneWidth,0,laneWidth+1,size);
+  }
+
+  // Fine grass fibres and natural colour variation use a seeded generator,
+  // keeping every render visually consistent without a downloaded texture.
+  let seed=90210;
+  const rand=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};
+  for(let i=0;i<36000;i++) {
+    const x=rand()*size, y=rand()*size, light=rand()>.52;
+    ctx.strokeStyle=light?'rgba(174,211,133,.20)':'rgba(2,38,17,.24)';
+    ctx.lineWidth=.45+rand()*.8;
+    ctx.beginPath();
+    ctx.moveTo(x,y);
+    ctx.lineTo(x+(rand()-.5)*2.8,y-2-rand()*6);
+    ctx.stroke();
+  }
+  for(let i=0;i<5200;i++) {
+    const x=rand()*size, y=rand()*size;
+    ctx.fillStyle=rand()>.5?'rgba(197,219,143,.13)':'rgba(0,31,13,.14)';
+    ctx.fillRect(x,y,1+rand()*2,1+rand()*2);
+  }
+
+  const tex=new THREE.CanvasTexture(canvas);
+  tex.colorSpace=THREE.SRGBColorSpace;
+  tex.wrapS=tex.wrapT=THREE.RepeatWrapping;
+  tex.repeat.set(1.35,1.2);
+  tex.anisotropy=Math.min(8,rendererAnisotropyLimit());
+  tex.generateMipmaps=true;
+  tex.minFilter=THREE.LinearMipmapLinearFilter;
+  tex.magFilter=THREE.LinearFilter;
+  return tex;
+}
+function rendererAnisotropyLimit() {
+  // Textures can be created before the WebGL renderer is available to this helper.
+  // A conservative cap works across mobile GPUs and desktop browsers.
+  return 4;
 }
 function addStadium(scene,accent,options={}) {
   const team=options.team||{};
   const shirt=team.primary||'#d52d45', shorts=team.secondary||'#143b7b';
-  // Full pitch surface with procedural grass-blade texture and mowing bands.
-  const pitch=new THREE.Mesh(new THREE.PlaneGeometry(15,13),new THREE.MeshStandardMaterial({map:makePitchGrassTexture(),roughness:.96,metalness:0})); pitch.rotation.x=-Math.PI/2; pitch.position.y=-.165; pitch.receiveShadow=true; scene.add(pitch);
+  // Pitch-only phase: detailed turf and complete, symmetric football markings.
+  const pitch=new THREE.Mesh(
+    new THREE.PlaneGeometry(15,13),
+    new THREE.MeshStandardMaterial({map:makePitchGrassTexture(),roughness:.96,metalness:0})
+  );
+  pitch.rotation.x=-Math.PI/2; pitch.position.y=-.165; pitch.receiveShadow=true; scene.add(pitch);
   box(scene,0,-.34,0,15,.32,13,'#14552f');
-  for(let i=0;i<14;i++) box(scene,-6.95+i*1.07,-.158,0,1.04,.006,12.7,i%2?'#197441':'#21824a');
-  // Penalty box, six-yard box, goal line and spot.
-  box(scene,0,-.145,-5.1,15,.014,.025,'#f5f8ed');
-  for(const [w,z,d] of [[7.4,-3.35,3.5],[3.5,-4.2,1.65]]) {
-    box(scene,-w/2,-.135,z,w,.018,.025,'#f5f8ed');
-    box(scene,w/2,-.135,z,.025,.018,d,'#f5f8ed');
-    box(scene,0,-.135,z-d/2,w,.018,.025,'#f5f8ed');
-  }
-  sphere(scene,0,-.105,-2.2,.065,'#ffffff',16);
-  // Midfield markings and centre circle complete the full-size pitch composition.
-  box(scene,0,-.132,0,15,.014,.025,'#f5f8ed');
-  const centreRing=new THREE.Mesh(new THREE.RingGeometry(1.08,1.12,64),new THREE.MeshBasicMaterial({color:'#f5f8ed',side:THREE.DoubleSide}));
-  centreRing.rotation.x=-Math.PI/2; centreRing.position.set(0,-.125,0); scene.add(centreRing);
-  sphere(scene,0,-.105,0,.045,'#f5f8ed',12);
-  // Penalty arc (D) and corner arcs.
-  const arcCurve=new THREE.EllipseCurve(0,0,1.72,1.72,Math.PI*.08,Math.PI*.92,false,0);
-  const arcPoints=arcCurve.getPoints(48).map(p=>new THREE.Vector3(p.x,-.126,-2.2+p.y));
-  scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(arcPoints),new THREE.LineBasicMaterial({color:'#f5f8ed'})));
-  for(const cx of [-7.15,7.15]) for(const cz of [-6.05,6.05]) {
-    const pts=[]; for(let i=0;i<=12;i++){const a=(i/12)*Math.PI/2;pts.push(new THREE.Vector3(cx+Math.cos(a)*.38,-.125,cz+Math.sin(a)*.38));}
-    scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:'#f5f8ed'})));
+
+  const lineY=-.135, lineColor='#f1f4eb';
+  const left=-7.25, right=7.25, farGoalLine=-5.1, nearGoalLine=6.25;
+  const centreZ=(farGoalLine+nearGoalLine)/2;
+  const paintX=(x1,x2,z,thickness=.026)=>box(scene,(x1+x2)/2,lineY,z,x2-x1,.018,thickness,lineColor);
+  const paintZ=(x,z1,z2,thickness=.026)=>box(scene,x,lineY,(z1+z2)/2,thickness,.018,Math.abs(z2-z1),lineColor);
+  const addArc=(spotZ,direction)=>{
+    const points=[];
+    for(let i=0;i<=48;i++){
+      const angle=Math.PI*.08+(Math.PI*.84*i/48);
+      points.push(new THREE.Vector3(Math.cos(angle)*1.72,-.126,spotZ+direction*Math.sin(angle)*1.72));
+    }
+    scene.add(new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints(points),
+      new THREE.LineBasicMaterial({color:lineColor})
+    ));
+  };
+
+  // Outer touchlines and both goal lines make the playable rectangle legible.
+  paintX(left,right,farGoalLine);
+  paintX(left,right,nearGoalLine);
+  paintZ(left,farGoalLine,nearGoalLine);
+  paintZ(right,farGoalLine,nearGoalLine);
+
+  // Halfway line, centre circle and centre mark.
+  paintX(left,right,centreZ);
+  const centreRing=new THREE.Mesh(
+    new THREE.RingGeometry(1.08,1.115,72),
+    new THREE.MeshBasicMaterial({color:lineColor,side:THREE.DoubleSide})
+  );
+  centreRing.rotation.x=-Math.PI/2;
+  centreRing.position.set(0,-.125,centreZ);
+  scene.add(centreRing);
+  sphere(scene,0,-.105,centreZ,.045,lineColor,12);
+
+  // Matching penalty areas, six-yard boxes, penalty spots and D-arcs at both ends.
+  const addPenaltyEnd=(goalZ,direction)=>{
+    const penaltyWidth=7.4, penaltyDepth=3.5, sixWidth=3.5, sixDepth=1.65;
+    const penaltyFront=goalZ+direction*penaltyDepth;
+    const sixFront=goalZ+direction*sixDepth;
+    paintX(-penaltyWidth/2,penaltyWidth/2,penaltyFront);
+    paintZ(-penaltyWidth/2,goalZ,penaltyFront);
+    paintZ(penaltyWidth/2,goalZ,penaltyFront);
+    paintX(-sixWidth/2,sixWidth/2,sixFront);
+    paintZ(-sixWidth/2,goalZ,sixFront);
+    paintZ(sixWidth/2,goalZ,sixFront);
+    const spotZ=goalZ+direction*2.9;
+    sphere(scene,0,-.105,spotZ,.065,'#ffffff',16);
+    addArc(spotZ,direction);
+  };
+  addPenaltyEnd(farGoalLine,1);
+  addPenaltyEnd(nearGoalLine,-1);
+
+  // Four accurately oriented corner arcs, each drawn into the field.
+  for(const xSide of [-1,1]) for(const zSide of [-1,1]) {
+    const cx=xSide<0?left:right, cz=zSide<0?farGoalLine:nearGoalLine;
+    const points=[];
+    for(let i=0;i<=16;i++) {
+      const angle=(Math.PI*.5*i)/16;
+      points.push(new THREE.Vector3(
+        cx-xSide*Math.cos(angle)*.38,
+        -.126,
+        cz-zSide*Math.sin(angle)*.38
+      ));
+    }
+    scene.add(new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints(points),
+      new THREE.LineBasicMaterial({color:lineColor})
+    ));
   }
   // Stadium bowl, distant stands and roof.
   for(const side of [-1,1]) {
