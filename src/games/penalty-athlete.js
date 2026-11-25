@@ -201,8 +201,8 @@ export function animatePenaltyAthlete(actor,time,{run=0,runPhase=0,kick=0,follow
   // Opposing arm swing during the approach; arms open and reach during a keeper dive.
   u.armL.shoulder.rotation.x=-runWave*.52-run*.02+kick*.12-follow*.08;
   u.armR.shoulder.rotation.x=-runCounter*.52+run*.02-kick*.12+follow*.08;
-  u.armL.shoulder.rotation.z=-.07+run*.12+dive*(-.48-side*.18);
-  u.armR.shoulder.rotation.z=.07-run*.12+dive*(.48-side*.18);
+  u.armL.shoulder.rotation.z=(u.keeper?-.16:-.07)+run*.12+dive*(-.48-side*.18);
+  u.armR.shoulder.rotation.z=(u.keeper?.16:.07)-run*.12+dive*(.48-side*.18);
   u.armL.elbow.rotation.x=-.58*run-dive*.22+(u.keeper?idle*-.18:0);
   u.armR.elbow.rotation.x=-.58*run-dive*.22+(u.keeper?idle*-.18:0);
   u.armL.wrist.rotation.x=-kick*.12;
