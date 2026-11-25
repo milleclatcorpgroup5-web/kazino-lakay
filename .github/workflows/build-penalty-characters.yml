@@ -1,0 +1,64 @@
+name: Build realistic Penalty Lakay GLB characters
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "characters/penalty-shooter.json"
+      - "characters/penalty-keeper.json"
+      - ".github/workflows/build-penalty-characters.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: penalty-character-assets
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Generate rigged striker GLB
+        run: |
+          npx --yes ara3d@0.9.0 export --params characters/penalty-shooter.json --detail medium --animations idle,walk,run,shoot_football,siu_celebration --out /tmp/penalty-shooter
+          mkdir -p public/models
+          MODEL="$(find /tmp/penalty-shooter -type f -name '*.glb' -print -quit)"
+          test -n "$MODEL"
+          cp "$MODEL" public/models/penalty-shooter.glb
+          test -s public/models/penalty-shooter.glb
+
+      - name: Generate rigged goalkeeper GLB
+        run: |
+          npx --yes ara3d@0.9.0 export --params characters/penalty-keeper.json --detail medium --animations idle,walk,run,goalkeeper_ready,goalkeeper_catch,goalkeeper_dive_left,goalkeeper_dive_right,goalkeeper_low_dive_left,goalkeeper_low_dive_right --out /tmp/penalty-keeper
+          MODEL="$(find /tmp/penalty-keeper -type f -name '*.glb' -print -quit)"
+          test -n "$MODEL"
+          cp "$MODEL" public/models/penalty-keeper.glb
+          test -s public/models/penalty-keeper.glb
+
+      - name: Report model sizes
+        run: |
+          ls -lh public/models/penalty-*.glb
+          node -e "const fs=require('fs'); for (const f of ['public/models/penalty-shooter.glb','public/models/penalty-keeper.glb']) { const mb=fs.statSync(f).size/1048576; console.log(f, mb.toFixed(2)+' MB'); if (mb>3) console.warn('NOTICE: exceeds 3 MB mobile target'); }"
+
+      - name: Commit generated GLB assets
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/models/penalty-shooter.glb public/models/penalty-keeper.glb
+          if git diff --cached --quiet; then
+            echo "Generated models are unchanged."
+            exit 0
+          fi
+          git commit -m "chore: generate realistic penalty player GLBs"
+          git push
