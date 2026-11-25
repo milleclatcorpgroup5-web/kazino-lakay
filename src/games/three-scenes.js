@@ -77,9 +77,9 @@ function addCrowd(scene) {
   const headGeo=new THREE.SphereGeometry(.075,8,6);
   const armGeo=new THREE.CapsuleGeometry(.035,.22,2,6);
   const batches=palette.map(color=>({
-    body:new THREE.InstancedMesh(bodyGeo,material(color,.96,.0),240),
-    head:new THREE.InstancedMesh(headGeo,material(color,.9,.0),240),
-    arms:new THREE.InstancedMesh(armGeo,material(color,.96,.0),480)
+    body:new THREE.InstancedMesh(bodyGeo,material(color,.96,.0),400),
+    head:new THREE.InstancedMesh(headGeo,material(color,.9,.0),400),
+    arms:new THREE.InstancedMesh(armGeo,material(color,.96,.0),800)
   }));
   for(const batch of batches) for(const mesh of Object.values(batch)) {
     mesh.count=0; mesh.castShadow=false; mesh.receiveShadow=false;
@@ -166,7 +166,7 @@ function addWalkwayPeople(scene) {
       const arm=box(person,side*.23,.48,0,.11,.48,.12,look.shirt);
       arm.rotation.z=side*.12;
     }
-    person.position.set(x,.04,z); person.scale.setScalar(i===4?.88:.76);
+    person.position.set(x,.04,z); person.scale.setScalar(i===5?.92:1.45);
     scene.add(person);
     if(i===2||i===5) {
       const cameraBody=box(scene,x+.35,.42,z-.1,.22,.14,.12,'#151b23');
@@ -212,10 +212,11 @@ function addStadiumBackdrop(scene) {
   // Opaque navy wall directly behind the goal net; it prevents the crowd showing through.
   const wall=new THREE.Mesh(new THREE.PlaneGeometry(70,2.4),
     new THREE.MeshBasicMaterial({color:0x1b2a8f,side:THREE.DoubleSide,toneMapped:false}));
-  wall.position.set(0,1.2,-12.8); scene.add(wall);
+  // Start the blue wall just above the LED board so both layers remain visible.
+  wall.position.set(0,2.15,-12.84); scene.add(wall);
   const strip=new THREE.Mesh(new THREE.PlaneGeometry(70,.25),
     new THREE.MeshBasicMaterial({color:0xf5f7ff,side:THREE.DoubleSide,toneMapped:false}));
-  strip.position.set(0,2.525,-12.79); scene.add(strip);
+  strip.position.set(0,3.475,-12.83); scene.add(strip);
 
   // Small night-match stewards and photographers occupy the walkway behind the boards.
   addWalkwayPeople(scene);
