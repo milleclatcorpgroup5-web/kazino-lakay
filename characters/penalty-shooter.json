@@ -1,0 +1,60 @@
+{
+  "$schema": "https://ara3dgen.com/schemas/character.v1.json",
+  "kind": "ara-character",
+  "version": 1,
+  "preset": "The Footballer",
+  "params": {
+    "name": "Penalty Lakay — Messi reference striker",
+    "seed": 10010,
+    "gender": 1,
+    "ageYears": 37,
+    "muscle": 0.72,
+    "weight": 0.36,
+    "height": 0.52,
+    "proportions": 0.72,
+    "african": 0,
+    "asian": 0,
+    "caucasian": 1,
+    "skin": "young_caucasian_male",
+    "skinTint": "#f1e7dc",
+    "eyes": "darkbrown",
+    "hair": "short02",
+    "hairColor": "#2b1d14",
+    "facialHair": "stubble",
+    "beardColor": "#49372d",
+    "outfit": "none",
+    "top": "football_shirt",
+    "bottom": "cargo_shorts",
+    "shoes": "shoes03",
+    "accessories": [
+      "sport_socks"
+    ],
+    "garmentStyles": {
+      "football_shirt": {
+        "pattern": "solid",
+        "color": "#b3122c",
+        "color2": "#8f0f23",
+        "number": 10
+      },
+      "cargo_shorts": {
+        "pattern": "solid",
+        "color": "#b3122c"
+      },
+      "sport_socks": {
+        "pattern": "solid",
+        "color": "#b3122c"
+      },
+      "shoes03": {
+        "pattern": "solid",
+        "color": "#19d3e6"
+      }
+    },
+    "detail": "medium",
+    "rig": "game",
+    "faceBones": true,
+    "restPose": "T",
+    "animations": true,
+    "expression": "neutral",
+    "faceShapes": true
+  }
+}

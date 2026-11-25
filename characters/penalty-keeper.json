@@ -1,0 +1,64 @@
+{
+  "$schema": "https://ara3dgen.com/schemas/character.v1.json",
+  "kind": "ara-character",
+  "version": 1,
+  "preset": "The Footballer",
+  "params": {
+    "name": "Penalty Lakay — Angelo Peruzzi reference goalkeeper",
+    "seed": 10001,
+    "gender": 1,
+    "ageYears": 36,
+    "muscle": 0.76,
+    "weight": 0.48,
+    "height": 0.56,
+    "proportions": 0.66,
+    "african": 0,
+    "asian": 0,
+    "caucasian": 1,
+    "skin": "middleage_caucasian_male",
+    "skinTint": "#eadbcd",
+    "eyes": "darkbrown",
+    "hair": "short03",
+    "hairColor": "#241810",
+    "facialHair": "stubble",
+    "beardColor": "#49372d",
+    "outfit": "none",
+    "top": "uniform_shirt_long",
+    "bottom": "cargo_shorts",
+    "shoes": "shoes03",
+    "accessories": [
+      "keeper_gloves",
+      "sport_socks"
+    ],
+    "garmentStyles": {
+      "uniform_shirt_long": {
+        "pattern": "solid",
+        "color": "#2a63cf",
+        "color2": "#1b46a0"
+      },
+      "cargo_shorts": {
+        "pattern": "solid",
+        "color": "#1b46a0"
+      },
+      "sport_socks": {
+        "pattern": "solid",
+        "color": "#2a63cf"
+      },
+      "shoes03": {
+        "pattern": "solid",
+        "color": "#15181d"
+      },
+      "keeper_gloves": {
+        "pattern": "solid",
+        "color": "#e8e8e8"
+      }
+    },
+    "detail": "medium",
+    "rig": "game",
+    "faceBones": true,
+    "restPose": "T",
+    "animations": true,
+    "expression": "determined",
+    "faceShapes": true
+  }
+}
