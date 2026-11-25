@@ -203,8 +203,7 @@ function addAdBoard(scene) {
     ret.position.set(side*35,.475,-12.0);
     ret.rotation.y=side*Math.PI/2; scene.add(ret);
   }
-  // A subtle emissive wash makes the LED strip read brightly without expensive bloom.
-  const glow=new THREE.PointLight(0xd52aa7,7,24); glow.position.set(0,1.1,-13.7); scene.add(glow);
+  // No magenta point light: it previously created an unwanted pink pool on the pitch.
   return board;
 }
 
@@ -366,17 +365,17 @@ function addStadium(scene,accent,options={}) {
   const PENALTY={width:40.32,depth:16.5,sixWidth:18.32,sixDepth:5.5,arcRadius:9.15};
   const BALL={radius:.11,position:[0,.11,0]};
   const goalLineZ=GOAL.lineZ, spotZ=0;
-  const pitchWidth=PENALTY.width+5;
-  const cropNearZ=9.5, cropDepth=cropNearZ-goalLineZ, pitchCenterZ=(cropNearZ+goalLineZ)/2;
+  const pitchWidth=80;
+  const cropNearZ=9.5, pitchDepth=60, pitchCenterZ=(cropNearZ+goalLineZ)/2;
 
   const pitch=new THREE.Mesh(
-    new THREE.PlaneGeometry(pitchWidth,cropDepth),
+    new THREE.PlaneGeometry(pitchWidth,pitchDepth),
     new THREE.MeshStandardMaterial({map:makePitchGrassTexture(),roughness:.96,metalness:0})
   );
   pitch.rotation.x=-Math.PI/2;
   pitch.position.set(0,0,pitchCenterZ);
   pitch.receiveShadow=true; scene.add(pitch);
-  box(scene,0,-.16,pitchCenterZ,pitchWidth,.32,cropDepth,'#14552f');
+  box(scene,0,-.16,pitchCenterZ,pitchWidth,.32,pitchDepth,'#14552f');
 
   const lineColor='#f1f4eb';
   const markingMat=new THREE.MeshBasicMaterial({color:'#ffffff',toneMapped:false,depthWrite:false});
@@ -435,27 +434,65 @@ function addStadium(scene,accent,options={}) {
   addGoalTube(goalH, postX, goalH/2, goalZ);
   addGoalTube(goalW, 0, crossbarY, goalZ, true);
 
-  // Net has 1.8 m depth and slopes down from the crossbar to its rear floor.
+  // Entire net volume stays behind the goal line. No strands extend onto the pitch.
+  // The back mesh is at z=-12.8; side and roof meshes connect the posts to that plane.
   const backZ=goalZ-depth, backHeight=.42;
-  const netMat=new THREE.LineBasicMaterial({color:'#eaf2f5',transparent:true,opacity:.88});
-  const line=(points)=>scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points),netMat));
-  for(let i=0;i<=30;i++) {
-    const x=-goalW/2+(goalW*i/30);
-    line([new THREE.Vector3(x,goalH,goalZ),new THREE.Vector3(x,backHeight,backZ)]);
-    line([new THREE.Vector3(x,0,goalZ),new THREE.Vector3(x,backHeight,backZ)]);
+  const netPositions=[];
+  const addNetSegment=(a,b)=>netPositions.push(a.x,a.y,a.z,b.x,b.y,b.z);
+  const backPoint=(x,y)=>new THREE.Vector3(x,y,backZ);
+  const sidePoint=(side,t,y)=>new THREE.Vector3(side*goalW/2,y,goalZ-depth*t);
+  const topPoint=(x,t)=>new THREE.Vector3(x,goalH+(backHeight-goalH)*t,goalZ-depth*t);
+
+  // Back net: 12 cm nominal cell spacing.
+  const backCols=Math.ceil(goalW/.12), backRows=Math.ceil(goalH/.12);
+  for(let col=0;col<=backCols;col++) {
+    const x=-goalW/2+goalW*col/backCols;
+    addNetSegment(backPoint(x,0),backPoint(x,backHeight));
   }
-  for(let y=.25;y<goalH;y+=.22) {
-    const t=y/goalH;
-    const backY=backHeight+(goalH-backHeight)*t;
-    line([new THREE.Vector3(-goalW/2,y,goalZ),new THREE.Vector3(goalW/2,y,goalZ)]);
-    line([new THREE.Vector3(-goalW/2,backY,backZ),new THREE.Vector3(goalW/2,backY,backZ)]);
+  for(let row=0;row<=backRows;row++) {
+    const y=backHeight*row/backRows;
+    addNetSegment(backPoint(-goalW/2,y),backPoint(goalW/2,y));
   }
+
+  // Side nets: vertical and depthwise strands, all constrained to z <= goal line.
+  const sideDepthSteps=Math.ceil(depth/.12);
+  const sideHeightSteps=Math.ceil(goalH/.12);
   for(const side of [-1,1]) {
-    line([new THREE.Vector3(side*goalW/2,goalH,goalZ),new THREE.Vector3(side*goalW/2,backHeight,backZ)]);
-    line([new THREE.Vector3(side*goalW/2,0,goalZ),new THREE.Vector3(side*goalW/2,backHeight,backZ)]);
+    for(let col=0;col<=sideDepthSteps;col++) {
+      const t=col/sideDepthSteps;
+      const topY=goalH+(backHeight-goalH)*t;
+      addNetSegment(sidePoint(side,t,0),sidePoint(side,t,topY));
+    }
+    for(let row=0;row<=sideHeightSteps;row++) {
+      const v=row/sideHeightSteps;
+      const a=sidePoint(side,0,goalH*v);
+      const b=sidePoint(side,1,backHeight*v);
+      addNetSegment(a,b);
+    }
   }
-  // The opaque stadium navy wall behind the net is created by addStadiumBackdrop().
-  // Keep the wall behind the net, never transparent over the spectators.
+
+  // Roof net slopes from the crossbar to the rear top edge.
+  const roofDepthSteps=Math.ceil(depth/.12);
+  const roofWidthSteps=Math.ceil(goalW/.12);
+  for(let col=0;col<=roofWidthSteps;col++) {
+    const x=-goalW/2+goalW*col/roofWidthSteps;
+    addNetSegment(topPoint(x,0),topPoint(x,1));
+  }
+  for(let row=0;row<=roofDepthSteps;row++) {
+    const t=row/roofDepthSteps;
+    addNetSegment(topPoint(-goalW/2,t),topPoint(goalW/2,t));
+  }
+
+  const netGeometry=new THREE.BufferGeometry();
+  netGeometry.setAttribute('position',new THREE.Float32BufferAttribute(netPositions,3));
+  const netMat=new THREE.LineBasicMaterial({
+    color:'#eaf2f5',transparent:true,opacity:.60,depthWrite:false
+  });
+  const net=new THREE.LineSegments(netGeometry,netMat);
+  net.renderOrder=5;
+  net.frustumCulled=false;
+  scene.add(net);
+  // Backdrop and LED board are added before this net so all net strands remain behind the goal.
 
   // Players are positioned exactly as specified; each visual is fitted to real height.
   const keeper=addFootballer(scene,0,goalLineZ,'#2772c8',true,options.keeperName||'ANGELO PERUZZI',1,'#18253a',1.90);
@@ -622,7 +659,7 @@ export function mountGame3D(container, gameId, options={}) {
     renderer.domElement.className='three-scene-canvas';renderer.domElement.setAttribute('aria-hidden','true');
     container.appendChild(renderer.domElement);
     addLights(scene,accent);
-    const floor= new THREE.Mesh(new THREE.PlaneGeometry(gameId==='penalty'?70:22,gameId==='penalty'?70:22),material(bg,.92,0));floor.rotation.x=-Math.PI/2;floor.position.y=gameId==='penalty'?-.22:-.42;floor.receiveShadow=true;scene.add(floor);
+    const floor= new THREE.Mesh(new THREE.PlaneGeometry(gameId==='penalty'?80:22,gameId==='penalty'?60:22),material(bg,.92,0));floor.rotation.x=-Math.PI/2;floor.position.y=gameId==='penalty'?-.22:-.42;floor.receiveShadow=true;scene.add(floor);
     const stage=buildScene(scene,gameId,accent,secondary,options);
     const ring=gameId==='penalty'?null:torus(scene,0,-.29,0,4.1,.025,accent);if(ring){ring.material.transparent=true;ring.material.opacity=.45;}
     const labelGroup=new THREE.Group();scene.add(labelGroup);
