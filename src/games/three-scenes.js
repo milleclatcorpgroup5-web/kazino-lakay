@@ -200,7 +200,6 @@ function addStadium(scene,accent,options={}) {
   const GOAL={width:7.32,height:2.44,depth:1.8,lineZ:-11,post:0.12};
   const PENALTY={width:40.32,depth:16.5,sixWidth:18.32,sixDepth:5.5,arcRadius:9.15};
   const BALL={radius:.11,position:[0,.11,0]};
-  const ADS={height:.9,z:-14.5};
   const goalLineZ=GOAL.lineZ, spotZ=0;
   const pitchWidth=PENALTY.width+5;
   const cropNearZ=9.5, cropDepth=cropNearZ-goalLineZ, pitchCenterZ=(cropNearZ+goalLineZ)/2;
