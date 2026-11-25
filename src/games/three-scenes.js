@@ -154,102 +154,74 @@ function rendererAnisotropyLimit() {
 function addStadium(scene,accent,options={}) {
   const team=options.team||{};
   const shirt=team.primary||'#d52d45', shorts=team.secondary||'#143b7b';
-  // Pitch dimensions use a consistent FIFA scale: 1 world unit = 1/1.866 m.
-  // A regulation 105 x 68 m pitch therefore measures 56.27 x 36.27 world units.
-  // The 7.32 m goal remains 3.92 units wide at this same scale.
+  // Penalty-only field crop. Keep FIFA dimensions exact while showing only
+  // the goal, penalty area, six-yard box, penalty spot and D-arc.
+  // Scale: 1 world unit = 56/105 metres; goal width remains 7.32 m.
   const pitchScale = 56 / 105;
-  const pitchLength = 56;
-  const pitchWidth = 68 * pitchScale;
   const farGoalLine = -4.9;
-  const nearGoalLine = farGoalLine + pitchLength;
-  const left = -pitchWidth / 2;
-  const right = pitchWidth / 2;
-  const pitchCentreZ = (farGoalLine + nearGoalLine) / 2;
+  const penaltyWidth = 40.32 * pitchScale;
+  const sixWidth = 18.32 * pitchScale;
+  const penaltyDepth = 16.5 * pitchScale;
+  const sixDepth = 5.5 * pitchScale;
+  const spotDistance = 11 * pitchScale;
+  const arcRadius = 9.15 * pitchScale;
+  const sideMargin = 2.5 * pitchScale;
+  const pitchWidth = penaltyWidth + sideMargin * 2;
+  const cropDepth = 20.5 * pitchScale;
+  const nearCropEdge = farGoalLine + cropDepth;
 
-  const pitch=new THREE.Mesh(
-    new THREE.PlaneGeometry(pitchWidth,pitchLength),
+  const pitch = new THREE.Mesh(
+    new THREE.PlaneGeometry(pitchWidth, cropDepth),
     new THREE.MeshStandardMaterial({map:makePitchGrassTexture(),roughness:.96,metalness:0})
   );
-  pitch.rotation.x=-Math.PI/2;
-  pitch.position.set(0,-.165,pitchCentreZ);
-  pitch.receiveShadow=true;
+  pitch.rotation.x = -Math.PI/2;
+  pitch.position.set(0,-.165,(farGoalLine+nearCropEdge)/2);
+  pitch.receiveShadow = true;
   scene.add(pitch);
-  box(scene,0,-.34,pitchCentreZ,pitchWidth,.32,pitchLength,'#14552f');
+  box(scene,0,-.34,(farGoalLine+nearCropEdge)/2,pitchWidth,.32,cropDepth,'#14552f');
 
   const lineY=-.135, lineColor='#f1f4eb';
   const paintX=(x1,x2,z,thickness=.026)=>box(scene,(x1+x2)/2,lineY,z,x2-x1,.018,thickness,lineColor);
   const paintZ=(x,z1,z2,thickness=.026)=>box(scene,x,lineY,(z1+z2)/2,thickness,.018,Math.abs(z2-z1),lineColor);
-  const addArc=(spotZ,direction)=>{
-    // FIFA penalty arc: radius 9.15 m, only the portion outside the 16.5 m box.
-    const radius=9.15*pitchScale;
-    const boxBeyondSpot=5.5*pitchScale;
-    const halfAngle=Math.acos(boxBeyondSpot/radius);
-    const points=[];
-    for(let i=0;i<=64;i++){
-      const angle=-halfAngle+(2*halfAngle*i/64);
-      points.push(new THREE.Vector3(
-        Math.sin(angle)*radius,
-        -.126,
-        spotZ+direction*Math.cos(angle)*radius
-      ));
-    }
-    scene.add(new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints(points),
-      new THREE.LineBasicMaterial({color:lineColor})
-    ));
-  };
 
-  // Regulation touchlines and goal lines: 105 x 68 metres.
-  paintX(left,right,farGoalLine);
-  paintX(left,right,nearGoalLine);
-  paintZ(left,farGoalLine,nearGoalLine);
-  paintZ(right,farGoalLine,nearGoalLine);
+  // Only the visible goal-end markings are drawn; there is no full-pitch
+  // boundary, halfway line, centre circle, far penalty area or corner arc.
+  paintX(-pitchWidth/2,pitchWidth/2,farGoalLine,.035);
 
-  // The halfway line and centre circle are intentionally omitted in this
-  // close penalty-camera composition; the field boundary remains full-size.
+  const areaEndZ=farGoalLine+penaltyDepth;
+  const sixEndZ=farGoalLine+sixDepth;
+  const spotZ=farGoalLine+spotDistance;
+  paintX(-penaltyWidth/2,penaltyWidth/2,areaEndZ,.035);
+  paintZ(-penaltyWidth/2,farGoalLine,areaEndZ,.035);
+  paintZ(penaltyWidth/2,farGoalLine,areaEndZ,.035);
+  paintX(-sixWidth/2,sixWidth/2,sixEndZ,.03);
+  paintZ(-sixWidth/2,farGoalLine,sixEndZ,.03);
+  paintZ(sixWidth/2,farGoalLine,sixEndZ,.03);
 
-  // FIFA penalty-area dimensions, converted with the same world scale.
-  const penaltyWidth=40.32*pitchScale;
-  const sixWidth=18.32*pitchScale;
-  const penaltyDepth=16.5*pitchScale;
-  const sixDepth=5.5*pitchScale;
-  const spotDistance=11*pitchScale;
-  const addPenaltyEnd=(goalZ,direction)=>{
-    const areaEndZ=goalZ+(direction*penaltyDepth);
-    const sixYardEndZ=goalZ+(direction*sixDepth);
-    const spotZ=goalZ+(direction*spotDistance);
-    paintX(-penaltyWidth/2,penaltyWidth/2,areaEndZ);
-    paintZ(-penaltyWidth/2,goalZ,areaEndZ);
-    paintZ(penaltyWidth/2,goalZ,areaEndZ);
-    paintX(-sixWidth/2,sixWidth/2,sixYardEndZ);
-    paintZ(-sixWidth/2,goalZ,sixYardEndZ);
-    paintZ(sixWidth/2,goalZ,sixYardEndZ);
-    // The white spot is the exact 11 m mark; the ball will be aligned to it
-    // in the separate ball-position phase.
-    sphere(scene,0,-.105,spotZ,.065,'#ffffff',16);
-    addArc(spotZ,direction);
-  };
-  addPenaltyEnd(farGoalLine,1);
-  addPenaltyEnd(nearGoalLine,-1);
-
-  // FIFA corner arcs: 1 m radius, scaled consistently with the pitch.
-  const cornerRadius=1*pitchScale;
-  for(const xSide of [-1,1]) for(const zSide of [-1,1]) {
-    const cx=xSide<0?left:right, cz=zSide<0?farGoalLine:nearGoalLine;
-    const points=[];
-    for(let i=0;i<=20;i++) {
-      const angle=(Math.PI*.5*i)/20;
-      points.push(new THREE.Vector3(
-        cx-xSide*Math.cos(angle)*cornerRadius,
-        -.126,
-        cz-zSide*Math.sin(angle)*cornerRadius
-      ));
-    }
-    scene.add(new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints(points),
-      new THREE.LineBasicMaterial({color:lineColor})
+  // Correct FIFA D-arc: radius 9.15 m, excluding the part inside the box.
+  const arcHalfAngle=Math.acos((5.5*pitchScale)/arcRadius);
+  const arcPoints=[];
+  for(let i=0;i<=72;i++){
+    const angle=-arcHalfAngle+(2*arcHalfAngle*i/72);
+    arcPoints.push(new THREE.Vector3(
+      Math.sin(angle)*arcRadius,
+      -.126,
+      spotZ+Math.cos(angle)*arcRadius
     ));
   }
+  scene.add(new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints(arcPoints),
+    new THREE.LineBasicMaterial({color:lineColor})
+  ));
+
+  // The penalty mark is a small flat inlaid disc, not a raised sphere.
+  const spot=new THREE.Mesh(
+    new THREE.CircleGeometry(.065,32),
+    new THREE.MeshBasicMaterial({color:lineColor,side:THREE.DoubleSide})
+  );
+  spot.rotation.x=-Math.PI/2;
+  spot.position.set(0,-.124,spotZ);
+  scene.add(spot);
   // Stadium bowl, distant stands and roof.
   for(const side of [-1,1]) {
     for(let tier=0;tier<8;tier++) {
