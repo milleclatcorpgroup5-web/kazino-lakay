@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import { animatePenaltyAthlete } from '../src/games/penalty-athlete.js';
+import { getPenaltyRigMode } from '../src/games/penalty-rig.js';
 
+assert.equal(getPenaltyRigMode(), 'idle', 'The skinned player must idle before a shot.');
+assert.equal(getPenaltyRigMode({run:1}), 'run', 'The skinned player must play a run clip during the approach.');
+assert.equal(getPenaltyRigMode({kick:.8}), 'kick', 'The strike must select a one-shot action.');
+assert.equal(getPenaltyRigMode({dive:.9,run:1}), 'dive', 'A goalkeeper dive must take priority over locomotion.');
 const joint=()=>({rotation:{x:0,y:0,z:0}});
 function athlete(keeper=false) {
   return {
