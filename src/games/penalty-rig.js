@@ -12,7 +12,7 @@ let templatePromise = null;
 
 function normalizedClipName(name) {
   return String(name || '')
-    .replace(/^HumanArmature\\|Man_/, '')
+    .replace(/^HumanArmature\|Man_/, '')
     .split('|').pop()
     .replace(/^Man_/, '')
     .replace(/[^a-z0-9]/gi, '')
@@ -136,6 +136,8 @@ export async function attachPenaltyRig(actor, { isActive = () => true } = {}) {
     rig.position.y = -template.fit.minY * template.fit.scale;
     rig.traverse((object) => {
       if (!object.isMesh) return;
+      // Give each player its own disposable geometry while skeleton data stays cloned.
+      if (object.geometry) object.geometry = object.geometry.clone();
       object.castShadow = true;
       object.receiveShadow = true;
       if (object.isSkinnedMesh) object.frustumCulled = false;
