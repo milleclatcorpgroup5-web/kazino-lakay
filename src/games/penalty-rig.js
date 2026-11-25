@@ -184,21 +184,26 @@ export function getPenaltyRigMode({ run = 0, kick = 0, dive = 0 } = {}) {
   return 'idle';
 }
 
-function findClip(clips, mode) {
-  const preferences = {
-    idle: ['idle', 'idleloop'],
-    run: ['run', 'sprint', 'jog', 'walk'],
-    // The CC0 base pack has no dedicated soccer strike or keeper-save clip.
-    // Use its closest one-shots until the football-specific mocap clips arrive.
-    kick: ['socc kick', 'kick', 'punch'],
-    dive: ['goalkeeperdive', 'dive', 'roll', 'jump', 'fall']
-  };
-  const keys = preferences[mode] || [];
-  for (const key of keys) {
-    const exact = clips.get(key.replace(/[^a-z0-9]/gi, '').toLowerCase());
-    if (exact) return exact;
+const RIG_CLIP_PREFERENCES = Object.freeze({
+  idle: ['idle', 'idleloop'],
+  run: ['run', 'sprint', 'jog', 'walk'],
+  // Prefer the actual soccer mocap names when they are added to the rig GLB.
+  // Current Quaternius character only contains general-purpose Punch/Jump clips.
+  kick: ['penaltykick01', 'penaltykick02', 'powerkick', 'sidefootkick', 'kick', 'punch'],
+  dive: ['goalkeepersave01', 'goalkeepersave02', 'goalkeepersave03', 'goalkeeperdive', 'dive', 'roll', 'jump', 'fall']
+});
+
+export function resolvePenaltyRigClip(clips, mode) {
+  if (!(clips instanceof Map)) return null;
+  for (const key of (RIG_CLIP_PREFERENCES[mode] || [])) {
+    const clip = clips.get(key);
+    if (clip) return clip;
   }
   return null;
+}
+
+function findClip(clips, mode) {
+  return resolvePenaltyRigClip(clips, mode);
 }
 
 export function updatePenaltyRigAnimation(actor, delta, pose = {}) {
