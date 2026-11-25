@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { createPenaltyAthlete, animatePenaltyAthlete } from './penalty-athlete.js';
+import { attachPenaltyRig } from './penalty-rig.js';
 
 const THEMES = {
   crash:['#071c2b','#20d6bc','#f3c96b'], slots:['#210d2b','#f2b64c','#e84b86'],
@@ -333,7 +334,18 @@ export function mountGame3D(container, gameId, options={}) {
     const labelGroup=new THREE.Group();scene.add(labelGroup);
     const clock=new THREE.Clock();let frame=0;let disposed=false;let raf=0;let shotStartedAt=null;let shotDetail=options.shot?{shot:options.shot,shotX:options.shotX??.5}:null;
     const onPenaltyShot=(event)=>{const detail=event.detail&&typeof event.detail==='object'?event.detail:{};const rawX=Number(detail.shotX??.5);shotDetail={...detail,shotX:Number.isFinite(rawX)?Math.max(.02,Math.min(.98,rawX)):.5};shotStartedAt=clock.getElapsedTime();};
-    if(gameId==='penalty') container.addEventListener('penalty-shot-start',onPenaltyShot);
+    if(gameId==='penalty') {
+      container.addEventListener('penalty-shot-start',onPenaltyShot);
+      // Load the shared skinned CC0 character once, then clone it for striker
+      // and goalkeeper. If the external asset is unreachable, keep the current
+      // procedural 3D athletes instead of blocking the penalty scene.
+      Promise.all([
+        attachPenaltyRig(stage.striker,{isActive:()=>!disposed}),
+        attachPenaltyRig(stage.keeper,{isActive:()=>!disposed})
+      ]).then(([strikerReady,keeperReady])=>{
+        if(strikerReady||keeperReady) container.dataset.playerRig='skinned';
+      }).catch(error=>console.warn('[Penalty Lakay] Skinned player setup failed.',error));
+    }
     const resize=()=>{const w=Math.max(1,container.clientWidth),h=Math.max(1,container.clientHeight);camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false);};
     const observer=typeof ResizeObserver!=='undefined'?new ResizeObserver(resize):null;observer?.observe(container);resize();
     const animate=()=>{if(disposed)return;raf=requestAnimationFrame(animate);const delta=clock.getDelta();const t=clock.elapsedTime;frame++;
@@ -371,7 +383,7 @@ export function mountGame3D(container, gameId, options={}) {
         stage.striker.position.z=1.05-2.6*approach;
         stage.striker.rotation.x=-run*.09-kick*.1+follow*.04;
         stage.striker.rotation.z=Math.sin(runPhase)*-.045*run;
-        animatePenaltyAthlete(stage.striker,t,{run,runPhase,kick,follow});
+        animatePenaltyAthlete(stage.striker,t,{run,runPhase,kick,follow,delta});
       }
       if(gameId==='penalty'&&stage.keeper){
         const dive=penaltyElapsed<0?0:smooth01((penaltyElapsed-.58)/.60);
@@ -381,7 +393,7 @@ export function mountGame3D(container, gameId, options={}) {
         stage.keeper.rotation.z=side*-.88*dive;
         stage.keeper.rotation.x=-dive*.13;
         stage.keeper.rotation.y=side*.14*dive;
-        animatePenaltyAthlete(stage.keeper,t,{dive,side});
+        animatePenaltyAthlete(stage.keeper,t,{dive,side,delta});
       }
       if(gameId==='penalty') scene.userData.penaltyFlags?.forEach(flag=>{flag.rotation.z=Math.sin(t*2.1+flag.userData.wave)*.14;});
       ring.rotation.z+=.0015;
