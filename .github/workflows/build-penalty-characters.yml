@@ -38,45 +38,91 @@ jobs:
           path: .ara3d-cache
           key: ara3d-data-${{ runner.os }}-${{ env.ARA3D_VERSION }}
 
-      - name: Verify Ara 3D animation catalogue
+      - name: Verify Ara 3D CLI and animation catalogue
         run: |
           npx --yes "ara3d@$ARA3D_VERSION" --version
+          npx --yes "ara3d@$ARA3D_VERSION" schema character > /tmp/ara-character-schema.json
           npx --yes "ara3d@$ARA3D_VERSION" animations
 
       - name: Generate rigged striker GLB
         run: |
-          npx --yes "ara3d@$ARA3D_VERSION" export --params characters/penalty-shooter.json --detail medium --animations idle,walk,run,kick_front,cheer --out /tmp/penalty-shooter
+          npx --yes "ara3d@$ARA3D_VERSION" export --params characters/penalty-shooter.json --detail medium --animations idle,walk,run,kick_front,cheer --out /tmp/penalty-shooter --debug
           mkdir -p public/models
           MODEL="$(find /tmp/penalty-shooter -type f -name '*.glb' -print -quit)"
-          test -n "$MODEL"
+          if [ -z "$MODEL" ]; then
+            echo "::error::Ara 3D completed without producing a striker GLB."
+            find /tmp/penalty-shooter -maxdepth 3 -type f -print || true
+            exit 1
+          fi
           cp "$MODEL" public/models/penalty-shooter.glb
           test -s public/models/penalty-shooter.glb
 
       - name: Generate rigged goalkeeper GLB
         run: |
-          npx --yes "ara3d@$ARA3D_VERSION" export --params characters/penalty-keeper.json --detail medium --animations idle,walk,run,kick_front,cheer --out /tmp/penalty-keeper
+          npx --yes "ara3d@$ARA3D_VERSION" export --params characters/penalty-keeper.json --detail medium --animations idle,walk,run,dodge_left,dodge_right,fall --out /tmp/penalty-keeper --debug
           MODEL="$(find /tmp/penalty-keeper -type f -name '*.glb' -print -quit)"
-          test -n "$MODEL"
+          if [ -z "$MODEL" ]; then
+            echo "::error::Ara 3D completed without producing a goalkeeper GLB."
+            find /tmp/penalty-keeper -maxdepth 3 -type f -print || true
+            exit 1
+          fi
           cp "$MODEL" public/models/penalty-keeper.glb
           test -s public/models/penalty-keeper.glb
 
-      - name: Validate generated GLB files
+      - name: Validate real skinned and animated GLB contents
         run: |
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
-          for (const file of [
+
+          const files = [
             'public/models/penalty-shooter.glb',
             'public/models/penalty-keeper.glb'
-          ]) {
+          ];
+
+          for (const file of files) {
             const data = fs.readFileSync(file);
             if (data.length < 20 || data.toString('ascii', 0, 4) !== 'glTF') {
-              throw new Error(file + ' is not a valid binary glTF file');
+              throw new Error(file + ' is not a binary glTF file');
             }
-            const declaredLength = data.readUInt32LE(8);
-            if (declaredLength !== data.length) {
+            if (data.readUInt32LE(8) !== data.length) {
               throw new Error(file + ' has an inconsistent GLB length header');
             }
-            console.log(file + ': valid GLB container, ' + (data.length / 1048576).toFixed(2) + ' MB');
+
+            let offset = 12;
+            let document;
+            while (offset + 8 <= data.length) {
+              const length = data.readUInt32LE(offset);
+              const type = data.readUInt32LE(offset + 4);
+              offset += 8;
+              if (offset + length > data.length) {
+                throw new Error(file + ' contains a truncated GLB chunk');
+              }
+              if (type === 0x4E4F534A) {
+                document = JSON.parse(data.toString('utf8', offset, offset + length).replace(/\\0+$/g, '').trim());
+                break;
+              }
+              offset += length;
+            }
+
+            if (!document) throw new Error(file + ' has no JSON glTF chunk');
+            const skins = document.skins ?? [];
+            const animations = document.animations ?? [];
+            const primitives = (document.meshes ?? []).flatMap(mesh => mesh.primitives ?? []);
+            const skinnedPrimitives = primitives.filter(primitive =>
+              primitive.attributes?.JOINTS_0 !== undefined &&
+              primitive.attributes?.WEIGHTS_0 !== undefined
+            );
+
+            if (!skins.length || !skinnedPrimitives.length) {
+              throw new Error(file + ' is not a genuinely rigged/skinned character (skin=' + skins.length + ', skinned primitives=' + skinnedPrimitives.length + ')');
+            }
+            if (!animations.length) {
+              throw new Error(file + ' contains no animation clips');
+            }
+
+            const sizeMb = (data.length / 1048576).toFixed(2);
+            console.log(file + ': verified skinned human GLB; ' + skins.length + ' skin(s), ' + animations.length + ' animation(s), ' + sizeMb + ' MB');
+            console.log('Animation clips: ' + animations.map(clip => clip.name || '(unnamed)').join(', '));
             if (data.length > 3 * 1048576) {
               console.warn('NOTICE: ' + file + ' exceeds the 3 MB mobile target');
             }

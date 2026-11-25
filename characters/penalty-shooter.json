@@ -2,7 +2,6 @@
   "$schema": "https://ara3dgen.com/schemas/character.v1.json",
   "kind": "ara-character",
   "version": 1,
-  "preset": "Footballer",
   "params": {
     "name": "Penalty Lakay — Messi reference striker",
     "seed": 10010,
@@ -20,8 +19,6 @@
     "eyes": "darkbrown",
     "hair": "short02",
     "hairColor": "#2b1d14",
-    "facialHair": "stubble",
-    "beardColor": "#49372d",
     "outfit": "none",
     "top": "football_shirt",
     "bottom": "cargo_shorts",
