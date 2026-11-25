@@ -19,7 +19,10 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
+    env:
+      ARA3D_VERSION: "0.9.0"
+      ARA3D_CACHE: ${{ github.workspace }}/.ara3d-cache
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,9 +32,20 @@ jobs:
         with:
           node-version: 24
 
+      - name: Cache Ara 3D character data
+        uses: actions/cache@v4
+        with:
+          path: .ara3d-cache
+          key: ara3d-data-${{ runner.os }}-${{ env.ARA3D_VERSION }}
+
+      - name: Verify Ara 3D animation catalogue
+        run: |
+          npx --yes "ara3d@$ARA3D_VERSION" --version
+          npx --yes "ara3d@$ARA3D_VERSION" animations
+
       - name: Generate rigged striker GLB
         run: |
-          npx --yes ara3d@0.9.0 export --params characters/penalty-shooter.json --detail medium --animations idle,walk,run,shoot_football,siu_celebration --out /tmp/penalty-shooter
+          npx --yes "ara3d@$ARA3D_VERSION" export --params characters/penalty-shooter.json --detail medium --animations idle,locomotion,sports --out /tmp/penalty-shooter
           mkdir -p public/models
           MODEL="$(find /tmp/penalty-shooter -type f -name '*.glb' -print -quit)"
           test -n "$MODEL"
@@ -40,22 +54,40 @@ jobs:
 
       - name: Generate rigged goalkeeper GLB
         run: |
-          npx --yes ara3d@0.9.0 export --params characters/penalty-keeper.json --detail medium --animations idle,walk,run,goalkeeper_ready,goalkeeper_catch,goalkeeper_dive_left,goalkeeper_dive_right,goalkeeper_low_dive_left,goalkeeper_low_dive_right --out /tmp/penalty-keeper
+          npx --yes "ara3d@$ARA3D_VERSION" export --params characters/penalty-keeper.json --detail medium --animations idle,locomotion,sports --out /tmp/penalty-keeper
           MODEL="$(find /tmp/penalty-keeper -type f -name '*.glb' -print -quit)"
           test -n "$MODEL"
           cp "$MODEL" public/models/penalty-keeper.glb
           test -s public/models/penalty-keeper.glb
 
-      - name: Report model sizes
+      - name: Validate generated GLB files
         run: |
-          ls -lh public/models/penalty-*.glb
-          node -e "const fs=require('fs'); for (const f of ['public/models/penalty-shooter.glb','public/models/penalty-keeper.glb']) { const mb=fs.statSync(f).size/1048576; console.log(f, mb.toFixed(2)+' MB'); if (mb>3) console.warn('NOTICE: exceeds 3 MB mobile target'); }"
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          for (const file of [
+            'public/models/penalty-shooter.glb',
+            'public/models/penalty-keeper.glb'
+          ]) {
+            const data = fs.readFileSync(file);
+            if (data.length < 20 || data.toString('ascii', 0, 4) !== 'glTF') {
+              throw new Error(file + ' is not a valid binary glTF file');
+            }
+            const declaredLength = data.readUInt32LE(8);
+            if (declaredLength !== data.length) {
+              throw new Error(file + ' has an inconsistent GLB length header');
+            }
+            console.log(file + ': valid GLB container, ' + (data.length / 1048576).toFixed(2) + ' MB');
+            if (data.length > 3 * 1048576) {
+              console.warn('NOTICE: ' + file + ' exceeds the 3 MB mobile target');
+            }
+          }
+          NODE
 
       - name: Commit generated GLB assets
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/models/penalty-shooter.glb public/models/penalty-keeper.glb
+          git add -f public/models/penalty-shooter.glb public/models/penalty-keeper.glb
           if git diff --cached --quiet; then
             echo "Generated models are unchanged."
             exit 0
