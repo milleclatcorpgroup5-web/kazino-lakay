@@ -3,7 +3,7 @@ name: Build realistic Penalty Lakay GLB characters
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, fix/penalty-ara3d-016-football-kit-glbs]
     paths:
       - "characters/penalty-shooter.json"
       - "characters/penalty-keeper.json"
