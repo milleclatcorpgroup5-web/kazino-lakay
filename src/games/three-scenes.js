@@ -319,8 +319,9 @@ export function mountGame3D(container, gameId, options={}) {
     const camera=new THREE.PerspectiveCamera(gameId==='penalty'?42:42,1,.1,100);
     if(gameId==='penalty'){camera.position.set(2.7,3.05,8.9);camera.lookAt(0,1.0,-3.25);}else{camera.position.set(0,4.8,9.6);camera.lookAt(0,.45,0);}
     renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:'high-performance'});
-    // Crisp mobile rendering while keeping device-pixel-ratio bounded for GPU stability.
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.75));
+    // Keep mobile GPU load bounded while preserving extra detail on larger screens.
+    const renderCap=window.innerWidth<=600?1.35:1.7;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,renderCap));
     renderer.outputColorSpace=THREE.SRGBColorSpace;
     renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.16;
     renderer.domElement.className='three-scene-canvas';renderer.domElement.setAttribute('aria-hidden','true');
