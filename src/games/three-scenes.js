@@ -317,6 +317,46 @@ function rendererAnisotropyLimit() {
   // A conservative cap works across mobile GPUs and desktop browsers.
   return 4;
 }
+function makePenaltyBallMaps() {
+  const canvas=document.createElement('canvas'); canvas.width=1024; canvas.height=512;
+  const ctx=canvas.getContext('2d');
+  ctx.fillStyle='#f4f3ed'; ctx.fillRect(0,0,1024,512);
+  // Repeating black pentagons and small seam lines give the ball a classic panel layout.
+  const pentagon=(cx,cy,r,fill)=>{
+    ctx.beginPath();
+    for(let i=0;i<5;i++){
+      const a=-Math.PI/2+i*Math.PI*2/5;
+      const x=cx+Math.cos(a)*r, y=cy+Math.sin(a)*r;
+      if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+    }
+    ctx.closePath(); ctx.fillStyle=fill; ctx.fill();
+  };
+  for(let y=-32,row=0;y<544;y+=128,row++){
+    for(let x=(row%2)*96-32;x<1088;x+=192){
+      pentagon(x,y,36,'#171b20');
+      ctx.strokeStyle='#c7c9c5';ctx.lineWidth=4;ctx.stroke();
+    }
+  }
+  ctx.strokeStyle='rgba(35,40,42,.34)';ctx.lineWidth=3;
+  for(let y=0;y<=512;y+=64){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(1024,y);ctx.stroke();}
+  const map=new THREE.CanvasTexture(canvas);map.colorSpace=THREE.SRGBColorSpace;
+  map.wrapS=map.wrapT=THREE.RepeatWrapping;map.anisotropy=8;map.generateMipmaps=true;map.minFilter=THREE.LinearMipmapLinearFilter;
+  const normalCanvas=document.createElement('canvas');normalCanvas.width=512;normalCanvas.height=256;
+  const nctx=normalCanvas.getContext('2d');nctx.fillStyle='rgb(128,128,255)';nctx.fillRect(0,0,512,256);
+  nctx.strokeStyle='rgb(128,128,245)';nctx.lineWidth=5;
+  for(let y=0;y<=256;y+=64){nctx.beginPath();nctx.moveTo(0,y);nctx.lineTo(512,y);nctx.stroke();}
+  const normalMap=new THREE.CanvasTexture(normalCanvas);normalMap.wrapS=normalMap.wrapT=THREE.RepeatWrapping;normalMap.anisotropy=8;
+  return {map,normalMap};
+}
+
+function setPenaltyCameraFov(camera,aspect) {
+  // Keep a constant 28-degree horizontal field of view on landscape and portrait.
+  const horizontalFov=THREE.MathUtils.degToRad(28);
+  const safeAspect=Math.max(.25,Number(aspect)||1);
+  camera.fov=THREE.MathUtils.radToDeg(2*Math.atan(Math.tan(horizontalFov/2)/safeAspect));
+  camera.updateProjectionMatrix();
+}
+
 function addStadium(scene,accent,options={}) {
   const team=options.team||{};
   const shirt=team.primary||'#d52d45', shorts=team.secondary||'#143b7b';
@@ -372,7 +412,7 @@ function addStadium(scene,accent,options={}) {
     new THREE.LineBasicMaterial({color:lineColor})
   ));
 
-  const spot=new THREE.Mesh(new THREE.CircleGeometry(.075,40),
+  const spot=new THREE.Mesh(new THREE.CircleGeometry(.11,48),
     new THREE.MeshBasicMaterial({color:'#ffffff',side:THREE.DoubleSide,toneMapped:false,depthWrite:false}));
   spot.rotation.x=-Math.PI/2; spot.position.set(0,.012,spotZ); scene.add(spot);
 
@@ -425,13 +465,9 @@ function addStadium(scene,accent,options={}) {
 
   // 22 cm ball, centred on the origin with its bottom touching the turf.
   const ballGroup=new THREE.Group(); ballGroup.position.set(...BALL.position); scene.add(ballGroup);
-  const ballMat=material('#f8f8f2',.3,.02);
-  makeBodyPart(ballGroup,new THREE.SphereGeometry(BALL.radius,32,24),ballMat,[0,0,0]);
-  for(let i=0;i<5;i++) {
-    const a=i*Math.PI*2/5;
-    const patch=new THREE.Mesh(new THREE.CircleGeometry(.047,5),material('#17212a',.68,.01));
-    patch.position.set(Math.cos(a)*.145,Math.sin(a)*.145,.095); ballGroup.add(patch);
-  }
+  const ballMaps=makePenaltyBallMaps();
+  const ballMat=new THREE.MeshStandardMaterial({map:ballMaps.map,normalMap:ballMaps.normalMap,roughness:.48,metalness:0});
+  makeBodyPart(ballGroup,new THREE.SphereGeometry(BALL.radius,48,32),ballMat,[0,0,0]);
   const shadow=new THREE.Mesh(new THREE.CircleGeometry(.17,24),
     new THREE.MeshBasicMaterial({color:'#06130b',transparent:true,opacity:.38}));
   shadow.rotation.x=-Math.PI/2; shadow.position.set(0,-.102,0); scene.add(shadow);
@@ -562,7 +598,7 @@ export function mountGame3D(container, gameId, options={}) {
     const [bg,accent,secondary]=THEMES[gameId];
     const scene=new THREE.Scene();scene.background=new THREE.Color(bg);
     scene.fog=new THREE.Fog(bg,gameId==='penalty'?48:9,gameId==='penalty'?105:24);
-    const camera=new THREE.PerspectiveCamera(gameId==='penalty'?28:42,1,.1,160);
+    const camera=new THREE.PerspectiveCamera(gameId==='penalty'?28:42,1,.1,180);
     if(gameId==='penalty'){camera.position.set(.3,2.2,12);camera.lookAt(0,1.2,-11);}else{camera.position.set(0,4.8,9.6);camera.lookAt(0,.45,0);}
     // Android tablets can reject a high-performance/antialiased context even when
     // WebGL2 is available. Start with a conservative mobile context and retry once
@@ -604,7 +640,7 @@ export function mountGame3D(container, gameId, options={}) {
         if(strikerReady||keeperReady) container.dataset.playerRig='skinned';
       }).catch(error=>console.warn('[Penalty Lakay] Skinned player setup failed.',error));
     }
-    const resize=()=>{const w=Math.max(1,container.clientWidth),h=Math.max(1,container.clientHeight);camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false);};
+    const resize=()=>{const w=Math.max(1,container.clientWidth),h=Math.max(1,container.clientHeight);camera.aspect=w/h;if(gameId==='penalty')setPenaltyCameraFov(camera,camera.aspect);else camera.updateProjectionMatrix();renderer.setSize(w,h,false);};
     const observer=typeof ResizeObserver!=='undefined'?new ResizeObserver(resize):null;observer?.observe(container);resize();
     const animate=()=>{if(disposed)return;raf=requestAnimationFrame(animate);const delta=clock.getDelta();const t=clock.elapsedTime;frame++;
       stage.animated.forEach((obj,i)=>{
