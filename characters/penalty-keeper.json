@@ -2,7 +2,7 @@
   "$schema": "https://ara3dgen.com/schemas/character.v1.json",
   "kind": "ara-character",
   "version": 1,
-  "preset": "The Footballer",
+  "preset": "Footballer",
   "params": {
     "name": "Penalty Lakay — Angelo Peruzzi reference goalkeeper",
     "seed": 10001,

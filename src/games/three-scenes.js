@@ -694,9 +694,9 @@ export function mountGame3D(container, gameId, options={}) {
     const onPenaltyShot=(event)=>{const detail=event.detail&&typeof event.detail==='object'?event.detail:{};const rawX=Number(detail.shotX??.5);shotDetail={...detail,shotX:Number.isFinite(rawX)?Math.max(.02,Math.min(.98,rawX)):.5};shotStartedAt=clock.getElapsedTime();};
     if(gameId==='penalty') {
       container.addEventListener('penalty-shot-start',onPenaltyShot);
-      // Both separate, locally hosted realistic GLB models are required.
-      // The old procedural mannequins are hidden by attachPenaltyRig and are
-      // never presented as the finished player models.
+      // Load the two locally hosted realistic GLB models independently.
+      // If either GLB is unavailable, its detailed animated Three.js athlete
+      // remains visible as an explicitly labelled fallback (not a fake GLB).
       Promise.all([
         attachPenaltyRig(stage.striker,{isActive:()=>!disposed}),
         attachPenaltyRig(stage.keeper,{isActive:()=>!disposed})
@@ -706,11 +706,14 @@ export function mountGame3D(container, gameId, options={}) {
           container.dataset.playerRig='realistic-glb';
           return;
         }
-        container.dataset.playerRig='missing';
+        container.dataset.playerRig='procedural-fallback';
+        const missing=[];
+        if(!strikerReady) missing.push('jwè atakan');
+        if(!keeperReady) missing.push('gadyen');
         const notice=document.createElement('div');
         notice.className='penalty-model-error';
         notice.setAttribute('role','status');
-        notice.textContent='Modèl foutbolè reyalis yo poko disponib. Verifye fichye /models/penalty-shooter.glb ak /models/penalty-keeper.glb, epi relanse build la.';
+        notice.textContent='Modèl GLB reyalis pou '+missing.join(' ak ')+' la poko disponib. Jwè 3D sekou a rete vizib pou jwèt la pa disparèt. N ap bezwen korije jenerasyon GLB a.';
         Object.assign(notice.style,{
           position:'absolute',left:'12px',right:'12px',top:'12px',zIndex:'20',
           padding:'10px 14px',borderRadius:'10px',background:'rgba(7,15,28,.92)',
@@ -720,9 +723,10 @@ export function mountGame3D(container, gameId, options={}) {
         const position=getComputedStyle(container).position;
         if(position==='static') container.style.position='relative';
         container.appendChild(notice);
-        container.dataset.playerModelError=String(
-          stage.striker.userData.rigError || stage.keeper.userData.rigError || 'GLB unavailable'
-        );
+        container.dataset.playerModelError=[
+          stage.striker.userData.rigError && 'shooter: '+stage.striker.userData.rigError,
+          stage.keeper.userData.rigError && 'keeper: '+stage.keeper.userData.rigError
+        ].filter(Boolean).join(' | ') || 'GLB unavailable';
       }).catch(error=>{
         console.error('[Penalty Lakay] Realistic GLB player setup failed.',error);
         container.dataset.playerRig='error';

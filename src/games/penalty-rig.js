@@ -182,7 +182,9 @@ export async function attachPenaltyRig(actor, { isActive = () => true } = {}) {
     addBackDecal(rig, actor);
     return true;
   } catch (error) {
-    hideProceduralBody(actor);
+    // Keep the detailed animated Three.js athlete visible while the realistic
+    // skinned GLB is unavailable. The scene displays an explicit status notice;
+    // this is a deliberate fallback, never a silent claim that the GLB loaded.
     actor.userData.rigUnavailable = true;
     actor.userData.rigError = error?.message || 'Unknown GLB loading error';
     console.error(`[Penalty Lakay] Required realistic ${keeper ? 'goalkeeper' : 'shooter'} GLB could not load.`, error);
