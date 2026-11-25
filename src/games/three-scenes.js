@@ -197,9 +197,10 @@ function addStadium(scene,accent,options={}) {
   sphere(scene,0,-.105,centreZ,.045,lineColor,12);
 
   // Matching penalty areas, six-yard boxes, penalty spots and D-arcs at both ends.
+  // Shared pitch dimensions remain visible to all marking helpers.
+  const penaltyWidth=5.85, penaltyDepth=1.78, sixWidth=2.66, sixDepth=.595;
   const addPenaltyEnd=(goalZ,direction)=>{
-    // FIFA field ratios mapped to this scene's playable length (11.35 units):\n    // penalty area: 40.32% of field width and 15.71% of field length;\n    // six-yard box: 18.32% of field width and 5.24% of field length.\n    const penaltyWidth=5.85, penaltyDepth=1.78, sixWidth=2.66, sixDepth=.595;
-    const penaltyFront=goalZ+direction*penaltyDepth;
+    // FIFA field ratios mapped to this scene's playable length (11.35 units):\n    // penalty area: 40.32% of field width and 15.71% of field length;\n    // six-yard box: 18.32% of field width and 5.24% of field length.\n    const penaltyFront=goalZ+direction*penaltyDepth;
     const sixFront=goalZ+direction*sixDepth;
     paintX(-penaltyWidth/2,penaltyWidth/2,penaltyFront);
     paintZ(-penaltyWidth/2,goalZ,penaltyFront);
