@@ -154,86 +154,74 @@ function rendererAnisotropyLimit() {
 function addStadium(scene,accent,options={}) {
   const team=options.team||{};
   const shirt=team.primary||'#d52d45', shorts=team.secondary||'#143b7b';
-  // Pitch-only phase: detailed turf and complete, symmetric football markings.
-  const pitch=new THREE.Mesh(
-    new THREE.PlaneGeometry(15,13),
+  // Penalty-only field crop. Keep FIFA dimensions exact while showing only
+  // the goal, penalty area, six-yard box, penalty spot and D-arc.
+  // Scale: 1 world unit = 56/105 metres; goal width remains 7.32 m.
+  const pitchScale = 56 / 105;
+  const farGoalLine = -4.9;
+  const penaltyWidth = 40.32 * pitchScale;
+  const sixWidth = 18.32 * pitchScale;
+  const penaltyDepth = 16.5 * pitchScale;
+  const sixDepth = 5.5 * pitchScale;
+  const spotDistance = 11 * pitchScale;
+  const arcRadius = 9.15 * pitchScale;
+  const sideMargin = 2.5 * pitchScale;
+  const pitchWidth = penaltyWidth + sideMargin * 2;
+  const cropDepth = 20.5 * pitchScale;
+  const nearCropEdge = farGoalLine + cropDepth;
+
+  const pitch = new THREE.Mesh(
+    new THREE.PlaneGeometry(pitchWidth, cropDepth),
     new THREE.MeshStandardMaterial({map:makePitchGrassTexture(),roughness:.96,metalness:0})
   );
-  pitch.rotation.x=-Math.PI/2; pitch.position.y=-.165; pitch.receiveShadow=true; scene.add(pitch);
-  box(scene,0,-.34,0,15,.32,13,'#14552f');
+  pitch.rotation.x = -Math.PI/2;
+  pitch.position.set(0,-.165,(farGoalLine+nearCropEdge)/2);
+  pitch.receiveShadow = true;
+  scene.add(pitch);
+  box(scene,0,-.34,(farGoalLine+nearCropEdge)/2,pitchWidth,.32,cropDepth,'#14552f');
 
   const lineY=-.135, lineColor='#f1f4eb';
-  const left=-7.25, right=7.25, farGoalLine=-5.1, nearGoalLine=6.25;
-  const centreZ=(farGoalLine+nearGoalLine)/2;
   const paintX=(x1,x2,z,thickness=.026)=>box(scene,(x1+x2)/2,lineY,z,x2-x1,.018,thickness,lineColor);
   const paintZ=(x,z1,z2,thickness=.026)=>box(scene,x,lineY,(z1+z2)/2,thickness,.018,Math.abs(z2-z1),lineColor);
-  const addArc=(spotZ,direction)=>{
-    const points=[];
-    for(let i=0;i<=48;i++){
-      const angle=Math.PI*.08+(Math.PI*.84*i/48);
-      points.push(new THREE.Vector3(Math.cos(angle)*.99,-.126,spotZ+direction*Math.sin(angle)*.99));
-    }
-    scene.add(new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints(points),
-      new THREE.LineBasicMaterial({color:lineColor})
-    ));
-  };
 
-  // Outer touchlines and both goal lines make the playable rectangle legible.
-  paintX(left,right,farGoalLine);
-  paintX(left,right,nearGoalLine);
-  paintZ(left,farGoalLine,nearGoalLine);
-  paintZ(right,farGoalLine,nearGoalLine);
+  // Only the visible goal-end markings are drawn; there is no full-pitch
+  // boundary, halfway line, centre circle, far penalty area or corner arc.
+  paintX(-pitchWidth/2,pitchWidth/2,farGoalLine,.035);
 
-  // Halfway line, centre circle and centre mark.
-  paintX(left,right,centreZ);
-  const centreRing=new THREE.Mesh(
-    new THREE.RingGeometry(.98,1.015,72),
-    new THREE.MeshBasicMaterial({color:lineColor,side:THREE.DoubleSide})
-  );
-  centreRing.rotation.x=-Math.PI/2;
-  centreRing.position.set(0,-.125,centreZ);
-  scene.add(centreRing);
-  sphere(scene,0,-.105,centreZ,.045,lineColor,12);
+  const areaEndZ=farGoalLine+penaltyDepth;
+  const sixEndZ=farGoalLine+sixDepth;
+  const spotZ=farGoalLine+spotDistance;
+  paintX(-penaltyWidth/2,penaltyWidth/2,areaEndZ,.035);
+  paintZ(-penaltyWidth/2,farGoalLine,areaEndZ,.035);
+  paintZ(penaltyWidth/2,farGoalLine,areaEndZ,.035);
+  paintX(-sixWidth/2,sixWidth/2,sixEndZ,.03);
+  paintZ(-sixWidth/2,farGoalLine,sixEndZ,.03);
+  paintZ(sixWidth/2,farGoalLine,sixEndZ,.03);
 
-  // Matching penalty areas, six-yard boxes, penalty spots and D-arcs at both ends.
-  // Shared pitch dimensions remain visible to all marking helpers.
-  const penaltyWidth=5.85, sixWidth=2.66;
-  const addPenaltyEnd=(goalZ,direction)=>{
-    // Keep every end-line coordinate local to this helper. This avoids relying
-    // on temporary coordinate names outside their lexical scope.
-    const areaEndZ=goalZ+(direction*1.78);
-    const sixYardEndZ=goalZ+(direction*.595);
-    const spotZ=goalZ+(direction*1.19);
-    paintX(-penaltyWidth/2,penaltyWidth/2,areaEndZ);
-    paintZ(-penaltyWidth/2,goalZ,areaEndZ);
-    paintZ(penaltyWidth/2,goalZ,areaEndZ);
-    paintX(-sixWidth/2,sixWidth/2,sixYardEndZ);
-    paintZ(-sixWidth/2,goalZ,sixYardEndZ);
-    paintZ(sixWidth/2,goalZ,sixYardEndZ);
-    sphere(scene,0,-.105,spotZ,.065,'#ffffff',16);
-    addArc(spotZ,direction);
-  };
-  addPenaltyEnd(farGoalLine,1);
-  addPenaltyEnd(nearGoalLine,-1);
-
-  // Four accurately oriented corner arcs, each drawn into the field.
-  for(const xSide of [-1,1]) for(const zSide of [-1,1]) {
-    const cx=xSide<0?left:right, cz=zSide<0?farGoalLine:nearGoalLine;
-    const points=[];
-    for(let i=0;i<=16;i++) {
-      const angle=(Math.PI*.5*i)/16;
-      points.push(new THREE.Vector3(
-        cx-xSide*Math.cos(angle)*.38,
-        -.126,
-        cz-zSide*Math.sin(angle)*.38
-      ));
-    }
-    scene.add(new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints(points),
-      new THREE.LineBasicMaterial({color:lineColor})
+  // Correct FIFA D-arc: radius 9.15 m, excluding the part inside the box.
+  const arcHalfAngle=Math.acos((5.5*pitchScale)/arcRadius);
+  const arcPoints=[];
+  for(let i=0;i<=72;i++){
+    const angle=-arcHalfAngle+(2*arcHalfAngle*i/72);
+    arcPoints.push(new THREE.Vector3(
+      Math.sin(angle)*arcRadius,
+      -.126,
+      spotZ+Math.cos(angle)*arcRadius
     ));
   }
+  scene.add(new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints(arcPoints),
+    new THREE.LineBasicMaterial({color:lineColor})
+  ));
+
+  // The penalty mark is a small flat inlaid disc, not a raised sphere.
+  const spot=new THREE.Mesh(
+    new THREE.CircleGeometry(.065,32),
+    new THREE.MeshBasicMaterial({color:lineColor,side:THREE.DoubleSide})
+  );
+  spot.rotation.x=-Math.PI/2;
+  spot.position.set(0,-.124,spotZ);
+  scene.add(spot);
   // Stadium bowl, distant stands and roof.
   for(const side of [-1,1]) {
     for(let tier=0;tier<8;tier++) {
