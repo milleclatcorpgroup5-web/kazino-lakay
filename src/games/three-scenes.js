@@ -198,17 +198,19 @@ function addStadium(scene,accent,options={}) {
 
   // Matching penalty areas, six-yard boxes, penalty spots and D-arcs at both ends.
   // Shared pitch dimensions remain visible to all marking helpers.
-  const penaltyWidth=5.85, penaltyDepth=1.78, sixWidth=2.66, sixDepth=.595;
+  const penaltyWidth=5.85, sixWidth=2.66;
   const addPenaltyEnd=(goalZ,direction)=>{
-    // FIFA field ratios mapped to this scene's playable length (11.35 units):\n    // penalty area: 40.32% of field width and 15.71% of field length;\n    // six-yard box: 18.32% of field width and 5.24% of field length.\n    const penaltyFront=goalZ+direction*penaltyDepth;
-    const sixFront=goalZ+direction*sixDepth;
-    paintX(-penaltyWidth/2,penaltyWidth/2,penaltyFront);
-    paintZ(-penaltyWidth/2,goalZ,penaltyFront);
-    paintZ(penaltyWidth/2,goalZ,penaltyFront);
-    paintX(-sixWidth/2,sixWidth/2,sixFront);
-    paintZ(-sixWidth/2,goalZ,sixFront);
-    paintZ(sixWidth/2,goalZ,sixFront);
-    const spotZ=goalZ+direction*1.19;
+    // Keep every end-line coordinate local to this helper. This avoids relying
+    // on temporary coordinate names outside their lexical scope.
+    const areaEndZ=goalZ+(direction*1.78);
+    const sixYardEndZ=goalZ+(direction*.595);
+    const spotZ=goalZ+(direction*1.19);
+    paintX(-penaltyWidth/2,penaltyWidth/2,areaEndZ);
+    paintZ(-penaltyWidth/2,goalZ,areaEndZ);
+    paintZ(penaltyWidth/2,goalZ,areaEndZ);
+    paintX(-sixWidth/2,sixWidth/2,sixYardEndZ);
+    paintZ(-sixWidth/2,goalZ,sixYardEndZ);
+    paintZ(sixWidth/2,goalZ,sixYardEndZ);
     sphere(scene,0,-.105,spotZ,.065,'#ffffff',16);
     addArc(spotZ,direction);
   };
