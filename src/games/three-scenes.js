@@ -22,6 +22,7 @@ const LABELS = {
   andarbahar:'ROYAL COURT',threecard:'POKER SALON',holdem:'TEXAS CARD ROOM',bingo:'BINGO GRAND HALL'
 };
 let active = null;
+const smooth01 = (value) => { const n=Math.max(0,Math.min(1,Number(value)||0)); return n*n*(3-2*n); };
 const material = (color, roughness=.58, metalness=.12) => new THREE.MeshStandardMaterial({color,roughness,metalness});
 function box(scene,x,y,z,sx,sy,sz,color,rx=0,ry=0,rz=0) {
   const mesh=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),material(color));
@@ -181,7 +182,7 @@ function addStadium(scene,accent,options={}) {
   const striker=addFootballer(scene,0,1.05,shirt,false,options.playerName||team.player?.name||'LIONEL MESSI',numberForTeam(team),shorts);
   striker.rotation.y=Math.PI;
   // Match ball on the penalty spot with panel geometry and a soft contact shadow.
-  const ballGroup=new THREE.Group(); ballGroup.position.set(0,.18,-2.2); scene.add(ballGroup);
+  const ballGroup=new THREE.Group(); ballGroup.position.set(0,.015,-2.2); scene.add(ballGroup);
   const ballMat=material('#f8f8f2',.3,.02);
   makeBodyPart(ballGroup,new THREE.SphereGeometry(.17,32,24),ballMat,[0,0,0]);
   for(let i=0;i<5;i++) {
@@ -318,8 +319,9 @@ export function mountGame3D(container, gameId, options={}) {
     const camera=new THREE.PerspectiveCamera(gameId==='penalty'?42:42,1,.1,100);
     if(gameId==='penalty'){camera.position.set(2.7,3.05,8.9);camera.lookAt(0,1.0,-3.25);}else{camera.position.set(0,4.8,9.6);camera.lookAt(0,.45,0);}
     renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:'high-performance'});
-    // Crisp mobile rendering while keeping device-pixel-ratio bounded for GPU stability.
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.75));
+    // Keep mobile GPU load bounded while preserving extra detail on larger screens.
+    const renderCap=window.innerWidth<=600?1.35:1.7;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,renderCap));
     renderer.outputColorSpace=THREE.SRGBColorSpace;
     renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.16;
     renderer.domElement.className='three-scene-canvas';renderer.domElement.setAttribute('aria-hidden','true');
@@ -330,7 +332,7 @@ export function mountGame3D(container, gameId, options={}) {
     const ring=torus(scene,0,-.29,0,4.1,.025,accent);ring.material.transparent=true;ring.material.opacity=.45;
     const labelGroup=new THREE.Group();scene.add(labelGroup);
     const clock=new THREE.Clock();let frame=0;let disposed=false;let raf=0;let shotStartedAt=null;let shotDetail=options.shot?{shot:options.shot,shotX:options.shotX??.5}:null;
-    const onPenaltyShot=(event)=>{shotDetail=event.detail||shotDetail||{};shotStartedAt=clock.getElapsedTime();};
+    const onPenaltyShot=(event)=>{const detail=event.detail&&typeof event.detail==='object'?event.detail:{};const rawX=Number(detail.shotX??.5);shotDetail={...detail,shotX:Number.isFinite(rawX)?Math.max(.02,Math.min(.98,rawX)):.5};shotStartedAt=clock.getElapsedTime();};
     if(gameId==='penalty') container.addEventListener('penalty-shot-start',onPenaltyShot);
     const resize=()=>{const w=Math.max(1,container.clientWidth),h=Math.max(1,container.clientHeight);camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false);};
     const observer=typeof ResizeObserver!=='undefined'?new ResizeObserver(resize):null;observer?.observe(container);resize();
@@ -344,9 +346,43 @@ export function mountGame3D(container, gameId, options={}) {
         if(gameId==='crash'&&i===stage.animated.length-1) obj.position.x=Math.sin(t*.42)*2.1;
         if(gameId==='plinko'&&i===stage.animated.length-1) obj.position.z=1+Math.sin(t*1.7)*.5;
       });
-      if(stage.ball){if(gameId==='penalty'){stage.ball.rotation.x+=.018;stage.ball.rotation.z+=.025;const elapsed=shotStartedAt===null?-1:t-shotStartedAt;if(elapsed>=0&&elapsed<2.1){const kick=Math.min(1,Math.max(0,(elapsed-.48)/.78));stage.ball.position.y=.18+Math.sin(kick*Math.PI)*.85;stage.ball.position.z=-2.2-kick*2.9;stage.ball.position.x=((Number(shotDetail?.shotX??.5)-.5)*3.2)*kick;}else if(elapsed>=2.1){stage.ball.position.set(0,.18,-2.2);if(stage.keeper){stage.keeper.position.x=0;stage.keeper.rotation.z=0;}shotStartedAt=null;}}else{stage.ball.position.x=-.72+Math.sin(t*.7)*.035;stage.ball.rotation.x+=.018;stage.ball.rotation.z+=.025;}}
-      if(gameId==='penalty'&&stage.striker){const elapsed=shotStartedAt===null?-1:t-shotStartedAt;const kick=elapsed<0?0:Math.min(1,Math.max(0,(elapsed-.12)/.82));stage.striker.position.x=-Math.sin(kick*Math.PI)*.12;stage.striker.position.z=1.05-Math.max(0,kick)*.65;stage.striker.rotation.x=Math.sin(kick*Math.PI)*-.12;stage.striker.rotation.z=Math.sin(kick*Math.PI)*.08;animatePenaltyAthlete(stage.striker,t,{kick:Math.sin(kick*Math.PI)});}
-      if(gameId==='penalty'&&stage.keeper){const elapsed=shotStartedAt===null?-1:t-shotStartedAt;const dive=elapsed<0?0:Math.min(1,Math.max(0,(elapsed-.62)/.55));const side=(Number(shotDetail?.shotX??.5)-.5);stage.keeper.position.x=side*2.4*dive;stage.keeper.rotation.z=side*-.8*dive;stage.keeper.rotation.x=-dive*.16;animatePenaltyAthlete(stage.keeper,t,{dive,side});}
+      const penaltyElapsed=shotStartedAt===null?-1:t-shotStartedAt;
+      if(stage.ball){if(gameId==='penalty'){
+        stage.ball.rotation.x+=.035;stage.ball.rotation.y+=.012;stage.ball.rotation.z+=.022;
+        if(penaltyElapsed>=0&&penaltyElapsed<2.1){
+          const flight=smooth01((penaltyElapsed-.48)/.78);
+          stage.ball.position.y=.015+Math.sin(flight*Math.PI)*.85;
+          stage.ball.position.z=-2.2-flight*2.9;
+          stage.ball.position.x=((Number(shotDetail?.shotX??.5)-.5)*3.2)*flight;
+        }else if(penaltyElapsed>=2.1){
+          stage.ball.position.set(0,.015,-2.2);
+          if(stage.keeper){stage.keeper.position.set(0,0,-4.35);stage.keeper.rotation.set(0,0,0);}
+          shotStartedAt=null;
+        }
+      }else{stage.ball.position.x=-.72+Math.sin(t*.7)*.035;stage.ball.rotation.x+=.018;stage.ball.rotation.z+=.025;}}
+      if(gameId==='penalty'&&stage.striker){
+        const elapsed=penaltyElapsed;
+        const approach=elapsed<0?0:smooth01(elapsed/.48);
+        const run=elapsed>=0&&elapsed<.5?1:0;
+        const runPhase=elapsed<0?0:elapsed*Math.PI*2*2.45;
+        const kick=elapsed<0?0:smooth01((elapsed-.37)/.21)*(1-smooth01((elapsed-1.05)/.38));
+        const follow=elapsed<0?0:smooth01((elapsed-.60)/.24)*(1-smooth01((elapsed-1.45)/.4));
+        stage.striker.position.x=-Math.sin(approach*Math.PI)*.08;
+        stage.striker.position.z=1.05-2.6*approach;
+        stage.striker.rotation.x=-run*.09-kick*.1+follow*.04;
+        stage.striker.rotation.z=Math.sin(runPhase)*-.045*run;
+        animatePenaltyAthlete(stage.striker,t,{run,runPhase,kick,follow});
+      }
+      if(gameId==='penalty'&&stage.keeper){
+        const dive=penaltyElapsed<0?0:smooth01((penaltyElapsed-.58)/.60);
+        const rawSide=(Number(shotDetail?.shotX??.5)-.5)*2;
+        const side=Math.max(-1,Math.min(1,rawSide));
+        stage.keeper.position.x=side*1.7*dive;
+        stage.keeper.rotation.z=side*-.88*dive;
+        stage.keeper.rotation.x=-dive*.13;
+        stage.keeper.rotation.y=side*.14*dive;
+        animatePenaltyAthlete(stage.keeper,t,{dive,side});
+      }
       if(gameId==='penalty') scene.userData.penaltyFlags?.forEach(flag=>{flag.rotation.z=Math.sin(t*2.1+flag.userData.wave)*.14;});
       ring.rotation.z+=.0015;
       if(gameId!=='penalty'){camera.position.x=Math.sin(t*.12)*.14;camera.lookAt(0,.45,0);}
@@ -363,6 +399,12 @@ export function mountGame3D(container, gameId, options={}) {
     // Penalty Lakay is a native 3D experience only: never substitute a 2D imitation.
     if(gameId==='penalty') {
       container.dataset.sceneError='webgl-unavailable';
+      container.querySelector('.penalty-scene-unavailable')?.remove();
+      const notice=document.createElement('div');
+      notice.className='penalty-scene-unavailable';
+      notice.setAttribute('role','alert');
+      notice.innerHTML='<strong>PENALTY LAKAY 3D PA KA DEMARE</strong><span>Aktive WebGL ak akselerasyon grafik nan navigatè a, epi relouvri jwèt la.</span>';
+      container.appendChild(notice);
       container.dispatchEvent(new CustomEvent('penalty-scene-error',{detail:{message:String(error?.message||error)}}));
     }
     return () => {};
