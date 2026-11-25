@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kazino-lakay-points-only-admin-repair-v1';
+const CACHE_NAME = 'kazino-lakay-penalty-runtime-fix-v2';
 const APP_SHELL = ['/', '/admin', '/admin.html', '/manifest.webmanifest', '/icones/icon-192.png', '/icones/icon-512.png'];
 
 self.addEventListener('install', (event) => {
