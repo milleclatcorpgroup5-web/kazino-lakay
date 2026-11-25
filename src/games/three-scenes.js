@@ -368,7 +368,7 @@ export function mountGame3D(container, gameId, options={}) {
         const kick=elapsed<0?0:smooth01((elapsed-.37)/.21)*(1-smooth01((elapsed-1.05)/.38));
         const follow=elapsed<0?0:smooth01((elapsed-.60)/.24)*(1-smooth01((elapsed-1.45)/.4));
         stage.striker.position.x=-Math.sin(approach*Math.PI)*.08;
-        stage.striker.position.z=1.05-1.3*approach;
+        stage.striker.position.z=1.05-2.6*approach;
         stage.striker.rotation.x=-run*.09-kick*.1+follow*.04;
         stage.striker.rotation.z=Math.sin(runPhase)*-.045*run;
         animatePenaltyAthlete(stage.striker,t,{run,runPhase,kick,follow});
