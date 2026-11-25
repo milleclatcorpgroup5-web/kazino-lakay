@@ -285,7 +285,7 @@ function addStadium(scene,accent,options={}) {
   addCrowd(scene,accent); addAdBoard(scene);
   // 3D goal frame and fine tensioned white net.
   // FIFA regulation goal dimensions expressed in the same pitch scale.
-  const goalZ=farGoalLine, goalW=7.32*pitchScale, goalH=2.44*pitchScale;
+  const goalZ=farGoalLine, goalW=7.32*pitchScale*1.22, goalH=2.44*pitchScale*1.18;
   const postMat=new THREE.MeshStandardMaterial({
     color:'#ffffff',roughness:.24,metalness:.08,
     emissive:'#dce9df',emissiveIntensity:.16
@@ -322,16 +322,18 @@ function addStadium(scene,accent,options={}) {
   keeper.rotation.y=0;
   const striker=addFootballer(scene,0,1.05,shirt,false,options.playerName||team.player?.name||'LIONEL MESSI',numberForTeam(team),shorts);
   striker.rotation.y=Math.PI;
-  // Match ball on the penalty spot with panel geometry and a soft contact shadow.
-  const ballGroup=new THREE.Group(); ballGroup.position.set(0,.015,spotZ); scene.add(ballGroup);
+  // Regulation-size 22 cm ball, centred exactly on the penalty mark and resting on the turf.
+  const ballRadius=.11;
+  const ballRestY=-.165+ballRadius;
+  const ballGroup=new THREE.Group(); ballGroup.position.set(0,ballRestY,spotZ); scene.add(ballGroup);
   const ballMat=material('#f8f8f2',.3,.02);
-  makeBodyPart(ballGroup,new THREE.SphereGeometry(.17,32,24),ballMat,[0,0,0]);
+  makeBodyPart(ballGroup,new THREE.SphereGeometry(ballRadius,32,24),ballMat,[0,0,0]);
   for(let i=0;i<5;i++) {
     const a=i*Math.PI*2/5, patch=new THREE.Mesh(new THREE.CircleGeometry(.047,5),material('#17212a',.68,.01));
     patch.position.set(Math.cos(a)*.145,Math.sin(a)*.145,.095); ballGroup.add(patch);
   }
-  const shadow=new THREE.Mesh(new THREE.CircleGeometry(.25,24),new THREE.MeshBasicMaterial({color:'#06130b',transparent:true,opacity:.38}));
-  shadow.rotation.x=-Math.PI/2; shadow.position.set(0,-.16,0); ballGroup.add(shadow);
+  const shadow=new THREE.Mesh(new THREE.CircleGeometry(.17,24),new THREE.MeshBasicMaterial({color:'#06130b',transparent:true,opacity:.38}));
+  shadow.rotation.x=-Math.PI/2; shadow.position.set(0,-ballRestY-.164,0); ballGroup.add(shadow);
   return {ball:ballGroup,striker,keeper,penaltySpotZ:spotZ,goalLineZ:farGoalLine};
 }
 function numberForTeam(team) { return Number(team.player?.shirtNumber||10); }
@@ -516,11 +518,11 @@ export function mountGame3D(container, gameId, options={}) {
         stage.ball.rotation.x+=.035;stage.ball.rotation.y+=.012;stage.ball.rotation.z+=.022;
         if(penaltyElapsed>=0&&penaltyElapsed<2.1){
           const flight=smooth01((penaltyElapsed-.48)/.78);
-          stage.ball.position.y=.015+Math.sin(flight*Math.PI)*.85;
+          stage.ball.position.y=-.055+Math.sin(flight*Math.PI)*.85;
           stage.ball.position.z=stage.penaltySpotZ-flight*(stage.penaltySpotZ-(stage.goalLineZ-.12));
           stage.ball.position.x=((Number(shotDetail?.shotX??.5)-.5)*3.2)*flight;
         }else if(penaltyElapsed>=2.1){
-          stage.ball.position.set(0,.015,stage.penaltySpotZ);
+          stage.ball.position.set(0,-.055,stage.penaltySpotZ);
           if(stage.keeper){stage.keeper.position.set(0,0,-4.35);stage.keeper.rotation.set(0,0,0);}
           shotStartedAt=null;
         }
