@@ -39,7 +39,7 @@ function limb(parent,upperMat,lowerMat,skin,bootMat,side) {
   const hip=new THREE.Group(); hip.position.set(side*.145,.82,0); parent.add(hip);
   ellipsoid(hip,upperMat,[0,-.11,0],[.135,.22,.14]);
   capsule(hip,.105,.31,upperMat,[0,-.32,0],[0,0,side*.025],24);
-  const knee=new THREE.Group(); knee.position.set(0,-.53,.005); hip.add(knee);
+  const knee=new THREE.Group(); knee.position.set(0,-.48,.005); hip.add(knee);
   ellipsoid(knee,skin,[0,0,0],[.09,.09,.09]);
   capsule(knee,.074,.29,lowerMat,[0,-.19,0],[0,0,0],20);
   ellipsoid(knee,lowerMat,[0,-.37,0],[.082,.105,.09]);
@@ -49,16 +49,16 @@ function limb(parent,upperMat,lowerMat,skin,bootMat,side) {
     band.scale.set(1,1,.94);
   }
   part(knee,new THREE.BoxGeometry(.085,.19,.022),mat('#c8d5df',.82),[0,-.22,.071]);
-  const ankle=new THREE.Group(); ankle.position.set(0,-.42,-.005); knee.add(ankle);
-  capsule(ankle,.075,.14,lowerMat,[0,-.06,0]);
+  const ankle=new THREE.Group(); ankle.position.set(0,-.33,-.005); knee.add(ankle);
+  capsule(ankle,.075,.14,lowerMat,[0,-.025,0]);
   // Boots point toward the player's local forward (+Z) direction.
-  ellipsoid(ankle,bootMat,[0,-.16,.105],[.095,.075,.19],24);
-  part(ankle,new THREE.BoxGeometry(.13,.022,.17),mat('#252e38',.48,.12),[0,-.215,.105]);
+  ellipsoid(ankle,bootMat,[0,-.065,.105],[.095,.075,.19],24);
+  part(ankle,new THREE.BoxGeometry(.13,.022,.17),mat('#252e38',.48,.12),[0,-.12,.105]);
   for(let lace=0;lace<4;lace++) {
     part(ankle,new THREE.BoxGeometry(.07,.009,.012),mat('#dce5ed',.5),[0,-.078,.035+lace*.033]);
   }
   for(const x of [-.055,0,.055]) for(const z of [-.005,.075,.145]) {
-    part(ankle,new THREE.CylinderGeometry(.012,.012,.025,8),mat('#151c24',.62),[x,-.235,z]);
+    part(ankle,new THREE.CylinderGeometry(.012,.012,.025,8),mat('#151c24',.62),[x,-.16,z]);
   }
   return {hip,knee,ankle};
 }
