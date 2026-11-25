@@ -106,10 +106,10 @@ function face(parent,skin,hairMat,keeper) {
   return head;
 }
 function makeKitBadge(parent) {
-  const badge=part(parent,new THREE.CircleGeometry(.064,8),mat('#f4d47c',.42,.18),[.17,.37,.153]);
+  const badge=part(parent,new THREE.CircleGeometry(.064,8),mat('#f4d47c',.42,.18),[.17,.37,.253]);
   badge.material.side=THREE.DoubleSide;
-  part(parent,new THREE.CircleGeometry(.034,8),mat('#fff8dc'),[.17,.37,.156]);
-  part(parent,new THREE.BoxGeometry(.018,.055,.008),mat('#4b8c70'),[.17,.37,.16]);
+  part(parent,new THREE.CircleGeometry(.034,8),mat('#fff8dc'),[.17,.37,.256]);
+  part(parent,new THREE.BoxGeometry(.018,.055,.008),mat('#4b8c70'),[.17,.37,.26]);
   return badge;
 }
 function addShirtDetails(torso,shirt,shorts,number,name,keeper) {
@@ -124,10 +124,10 @@ function addShirtDetails(torso,shirt,shorts,number,name,keeper) {
   makeKitBadge(torso);
   const texture=decalTexture(name,number,keeper);
   const decalMat=new THREE.MeshStandardMaterial({map:texture,transparent:true,roughness:.9,metalness:0,side:THREE.DoubleSide,depthWrite:false});
-  const back=part(torso,new THREE.PlaneGeometry(.35,.43),decalMat,[0,.31,-.153],[0,Math.PI,0]);
+  const back=part(torso,new THREE.PlaneGeometry(.35,.43),decalMat,[0,.31,-.253],[0,Math.PI,0]);
   back.renderOrder=3;
   const frontMat=mat(keeper?'#eaf5ff':'#fff3cc',.9);
-  part(torso,new THREE.PlaneGeometry(.12,.16),frontMat,[-.02,.2,.153]);
+  part(torso,new THREE.PlaneGeometry(.12,.16),frontMat,[-.02,.2,.253]);
   // The shorts receive a waistband, side piping and a subtle hem.
   part(torso,new THREE.BoxGeometry(.22,.018,.012),mat('#e6ddc8',.88),[0,.035,.12]);
   return collar;
@@ -166,7 +166,7 @@ export function createPenaltyAthlete({x,z,shirt,keeper=false,name='PLAYER',numbe
   group.userData={torso,armL,armR,legL,legR,head,keeper,breathPhase:(seed%9)*.31,number,name};
   return group;
 }
-export function animatePenaltyAthlete(actor,time,{run=0,runPhase=0,kick=0,dive=0,side=0}={}) {
+export function animatePenaltyAthlete(actor,time,{run=0,runPhase=0,kick=0,follow=0,dive=0,side=0}={}) {
   if(!actor)return;
   const u=actor.userData;
   const breath=Math.sin(time*2.05+u.breathPhase);
@@ -175,26 +175,26 @@ export function animatePenaltyAthlete(actor,time,{run=0,runPhase=0,kick=0,dive=0
   const idle=1-Math.max(run,dive);
   actor.position.y=Math.max(0,Math.abs(breath)*.009*idle+Math.sin(runPhase*2)*.035*run+Math.sin(dive*Math.PI)*.24*dive);
   // Shoulder/torso mechanics: forward lean during acceleration, then a counter-rotation through contact.
-  u.torso.rotation.x=-run*.13+kick*.09-dive*.12;
+  u.torso.rotation.x=-run*.13+kick*.09+follow*.045-dive*.12;
   u.torso.rotation.z=side*dive*.22+Math.sin(time*1.25+u.breathPhase)*.012*idle;
   u.torso.rotation.y=Math.sin(time*.7+u.breathPhase)*.018*idle;
   u.torso.scale.y=1+breath*.004;
   // Opposing arm swing during the approach; arms open and reach during a keeper dive.
-  u.armL.shoulder.rotation.x=-runWave*.52-run*.02;
-  u.armR.shoulder.rotation.x=-runCounter*.52+run*.02;
+  u.armL.shoulder.rotation.x=-runWave*.52-run*.02+kick*.12-follow*.08;
+  u.armR.shoulder.rotation.x=-runCounter*.52+run*.02-kick*.12+follow*.08;
   u.armL.shoulder.rotation.z=-.07+run*.12+dive*(-.48-side*.18);
   u.armR.shoulder.rotation.z=.07-run*.12+dive*(.48-side*.18);
-  u.armL.elbow.rotation.x=-.58*run-dive*.22;
-  u.armR.elbow.rotation.x=-.58*run-dive*.22;
+  u.armL.elbow.rotation.x=-.58*run-dive*.22+(u.keeper?idle*-.18:0);
+  u.armR.elbow.rotation.x=-.58*run-dive*.22+(u.keeper?idle*-.18:0);
   u.armL.wrist.rotation.x=-kick*.12;
   u.armR.wrist.rotation.x=-kick*.12;
   // The left boot strikes through the ball; the planted right leg stabilises the hips.
-  u.legL.hip.rotation.x=-runWave*.48-kick*1.02-dive*.35;
-  u.legR.hip.rotation.x=-runCounter*.48+kick*.28-dive*.2;
+  u.legL.hip.rotation.x=-runWave*.48-kick*1.02+follow*.19-dive*.35;
+  u.legR.hip.rotation.x=-runCounter*.48+kick*.28-follow*.12-dive*.2;
   u.legL.hip.rotation.z=-side*dive*.12;
   u.legR.hip.rotation.z=side*dive*.12;
-  u.legL.knee.rotation.x=Math.max(0,runWave)*.58+kick*.12+dive*.65;
-  u.legR.knee.rotation.x=Math.max(0,runCounter)*.58+kick*.24+dive*.52;
+  u.legL.knee.rotation.x=Math.max(0,runWave)*.58+kick*.12+follow*.2+dive*.65+(u.keeper?idle*.16:0);
+  u.legR.knee.rotation.x=Math.max(0,runCounter)*.58+kick*.24+follow*.08+dive*.52+(u.keeper?idle*.16:0);
   u.legL.ankle.rotation.x=kick*.18-run*.08;
   u.legR.ankle.rotation.x=-kick*.12-run*.08;
   if(u.head) {
