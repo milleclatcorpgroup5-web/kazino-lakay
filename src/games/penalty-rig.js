@@ -36,7 +36,7 @@ function measureRig(scene) {
   if (!Number.isFinite(height) || height < 0.2) {
     throw new Error('The rigged footballer model has an invalid height.');
   }
-  return { scale: 1.96 / height, minY: bounds.min.y };
+  return { height, minY: bounds.min.y };
 }
 
 export async function loadPenaltyRigTemplate() {
@@ -132,8 +132,14 @@ export async function attachPenaltyRig(actor, { isActive = () => true } = {}) {
     const keeper = Boolean(actor.userData.keeper);
     const rig = SkeletonUtils.clone(template.scene);
     rig.name = keeper ? 'PenaltyGoalkeeperRig' : 'PenaltyStrikerRig';
-    rig.scale.multiplyScalar(template.fit.scale);
-    rig.position.y = -template.fit.minY * template.fit.scale;
+    const targetHeight=Number(actor.userData.targetHeight)||(keeper?1.90:1.70);
+    // Account for the procedural actor's outer scale so the final world-space
+    // skinned model height is exactly 1.70 m (shooter) or 1.90 m (keeper).
+    const rigScale=targetHeight/(template.fit.height*Math.max(.0001,actor.scale.y));
+    rig.scale.setScalar(rigScale);
+    rig.position.y=-template.fit.minY*rigScale;
+    actor.position.y=0;
+    actor.userData.groundOffset=0;
     rig.traverse((object) => {
       if (!object.isMesh) return;
       // Give each player its own disposable geometry while skeleton data stays cloned.
