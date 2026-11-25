@@ -121,16 +121,16 @@ function makePitchGrassTexture() {
   // keeping every render visually consistent without a downloaded texture.
   let seed=90210;
   const rand=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};
-  for(let i=0;i<36000;i++) {
+  for(let i=0;i<56000;i++) {
     const x=rand()*size, y=rand()*size, light=rand()>.52;
     ctx.strokeStyle=light?'rgba(174,211,133,.20)':'rgba(2,38,17,.24)';
-    ctx.lineWidth=.45+rand()*.8;
+    ctx.lineWidth=.55+rand()*.95;
     ctx.beginPath();
     ctx.moveTo(x,y);
     ctx.lineTo(x+(rand()-.5)*2.8,y-2-rand()*6);
     ctx.stroke();
   }
-  for(let i=0;i<5200;i++) {
+  for(let i=0;i<7600;i++) {
     const x=rand()*size, y=rand()*size;
     ctx.fillStyle=rand()>.5?'rgba(197,219,143,.13)':'rgba(0,31,13,.14)';
     ctx.fillRect(x,y,1+rand()*2,1+rand()*2);
@@ -171,7 +171,7 @@ function addStadium(scene,accent,options={}) {
     const points=[];
     for(let i=0;i<=48;i++){
       const angle=Math.PI*.08+(Math.PI*.84*i/48);
-      points.push(new THREE.Vector3(Math.cos(angle)*1.72,-.126,spotZ+direction*Math.sin(angle)*1.72));
+      points.push(new THREE.Vector3(Math.cos(angle)*.99,-.126,spotZ+direction*Math.sin(angle)*.99));
     }
     scene.add(new THREE.Line(
       new THREE.BufferGeometry().setFromPoints(points),
@@ -188,7 +188,7 @@ function addStadium(scene,accent,options={}) {
   // Halfway line, centre circle and centre mark.
   paintX(left,right,centreZ);
   const centreRing=new THREE.Mesh(
-    new THREE.RingGeometry(1.08,1.115,72),
+    new THREE.RingGeometry(.98,1.015,72),
     new THREE.MeshBasicMaterial({color:lineColor,side:THREE.DoubleSide})
   );
   centreRing.rotation.x=-Math.PI/2;
@@ -198,7 +198,7 @@ function addStadium(scene,accent,options={}) {
 
   // Matching penalty areas, six-yard boxes, penalty spots and D-arcs at both ends.
   const addPenaltyEnd=(goalZ,direction)=>{
-    const penaltyWidth=7.4, penaltyDepth=3.5, sixWidth=3.5, sixDepth=1.65;
+    // FIFA field ratios mapped to this scene's playable length (11.35 units):\n    // penalty area: 40.32% of field width and 15.71% of field length;\n    // six-yard box: 18.32% of field width and 5.24% of field length.\n    const penaltyWidth=5.85, penaltyDepth=1.78, sixWidth=2.66, sixDepth=.595;
     const penaltyFront=goalZ+direction*penaltyDepth;
     const sixFront=goalZ+direction*sixDepth;
     paintX(-penaltyWidth/2,penaltyWidth/2,penaltyFront);
@@ -207,7 +207,7 @@ function addStadium(scene,accent,options={}) {
     paintX(-sixWidth/2,sixWidth/2,sixFront);
     paintZ(-sixWidth/2,goalZ,sixFront);
     paintZ(sixWidth/2,goalZ,sixFront);
-    const spotZ=goalZ+direction*2.9;
+    const spotZ=goalZ+direction*1.19;
     sphere(scene,0,-.105,spotZ,.065,'#ffffff',16);
     addArc(spotZ,direction);
   };
