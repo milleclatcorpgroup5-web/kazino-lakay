@@ -399,6 +399,12 @@ export function mountGame3D(container, gameId, options={}) {
     // Penalty Lakay is a native 3D experience only: never substitute a 2D imitation.
     if(gameId==='penalty') {
       container.dataset.sceneError='webgl-unavailable';
+      container.querySelector('.penalty-scene-unavailable')?.remove();
+      const notice=document.createElement('div');
+      notice.className='penalty-scene-unavailable';
+      notice.setAttribute('role','alert');
+      notice.innerHTML='<strong>PENALTY LAKAY 3D PA KA DEMARE</strong><span>Aktive WebGL ak akselerasyon grafik nan navigatè a, epi relouvri jwèt la.</span>';
+      container.appendChild(notice);
       container.dispatchEvent(new CustomEvent('penalty-scene-error',{detail:{message:String(error?.message||error)}}));
     }
     return () => {};
