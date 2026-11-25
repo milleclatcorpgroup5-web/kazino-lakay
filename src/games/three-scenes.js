@@ -512,14 +512,24 @@ function addStadium(scene,accent,options={}) {
   const striker=addFootballer(scene,2.2,1.5,SHOOTER_KIT.shirt,false,options.playerName||team.player?.name||'Lionel Messi',SHOOTER_KIT.number,SHOOTER_KIT.shorts,1.70,SHOOTER_KIT);
   striker.rotation.y=-.5;
 
-  // 22 cm ball, centred on the origin with its bottom touching the turf.
-  const ballGroup=new THREE.Group(); ballGroup.position.set(...BALL.position); scene.add(ballGroup);
+  // 22 cm match ball, lifted 5 mm to avoid z-fighting with the pitch.
+  const ballGroup=new THREE.Group();
+  ballGroup.name='PenaltyFootball';
+  ballGroup.position.set(BALL.position[0],BALL.position[1]+.005,BALL.position[2]);
+  ballGroup.renderOrder=6;
+  scene.add(ballGroup);
   const ballMaps=makePenaltyBallMaps();
-  const ballMat=new THREE.MeshStandardMaterial({map:ballMaps.map,normalMap:ballMaps.normalMap,roughness:.48,metalness:0});
-  makeBodyPart(ballGroup,new THREE.SphereGeometry(BALL.radius,48,32),ballMat,[0,0,0]);
-  const shadow=new THREE.Mesh(new THREE.CircleGeometry(.17,24),
-    new THREE.MeshBasicMaterial({color:'#06130b',transparent:true,opacity:.38}));
-  shadow.rotation.x=-Math.PI/2; shadow.position.set(0,-.102,0); scene.add(shadow);
+  const ballMat=new THREE.MeshStandardMaterial({map:ballMaps.map,normalMap:ballMaps.normalMap,roughness:.56,metalness:0});
+  const ballMesh=makeBodyPart(ballGroup,new THREE.SphereGeometry(BALL.radius,48,32),ballMat,[0,0,0]);
+  ballMesh.name='PenaltyFootballMesh';
+  ballMesh.frustumCulled=false;
+  const shadow=new THREE.Mesh(new THREE.CircleGeometry(.17,32),
+    new THREE.MeshBasicMaterial({color:'#06130b',transparent:true,opacity:.25,depthWrite:false,toneMapped:false}));
+  shadow.name='PenaltyFootballContactShadow';
+  shadow.rotation.x=-Math.PI/2;
+  shadow.position.set(0,.006,0);
+  shadow.renderOrder=5;
+  scene.add(shadow);
 
   return {ball:ballGroup,striker,keeper,penaltySpotZ:spotZ,goalLineZ};
 }
@@ -648,7 +658,12 @@ export function mountGame3D(container, gameId, options={}) {
     const scene=new THREE.Scene();scene.background=new THREE.Color(bg);
     scene.fog=new THREE.Fog(bg,gameId==='penalty'?48:9,gameId==='penalty'?105:24);
     const camera=new THREE.PerspectiveCamera(gameId==='penalty'?28:42,1,.1,180);
-    if(gameId==='penalty'){camera.position.set(.3,2.2,12);camera.lookAt(0,1.2,-11);}else{camera.position.set(0,4.8,9.6);camera.lookAt(0,.45,0);}
+    if(gameId==='penalty'){
+      // Lower the sight line so the ball at the penalty spot stays inside the
+      // tablet's landscape viewport, while retaining the full goal frame.
+      camera.position.set(.3,1.7,12);
+      camera.lookAt(0,.1,-11);
+    }else{camera.position.set(0,4.8,9.6);camera.lookAt(0,.45,0);}
     // Android tablets can reject a high-performance/antialiased context even when
     // WebGL2 is available. Start with a conservative mobile context and retry once
     // with the browser's default GPU selection if the first context cannot be made.
