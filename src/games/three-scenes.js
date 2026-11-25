@@ -74,7 +74,7 @@ function addCrowd(scene,accent) {
   const crowdGeo=new THREE.SphereGeometry(.055,7,6);
   const palette=['#d9e1ea','#b8c5d4','#e7c9a3','#4c78a8','#d84d59','#e2c65e','#f2f4f5','#17253a'];
   const mats=palette.map(color=>material(color,.94,.01));
-  const batches=mats.map(mat=>new THREE.InstancedMesh(crowdGeo,mat,420));
+  const batches=mats.map(mat=>new THREE.InstancedMesh(crowdGeo,mat,600));
   batches.forEach(mesh=>{mesh.count=0;mesh.castShadow=false;mesh.receiveShadow=false;scene.add(mesh);});
   for(let tier=0;tier<14;tier++) for(let seat=0;seat<300;seat++) {
     const across=(seat/299-.5)*47;
