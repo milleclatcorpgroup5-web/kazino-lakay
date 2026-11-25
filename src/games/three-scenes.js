@@ -109,11 +109,13 @@ function addCrowd(scene) {
     const zBase=upper?-26.2:-19.0;
     const rowZ=zBase-localRow*(upper?.66:.55);
     const rowY=(upper?4.45:2.05)+localRow*(upper?.27:.20);
-    for(let seat=0;seat<160;seat++) {
-      const x=(seat/159-.5)*58;
-      const curve=Math.pow(Math.abs(x)/29,2)*3.2;
+    for(let seat=0;seat<220;seat++) {
+      const x=(seat/219-.5)*118;
+      const edge=Math.min(1,Math.abs(x)/59);
+      const curve=Math.pow(edge,2.15)*7.5;
       const z=rowZ+curve;
-      const y=rowY+Math.sin(seat*1.73+row*.7)*.035;
+      const sideRise=Math.pow(edge,2.2)*1.15;
+      const y=rowY+sideRise+Math.sin(seat*1.73+row*.7)*.035;
       const scale=.82+(seat%5)*.035;
       const raised=(seat*13+row*7)%31===0;
       addPerson(x,y,z,scale,raised?1:0,(seat*7+row*11)%palette.length);
@@ -122,12 +124,12 @@ function addCrowd(scene) {
   for(const batch of batches) for(const mesh of Object.values(batch)) mesh.instanceMatrix.needsUpdate=true;
 
   // A dark separator rail/walkway divides the two seating tiers.
-  box(scene,0,4.02,-24.9,64,.16,.42,'#111a28');
-  box(scene,0,4.15,-24.9,64,.055,.12,'#657181');
+  box(scene,0,4.02,-24.9,124,.16,.42,'#111a28');
+  box(scene,0,4.15,-24.9,124,.055,.12,'#657181');
 
   // Eight black KL flags in front of the stands, with lightweight sine-wave motion.
   scene.userData.penaltyFlags=[];
-  const flagXs=[-27,-19,-10,-4.3,4.3,10,19,27];
+  const flagXs=[-48,-34,-20,-7,7,20,34,48];
   for(let i=0;i<flagXs.length;i++) {
     const x=flagXs[i], poleH=3.5, poleZ=-14.15-(i%2)*.25;
     cylinder(scene,x,poleH/2,poleZ,.025,.025,poleH,'#171b22',10);
@@ -144,7 +146,8 @@ function addCrowd(scene) {
   }
 
   // A thick dark support cuts through the right-hand stand, as in a real stadium.
-  box(scene,31,7.1,-25,.34,15,.5,'#101720',0,0,-.035);
+  box(scene,59,7.1,-25,.34,15,.5,'#101720',0,0,-.035);
+  box(scene,-59,7.1,-25,.34,15,.5,'#101720',0,0,.035);
 }
 
 function addWalkwayPeople(scene) {
@@ -177,65 +180,72 @@ function addWalkwayPeople(scene) {
 }
 
 function addAdBoard(scene) {
-  const canvas=document.createElement('canvas'); canvas.width=4096; canvas.height=256;
+  // Seamless 16:1 LED tile repeats across the full 120 m board.
+  const canvas=document.createElement('canvas'); canvas.width=2048; canvas.height=128;
   const ctx=canvas.getContext('2d');
-  const grad=ctx.createLinearGradient(0,0,4096,0);
+  const grad=ctx.createLinearGradient(0,0,2048,0);
   grad.addColorStop(0,'#d4189a'); grad.addColorStop(.5,'#a51aaf'); grad.addColorStop(1,'#7a1fa2');
-  ctx.fillStyle=grad; ctx.fillRect(0,0,4096,256);
-  const drawLogo=(x)=>{
-    ctx.save(); ctx.translate(x,128);
-    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.moveTo(-92,-64); ctx.lineTo(0,-94); ctx.lineTo(92,-64); ctx.lineTo(75,52); ctx.lineTo(0,94); ctx.lineTo(-75,52); ctx.closePath(); ctx.fill();
-    ctx.fillStyle='#8c1a9b'; ctx.font='900 62px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('KL',0,0);
-    ctx.restore();
-  };
-  drawLogo(310); drawLogo(3786);
-  ctx.fillStyle='#ffffff'; ctx.font='900 78px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillText('KAZINO LAKAY',760,128); ctx.fillText('KAZINO LAKAY',3330,128);
-  ctx.fillStyle='#b6ff3d'; ctx.font='900 104px Arial'; ctx.letterSpacing='12px';
-  ctx.fillText('PENALTY LAKAY',2048,128);
+  ctx.fillStyle=grad; ctx.fillRect(0,0,2048,128);
+  ctx.fillStyle='#ffffff'; ctx.font='900 104px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('KAZINO LAKAY',500,64);
+  ctx.fillStyle='#b6ff3d'; ctx.font='900 104px Arial';
+  ctx.fillText('PENALTY LAKAY',1535,64);
   const tex=new THREE.CanvasTexture(canvas); tex.colorSpace=THREE.SRGBColorSpace;
+  tex.wrapS=THREE.RepeatWrapping; tex.wrapT=THREE.ClampToEdgeWrapping;
+  tex.repeat.set(7.5,1); tex.anisotropy=4;
   const boardMat=new THREE.MeshBasicMaterial({map:tex,side:THREE.DoubleSide,toneMapped:false});
-  const board=new THREE.Mesh(new THREE.PlaneGeometry(70,.95),boardMat);
-  board.position.set(0,.475,-14.5); scene.add(board);
-  // Side returns close the scene edges and carry the same LED artwork.
+  const board=new THREE.Mesh(new THREE.PlaneGeometry(120,.95),boardMat);
+  board.position.set(0,.475,-14.5); board.renderOrder=2; scene.add(board);
   for(const side of [-1,1]) {
     const ret=new THREE.Mesh(new THREE.PlaneGeometry(5,.95),boardMat);
-    ret.position.set(side*35,.475,-12.0);
-    ret.rotation.y=side*Math.PI/2; scene.add(ret);
+    ret.position.set(side*59.8,.475,-12.0);
+    ret.rotation.y=side*Math.PI/2; ret.renderOrder=2; scene.add(ret);
   }
-  // No magenta point light: it previously created an unwanted pink pool on the pitch.
+  const edge=new THREE.Mesh(new THREE.BoxGeometry(120,.025,.035),
+    new THREE.MeshBasicMaterial({color:'#f5caff',toneMapped:false}));
+  edge.position.set(0,.965,-14.49); edge.renderOrder=3; scene.add(edge);
   return board;
 }
 
 function addStadiumBackdrop(scene) {
-  // Opaque navy wall directly behind the goal net; it prevents the crowd showing through.
-  const wall=new THREE.Mesh(new THREE.PlaneGeometry(70,2.4),
-    new THREE.MeshBasicMaterial({color:0x1b2a8f,side:THREE.DoubleSide,toneMapped:false}));
-  // Start the blue wall just above the LED board so both layers remain visible.
-  wall.position.set(0,2.15,-12.84); scene.add(wall);
-  const strip=new THREE.Mesh(new THREE.PlaneGeometry(70,.25),
+  const wall=new THREE.Mesh(new THREE.PlaneGeometry(120,2.4),
+    new THREE.MeshBasicMaterial({color:0x14206e,side:THREE.DoubleSide,toneMapped:false}));
+  wall.position.set(0,2.15,-12.84); wall.renderOrder=1; scene.add(wall);
+  const strip=new THREE.Mesh(new THREE.PlaneGeometry(120,.25),
     new THREE.MeshBasicMaterial({color:0xf5f7ff,side:THREE.DoubleSide,toneMapped:false}));
-  strip.position.set(0,3.475,-12.83); scene.add(strip);
-
-  // Small night-match stewards and photographers occupy the walkway behind the boards.
+  strip.position.set(0,3.475,-12.83); strip.renderOrder=1; scene.add(strip);
   addWalkwayPeople(scene);
 
-  // Stadium roof edge, diagonal steel beams and cool-white floodlights.
-  box(scene,0,14.2,-32,72,.65,2.2,'#090f19');
-  for(let i=0;i<2;i++) {
-    const beam=box(scene,-28+i*13,10.8,-28, .42,18,.55,'#202a36');
-    beam.rotation.z=i===0?-.48:.34;
+  // Dark roof canopy and structural beams fill the upper frame and both corners.
+  const roof=new THREE.Mesh(new THREE.PlaneGeometry(130,18),
+    new THREE.MeshStandardMaterial({color:'#101722',roughness:.92,metalness:.08,side:THREE.DoubleSide}));
+  roof.position.set(0,15.2,-34); roof.rotation.x=.12; scene.add(roof);
+  for(const [x,angle] of [[-54,-.42],[42,.34]]) {
+    const beam=box(scene,x,10.5,-30,.48,20,.62,'#252f3d'); beam.rotation.z=angle;
   }
-  for(let i=0;i<10;i++) {
-    const x=-29+i*6.45;
-    const bank=box(scene,x,11.6,-29,2.0,.24,.65,'#dce8f4');
-    bank.material.emissive=new THREE.Color('#dce8f4'); bank.material.emissiveIntensity=.9;
-    const light=new THREE.PointLight(0xdceaff,24,42);
-    light.position.set(x,10.9,-27.8); scene.add(light);
+
+  // Additive radial floodlight sprites replace the old solid rectangular banks.
+  const glowCanvas=document.createElement('canvas'); glowCanvas.width=256; glowCanvas.height=256;
+  const gctx=glowCanvas.getContext('2d');
+  const radial=gctx.createRadialGradient(128,128,4,128,128,124);
+  radial.addColorStop(0,'rgba(238,248,255,1)');
+  radial.addColorStop(.12,'rgba(225,241,255,.82)');
+  radial.addColorStop(.38,'rgba(190,220,255,.28)');
+  radial.addColorStop(1,'rgba(170,205,255,0)');
+  gctx.fillStyle=radial; gctx.fillRect(0,0,256,256);
+  const glowTexture=new THREE.CanvasTexture(glowCanvas);
+  const glowMaterial=new THREE.SpriteMaterial({map:glowTexture,color:0xdceaff,transparent:true,
+    opacity:.82,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false});
+  for(let i=0;i<8;i++) {
+    const x=-56+i*16;
+    const sprite=new THREE.Sprite(glowMaterial);
+    sprite.position.set(x,10.6,-28.8); sprite.scale.set(8.5,8.5,1);
+    sprite.renderOrder=4; scene.add(sprite);
+    const light=new THREE.PointLight(0xdceaff,13,34);
+    light.position.set(x,9.7,-27.5); scene.add(light);
   }
-  // Dark night sky; the scene background is deliberately not brightened.
   scene.background=new THREE.Color('#050a16');
-  scene.fog=new THREE.Fog('#050a16',55,125);
+  scene.fog=new THREE.Fog('#050a16',75,155);
 }
 
 function makePitchGrassTexture() {
@@ -365,8 +375,8 @@ function addStadium(scene,accent,options={}) {
   const PENALTY={width:40.32,depth:16.5,sixWidth:18.32,sixDepth:5.5,arcRadius:9.15};
   const BALL={radius:.11,position:[0,.11,0]};
   const goalLineZ=GOAL.lineZ, spotZ=0;
-  const pitchWidth=80;
-  const cropNearZ=9.5, pitchDepth=60, pitchCenterZ=(cropNearZ+goalLineZ)/2;
+  const pitchWidth=100;
+  const cropNearZ=24.0, pitchDepth=70, pitchCenterZ=(cropNearZ+goalLineZ)/2;
 
   const pitch=new THREE.Mesh(
     new THREE.PlaneGeometry(pitchWidth,pitchDepth),
@@ -659,7 +669,7 @@ export function mountGame3D(container, gameId, options={}) {
     renderer.domElement.className='three-scene-canvas';renderer.domElement.setAttribute('aria-hidden','true');
     container.appendChild(renderer.domElement);
     addLights(scene,accent);
-    const floor= new THREE.Mesh(new THREE.PlaneGeometry(gameId==='penalty'?80:22,gameId==='penalty'?60:22),material(bg,.92,0));floor.rotation.x=-Math.PI/2;floor.position.y=gameId==='penalty'?-.22:-.42;floor.receiveShadow=true;scene.add(floor);
+    const floor= new THREE.Mesh(new THREE.PlaneGeometry(gameId==='penalty'?100:22,gameId==='penalty'?70:22),material(bg,.92,0));floor.rotation.x=-Math.PI/2;floor.position.y=gameId==='penalty'?-.22:-.42;floor.receiveShadow=true;scene.add(floor);
     const stage=buildScene(scene,gameId,accent,secondary,options);
     const ring=gameId==='penalty'?null:torus(scene,0,-.29,0,4.1,.025,accent);if(ring){ring.material.transparent=true;ring.material.opacity=.45;}
     const labelGroup=new THREE.Group();scene.add(labelGroup);
