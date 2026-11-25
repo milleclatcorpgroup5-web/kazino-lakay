@@ -64,8 +64,8 @@ function makeBodyPart(parent,geometry,mat,pos,rot=[0,0,0]) {
   const mesh=new THREE.Mesh(geometry,mat); mesh.position.set(...pos); mesh.rotation.set(...rot);
   mesh.castShadow=true; mesh.receiveShadow=true; parent.add(mesh); return mesh;
 }
-function addFootballer(scene,x,z,shirt,keeper=false,name='PLAYER',number=10,shortColor='#172d4d',targetHeight=keeper?1.90:1.70) {
-  const athlete=createPenaltyAthlete({x,z,shirt,keeper,name,number,shortColor,targetHeight});
+function addFootballer(scene,x,z,shirt,keeper=false,name='PLAYER',number=10,shortColor='#172d4d',targetHeight=keeper?1.90:1.70,kit={}) {
+  const athlete=createPenaltyAthlete({x,z,shirt,keeper,name,number,shortColor,targetHeight,kit});
   scene.add(athlete);
   return athlete;
 }
@@ -505,10 +505,12 @@ function addStadium(scene,accent,options={}) {
   // Backdrop and LED board are added before this net so all net strands remain behind the goal.
 
   // Players are positioned exactly as specified; each visual is fitted to real height.
-  const keeper=addFootballer(scene,0,goalLineZ,'#2772c8',true,options.keeperName||'ANGELO PERUZZI',1,'#18253a',1.90);
+  const KEEPER_KIT={shirt:'#3a3d42',sleeves:'#4a4e55',shorts:'#1b1d21',socks:'#2a2d31',gloves:'#2a2d31',glovesStrap:'#8a8f98',boots:'#111111',bootsAccent:'#19d3e6',skin:'#d9a37a',hair:'#3b2a1a',socksStripe:'#8a8f98',beard:'stubble'};
+  const SHOOTER_KIT={shirt:'#c8102e',shirtTrim:'#ffffff',shorts:'#c8102e',shortsStripe:'#ffffff',socks:'#c8102e',socksStripe:'#ffffff',boots:'#f3ead2',bootsAccent:'#d4a82a',skin:'#8a5a3c',hair:'#111111',beard:'stubble',number:8,name:'FERNANDES'};
+  const keeper=addFootballer(scene,.4,-10.8,KEEPER_KIT.shirt,true,options.keeperName||'ANGELO PERUZZI',1,KEEPER_KIT.shorts,1.90,KEEPER_KIT);
   keeper.rotation.y=0;
-  const striker=addFootballer(scene,2,1.5,shirt,false,options.playerName||team.player?.name||'LIONEL MESSI',numberForTeam(team),shorts,1.70);
-  striker.rotation.y=Math.PI;
+  const striker=addFootballer(scene,-1.3,1.3,SHOOTER_KIT.shirt,false,options.playerName||team.player?.name||SHOOTER_KIT.name,numberForTeam(team)||SHOOTER_KIT.number,SHOOTER_KIT.shorts,1.70,SHOOTER_KIT);
+  striker.rotation.y=.45;
 
   // 22 cm ball, centred on the origin with its bottom touching the turf.
   const ballGroup=new THREE.Group(); ballGroup.position.set(...BALL.position); scene.add(ballGroup);
