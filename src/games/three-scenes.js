@@ -411,9 +411,22 @@ export function mountGame3D(container, gameId, options={}) {
     scene.fog=new THREE.Fog(bg,9,24);
     const camera=new THREE.PerspectiveCamera(gameId==='penalty'?42:42,1,.1,100);
     if(gameId==='penalty'){camera.position.set(2.7,3.05,8.9);camera.lookAt(0,1.0,-3.25);}else{camera.position.set(0,4.8,9.6);camera.lookAt(0,.45,0);}
-    renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:'high-performance'});
+    // Android tablets can reject a high-performance/antialiased context even when
+    // WebGL2 is available. Start with a conservative mobile context and retry once
+    // with the browser's default GPU selection if the first context cannot be made.
+    const isMobileGpu=window.innerWidth<=900 || /Android|iPhone|iPad/i.test(navigator.userAgent||'');
+    try {
+      renderer=new THREE.WebGLRenderer({
+        antialias:!isMobileGpu, alpha:false,
+        powerPreference:isMobileGpu?'low-power':'high-performance',
+        failIfMajorPerformanceCaveat:false, stencil:false, depth:true
+      });
+    } catch(firstContextError) {
+      console.warn('[Kazino Lakay 3D] First WebGL2 context attempt failed; retrying with browser defaults.',firstContextError);
+      renderer=new THREE.WebGLRenderer({antialias:false,alpha:false,failIfMajorPerformanceCaveat:false,stencil:false,depth:true});
+    }
     // Keep mobile GPU load bounded while preserving extra detail on larger screens.
-    const renderCap=window.innerWidth<=600?1.35:1.7;
+    const renderCap=window.innerWidth<=600?1.15:1.7;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,renderCap));
     renderer.outputColorSpace=THREE.SRGBColorSpace;
     renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.16;
@@ -507,7 +520,15 @@ export function mountGame3D(container, gameId, options={}) {
       const notice=document.createElement('div');
       notice.className='penalty-scene-unavailable';
       notice.setAttribute('role','alert');
-      notice.innerHTML='<strong>PENALTY LAKAY 3D PA KA DEMARE</strong><span>Aktive WebGL ak akselerasyon grafik nan navigatè a, epi relouvri jwèt la.</span>';
+      const detail=String(error?.message||error||'Erè enkoni');
+      const webglRelated=/webgl|context|gpu|shader|renderer/i.test(detail);
+      notice.innerHTML='<strong>PENALTY LAKAY 3D PA KA DEMARE</strong><span>' +
+        (webglRelated
+          ? 'Navigatè a pa rive kreye kontèks WebGL2 la. Eseye dènye vèsyon Chrome oswa verifye sipò WebGL2 sou aparèy la.'
+          : 'Gen yon erè pandan jwèt 3D a t ap prepare. Sa pa nesesèman yon pwoblèm akselerasyon grafik.') +
+        '</span><small class="penalty-scene-error-detail"></small>';
+      const detailNode=notice.querySelector('.penalty-scene-error-detail');
+      if(detailNode) detailNode.textContent='Detay teknik: '+detail.slice(0,180);
       container.appendChild(notice);
       container.dispatchEvent(new CustomEvent('penalty-scene-error',{detail:{message:String(error?.message||error)}}));
     }
