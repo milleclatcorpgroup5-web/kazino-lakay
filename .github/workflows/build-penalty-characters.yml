@@ -45,7 +45,7 @@ jobs:
 
       - name: Generate rigged striker GLB
         run: |
-          npx --yes "ara3d@$ARA3D_VERSION" export --params characters/penalty-shooter.json --detail medium --animations idle,locomotion,sports --out /tmp/penalty-shooter
+          npx --yes "ara3d@$ARA3D_VERSION" export --params characters/penalty-shooter.json --detail medium --animations idle,walk,run,kick_front,cheer --out /tmp/penalty-shooter
           mkdir -p public/models
           MODEL="$(find /tmp/penalty-shooter -type f -name '*.glb' -print -quit)"
           test -n "$MODEL"
@@ -54,7 +54,7 @@ jobs:
 
       - name: Generate rigged goalkeeper GLB
         run: |
-          npx --yes "ara3d@$ARA3D_VERSION" export --params characters/penalty-keeper.json --detail medium --animations idle,locomotion,sports --out /tmp/penalty-keeper
+          npx --yes "ara3d@$ARA3D_VERSION" export --params characters/penalty-keeper.json --detail medium --animations idle,walk,run,kick_front,cheer --out /tmp/penalty-keeper
           MODEL="$(find /tmp/penalty-keeper -type f -name '*.glb' -print -quit)"
           test -n "$MODEL"
           cp "$MODEL" public/models/penalty-keeper.glb
