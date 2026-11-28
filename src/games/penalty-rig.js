@@ -190,11 +190,12 @@ export async function attachPenaltyRig(actor, { isActive = () => true } = {}) {
   }
 }
 
-export function getPenaltyRigMode({ run = 0, kick = 0, dive = 0, side = 0, keeper = false } = {}) {
+export function getPenaltyRigMode({ run = 0, kick = 0, dive = 0, side = 0, keeper = false, celebrate = 0 } = {}) {
   if (dive > 0.2) return side < 0 ? 'diveLeft' : 'diveRight';
   if (kick > 0.32) return 'kick';
+  if (celebrate > 0.2) return 'celebrate';
   if (run > 0.12) return 'run';
-  return keeper ? 'keeperReady' : 'walk';
+  return keeper ? 'keeperReady' : 'idle';
 }
 
 const RIG_CLIP_PREFERENCES = Object.freeze({

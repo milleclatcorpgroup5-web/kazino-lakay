@@ -2,25 +2,30 @@ import assert from 'node:assert/strict';
 import { animatePenaltyAthlete } from '../src/games/penalty-athlete.js';
 import { getPenaltyRigMode, resolvePenaltyRigClip } from '../src/games/penalty-rig.js';
 
-assert.equal(getPenaltyRigMode(), 'walk', 'The striker must begin in a natural walk cycle.');
+assert.equal(getPenaltyRigMode(), 'idle', 'The striker must stand in a natural idle cycle before the penalty.');
 assert.equal(getPenaltyRigMode({keeper:true}), 'keeperReady', 'The goalkeeper must begin in a ready stance.');
 assert.equal(getPenaltyRigMode({run:1}), 'run', 'The striker must play a run clip during the approach.');
 assert.equal(getPenaltyRigMode({kick:.8}), 'kick', 'The strike must select a one-shot action.');
+assert.equal(getPenaltyRigMode({celebrate:1}), 'celebrate', 'A goal must select the celebration clip.');
 assert.equal(getPenaltyRigMode({dive:.9,run:1,side:-1}), 'diveLeft', 'A left goalkeeper dive must take priority over locomotion.');
 assert.equal(getPenaltyRigMode({dive:.9,run:1,side:1}), 'diveRight', 'A right goalkeeper dive must take priority over locomotion.');
 
+const idle={name:'Idle'};
 const walk={name:'Walk'};
 const ready={name:'GoalkeeperReady'};
 const run={name:'Run'};
 const soccerKick={name:'ShootFootball'};
 const diveLeft={name:'GoalkeeperDiveLeft'};
 const diveRight={name:'GoalkeeperDiveRight'};
-assert.equal(resolvePenaltyRigClip(new Map([['walk',walk]]),'walk'),walk,'Prefer the walk cycle for the striker.');
+const cheer={name:'Cheer'};
+assert.equal(resolvePenaltyRigClip(new Map([['idle',idle]]),'idle'),idle,'Prefer the natural idle cycle for the stationary striker.');
+assert.equal(resolvePenaltyRigClip(new Map([['walk',walk]]),'walk'),walk,'Retain walk clip support as a locomotion fallback.');
 assert.equal(resolvePenaltyRigClip(new Map([['goalkeeperready',ready]]),'keeperReady'),ready,'Prefer a goalkeeper ready stance clip.');
 assert.equal(resolvePenaltyRigClip(new Map([['run',run]]),'run'),run,'Recognize the run-up clip.');
 assert.equal(resolvePenaltyRigClip(new Map([['shootfootball',soccerKick]]),'kick'),soccerKick,'Prefer the dedicated football strike clip.');
 assert.equal(resolvePenaltyRigClip(new Map([['goalkeeperdiveleft',diveLeft]]),'diveLeft'),diveLeft,'Recognize a left goalkeeper dive clip.');
 assert.equal(resolvePenaltyRigClip(new Map([['goalkeeperdiveright',diveRight]]),'diveRight'),diveRight,'Recognize a right goalkeeper dive clip.');
+assert.equal(resolvePenaltyRigClip(new Map([['cheer',cheer]]),'celebrate'),cheer,'Recognize the goal celebration clip.');
 
 const joint=()=>({rotation:{x:0,y:0,z:0}});
 function athlete(keeper=false) {
@@ -52,7 +57,7 @@ function assertFiniteRig(actor,label) {
 }
 const striker=athlete(false);
 animatePenaltyAthlete(striker,1.25);
-assertFiniteRig(striker,'Walking striker');
+assertFiniteRig(striker,'Idle striker');
 animatePenaltyAthlete(striker,1.5,{run:1,runPhase:Math.PI/2});
 assertFiniteRig(striker,'Run-up striker');
 assert.notEqual(striker.userData.armL.shoulder.rotation.x,striker.userData.armR.shoulder.rotation.x,'Arms must counter-swing during the run-up.');
@@ -63,4 +68,4 @@ const keeper=athlete(true);
 animatePenaltyAthlete(keeper,2.1,{dive:1,side:1});
 assertFiniteRig(keeper,'Goalkeeper dive');
 assert.ok(keeper.position.y >= 0,'Goalkeeper dive must not send the root below the pitch.');
-console.log('Penalty athlete rig validation passed (walk, run-up, kick follow-through and goalkeeper dive).');
+console.log('Penalty athlete rig validation passed (idle, run-up, kick, celebration selection and goalkeeper dive).');
