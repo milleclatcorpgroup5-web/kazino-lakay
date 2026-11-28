@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const models = [
-  { file:'public/models/penalty-shooter.glb', clips:['idle','walk','run','shootfootball','cheer'] },
-  { file:'public/models/penalty-keeper.glb', clips:['idle','walk','run','goalkeeperready','goalkeepercatch','goalkeeperdiveleft','goalkeeperdiveright','goalkeeperlowdiveleft','goalkeeperlowdiveright'] }
+  { file: 'public/models/penalty-shooter.glb', clips: ['idle','walk','run','shootfootball','cheer'] },
+  { file: 'public/models/penalty-keeper.glb', clips: ['idle','walk','run','goalkeeperready','goalkeepercatch','goalkeeperdiveleft','goalkeeperdiveright','goalkeeperlowdiveleft','goalkeeperlowdiveright'] }
 ];
 const normalize = value => String(value || '').split('|').pop().replace(/[^a-z0-9]/gi,'').toLowerCase();
 
@@ -22,6 +22,7 @@ function readGlb(file) {
   }
   throw new Error(file+' has no JSON glTF chunk');
 }
+
 for(const model of models) {
   const doc=readGlb(model.file);
   const primitives=(doc.meshes||[]).flatMap(mesh=>mesh.primitives||[]);
